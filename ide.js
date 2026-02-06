@@ -20,15 +20,13 @@ function initEditor() {
         roundedSelection: false,
         cursorStyle: 'line',
         glyphMargin: true,
-        readOnly: false // Explicitly ensure it is NOT read-only
+        readOnly: false
     });
 
-    // Update cursor position in status bar
     editor.onDidChangeCursorPosition((e) => {
         document.getElementById('cursor-pos').innerText = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
     });
 
-    // Load last saved code
     chrome.storage.local.get(['saved_deluge_code'], (result) => {
         if (result.saved_deluge_code) {
             editor.setValue(result.saved_deluge_code);
@@ -36,9 +34,8 @@ function initEditor() {
         }
     });
 
-    log('System', 'Monaco Editor initialized successfully. Mode: Local');
+    log('System', 'Monaco Editor initialized successfully.');
 
-    // Auto-save on change
     let autoSaveTimeout;
     editor.onDidChangeModelContent(() => {
         clearTimeout(autoSaveTimeout);
@@ -49,15 +46,15 @@ function initEditor() {
             setTimeout(() => {
                 const syncStatusEl = document.getElementById('sync-status');
                 if (syncStatusEl.innerText === 'Auto-saved') {
-                    checkConnection(); // Restore connection status
+                    checkConnection();
                 }
             }, 2000);
         }, 1000);
     });
 
     setupEventHandlers();
-    checkConnection(); // Initial connection check
-    setInterval(checkConnection, 5000); // Heartbeat
+    checkConnection();
+    setInterval(checkConnection, 5000);
 }
 
 function checkConnection() {
@@ -66,7 +63,7 @@ function checkConnection() {
         const syncStatusEl = document.getElementById('sync-status');
 
         if (response && response.connected) {
-            statusEl.innerText = 'Connected: ' + (response.tabTitle || 'Zoho Tab');
+            statusEl.innerText = (response.isStandalone ? 'Found: ' : 'Connected: ') + (response.tabTitle || 'Zoho Tab');
             statusEl.style.color = '#4ec9b0';
             syncStatusEl.innerText = 'Connected';
         } else {
@@ -96,7 +93,6 @@ function setupEventHandlers() {
         if (result) updateConsole(result);
     });
 
-    // Panel tab switching
     document.querySelectorAll('.panel-header .tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.panel-header .tab').forEach(t => t.classList.remove('active'));
@@ -108,7 +104,6 @@ function setupEventHandlers() {
         });
     });
 
-    // Keyboard shortcuts
     window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
@@ -116,7 +111,6 @@ function setupEventHandlers() {
         }
     });
 
-    // Listen for console updates from background
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === 'IDE_CONSOLE_UPDATE') {
             updateConsole(request.data);
@@ -126,7 +120,6 @@ function setupEventHandlers() {
 
 function updateConsole(data) {
     const consoleOutput = document.getElementById('console-output');
-    // Simple deduplication or just append if changed
     if (consoleOutput.dataset.lastOutput !== data) {
         log('Zoho', data);
         consoleOutput.dataset.lastOutput = data;
@@ -144,25 +137,29 @@ function log(type, message) {
 }
 
 function pullFromZoho() {
-    log('System', 'Searching for active Zoho Deluge editor...');
+    log('System', 'Requesting code from Zoho editor...');
     chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, (response) => {
         if (response && response.code) {
             editor.setValue(response.code);
-            log('Success', 'Code pulled from Zoho tab.');
+            log('Success', 'Code pulled successfully.');
+        } else if (response && response.error) {
+            log('Error', response.error);
         } else {
-            log('Error', 'No Zoho Deluge editor found or tab not connected.');
+            log('Error', 'No Zoho Deluge editor found in the active tab.');
         }
     });
 }
 
 function pushToZoho() {
     const code = editor.getValue();
-    log('System', 'Pushing code to Zoho tab...');
+    log('System', 'Pushing code to Zoho editor...');
     chrome.runtime.sendMessage({ action: 'SET_ZOHO_CODE', code: code }, (response) => {
         if (response && response.success) {
-            log('Success', 'Code pushed to Zoho tab.');
+            log('Success', 'Code pushed successfully.');
+        } else if (response && response.error) {
+            log('Error', response.error);
         } else {
-            log('Error', 'Failed to push code. Ensure the Zoho tab is open and active.');
+            log('Error', 'Failed to push code. Is the Zoho tab active?');
         }
     });
 }
@@ -171,3 +168,10 @@ function saveLocally() {
     const code = editor.getValue();
     chrome.storage.local.set({ 'saved_deluge_code': code }, () => {
         log('Success', 'Code saved locally.');
+    });
+}
+
+// Compact UI for sidepanel mode
+if (window.location.search.includes('mode=sidepanel') || window.location.hash.includes('sidepanel')) {
+    document.documentElement.classList.add('sidepanel-mode');
+}
