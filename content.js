@@ -1,6 +1,8 @@
 // Content script to interact with Zoho Deluge editors
 // Handles bridge between extension context and page context (Main World)
 
+console.log('[ZohoIDE] Content script loaded in frame:', window.location.href);
+
 // 1. Inject the bridge script
 if (!document.getElementById('zoho-deluge-bridge')) {
     const script = document.createElement('script');
@@ -21,21 +23,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (event.data && event.data.type === 'FROM_PAGE' && event.data.action === request.action) {
                 clearTimeout(timeout);
                 window.removeEventListener('message', handler);
-                sendResponse(event.data.response);
+
+                const response = event.data.response;
+                if (response && (response.code !== undefined || response.success)) {
+                    // Success! Respond immediately
+                    sendResponse(response);
+                } else {
+                    // No editor in this frame.
+                    // If we are top frame, wait a bit to let other frames respond first.
+                    if (window === window.top) {
+                        setTimeout(() => {
+                            try { sendResponse({ error: 'No editor found in any frame' }); } catch(e) {}
+                        }, 1000);
+                    } else {
+                        // Subframe found nothing, just stay silent
+                    }
+                }
             }
         };
         window.addEventListener('message', handler);
 
         timeout = setTimeout(() => {
             window.removeEventListener('message', handler);
+            if (window === window.top) {
+                try { sendResponse({ error: 'Timeout waiting for editor' }); } catch(e) {}
+            }
         }, 1500);
 
         return true; // Keep channel open
     }
 
     if (request.action === 'INJECT_SIDE_PANEL') {
-        injectSidePanel();
-        sendResponse({ success: true });
+        if (window === window.top) {
+            injectSidePanel();
+            sendResponse({ success: true });
+        } else {
+            // Not top frame, don't respond or respond false
+            sendResponse({ success: false, error: 'Not top frame' });
+        }
+        return false;
     }
 });
 
@@ -53,17 +79,19 @@ function injectSidePanel() {
         return;
     }
 
+    console.log('[ZohoIDE] Injecting side panel into top frame');
+
     const container = document.createElement('div');
     container.id = 'zoho-ide-panel-container';
     container.style.cssText = `
         position: fixed;
         top: 0;
         right: 0;
-        width: 450px;
+        width: 500px;
         height: 100vh;
         z-index: 2147483647;
         background: #1e1e1e;
-        box-shadow: -5px 0 15px rgba(0,0,0,0.3);
+        box-shadow: -5px 0 15px rgba(0,0,0,0.5);
         display: flex;
         flex-direction: row;
         font-family: sans-serif;
@@ -72,13 +100,17 @@ function injectSidePanel() {
     const resizeHandle = document.createElement('div');
     resizeHandle.id = 'zoho-ide-resize-handle';
     resizeHandle.style.cssText = `
-        width: 6px;
+        width: 8px;
         cursor: ew-resize;
         background: #333;
         height: 100%;
         transition: background 0.2s;
         flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     `;
+    resizeHandle.innerHTML = '<div style="width:2px;height:20px;background:#666;border-radius:1px;"></div>';
     resizeHandle.onmouseover = () => { resizeHandle.style.background = '#007acc'; };
     resizeHandle.onmouseout = () => { resizeHandle.style.background = '#333'; };
 
@@ -93,6 +125,7 @@ function injectSidePanel() {
 
     const closeBtn = document.createElement('div');
     closeBtn.innerHTML = '×';
+    closeBtn.title = 'Close IDE';
     closeBtn.style.cssText = `
         position: absolute;
         left: -35px;
@@ -107,7 +140,8 @@ function injectSidePanel() {
         cursor: pointer;
         font-size: 24px;
         border-radius: 6px 0 0 6px;
-        box-shadow: -2px 2px 5px rgba(0,0,0,0.2);
+        box-shadow: -2px 2px 5px rgba(0,0,0,0.3);
+        z-index: 2147483647;
     `;
     closeBtn.onclick = () => {
         container.style.display = 'none';
@@ -127,13 +161,13 @@ function injectSidePanel() {
         startX = e.clientX;
         startWidth = container.offsetWidth;
         document.body.style.userSelect = 'none';
-        iframe.style.pointerEvents = 'none'; // Prevent iframe from capturing mouse
+        iframe.style.pointerEvents = 'none';
     };
 
     window.addEventListener('mousemove', (e) => {
         if (!isResizing) return;
         const width = startWidth + (startX - e.clientX);
-        if (width > 300 && width < window.innerWidth * 0.8) {
+        if (width > 300 && width < window.innerWidth * 0.9) {
             container.style.width = width + 'px';
         }
     });

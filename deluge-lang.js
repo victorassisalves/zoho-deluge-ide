@@ -1,6 +1,7 @@
 // Deluge Language Definition for Monaco Editor
 
 function registerDelugeLanguage() {
+    if (typeof monaco === 'undefined') return;
     if (monaco.languages.getLanguages().some(lang => lang.id === 'deluge')) {
         return; // Already registered
     }
@@ -14,7 +15,8 @@ function registerDelugeLanguage() {
         keywords: [
             'if', 'else', 'for', 'each', 'in', 'return', 'break', 'continue',
             'void', 'info', 'true', 'false', 'null', 'and', 'or', 'not',
-            'yield', 'as', 'distinct', 'sort', 'by', 'asc', 'desc', 'input'
+            'yield', 'as', 'distinct', 'sort', 'by', 'asc', 'desc', 'input',
+            'cancel', 'confirm'
         ],
 
         typeKeywords: [
@@ -31,14 +33,21 @@ function registerDelugeLanguage() {
 
         tokenizer: {
             root: [
-                [/[a-zA-Z_][a-zA-Z0-9_.]*/, {
+                // Identifiers and keywords
+                [/[a-zA-Z_][a-zA-Z0-9_]*/, {
                     cases: {
                         '@typeKeywords': 'keyword.type',
                         '@keywords': 'keyword',
                         '@default': 'variable'
                     }
                 }],
+
+                // Zoho namespaces
+                [/zoho\.[a-zA-Z0-9._]*/, 'keyword.zoho'],
+
                 { include: '@whitespace' },
+
+                // Delimiters and brackets
                 [/[{}()\[\]]/, '@brackets'],
                 [/@symbols/, {
                     cases: {
@@ -46,17 +55,23 @@ function registerDelugeLanguage() {
                         '@default': ''
                     }
                 }],
+
+                // Numbers
                 [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
                 [/\d+/, 'number'],
+
+                // Strings
                 [/[;,.]/, 'delimiter'],
                 [/"([^"\]|\.)*"/, 'string'],
                 [/'([^'\]|\.)*'/, 'string'],
             ],
+
             whitespace: [
                 [/[ \t\r\n]+/, 'white'],
                 [/\/\*/, 'comment', '@comment'],
                 [/\/\/.*$/, 'comment'],
             ],
+
             comment: [
                 [/[^\/*]+/, 'comment'],
                 [/\/\*/, 'comment', '@push'],
@@ -81,54 +96,103 @@ function registerDelugeLanguage() {
 
     const suggestions = [
         // Keywords
-        ...['if', 'else', 'for each', 'return', 'break', 'continue', 'info', 'true', 'false', 'null'].map(k => ({
+        ...['if', 'else', 'for each', 'return', 'break', 'continue', 'info', 'true', 'false', 'null', 'and', 'or', 'not', 'in', 'yield', 'as'].map(k => ({
             label: k, kind: monaco.languages.CompletionItemKind.Keyword, insertText: k
         })),
 
-        // Built-in Methods
-        { label: 'put', kind: monaco.languages.CompletionItemKind.Method, insertText: 'put(${1:key}, ${2:value})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, detail: 'Map: Add key-value pair' },
-        { label: 'get', kind: monaco.languages.CompletionItemKind.Method, insertText: 'get(${1:key})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, detail: 'Map/List: Get value' },
-        { label: 'add', kind: monaco.languages.CompletionItemKind.Method, insertText: 'add(${1:value})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, detail: 'List: Add element' },
-        { label: 'addAll', kind: monaco.languages.CompletionItemKind.Method, insertText: 'addAll(${1:list})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'size', kind: monaco.languages.CompletionItemKind.Method, insertText: 'size()' },
-        { label: 'isEmpty', kind: monaco.languages.CompletionItemKind.Method, insertText: 'isEmpty()' },
-        { label: 'keys', kind: monaco.languages.CompletionItemKind.Method, insertText: 'keys()' },
-        { label: 'values', kind: monaco.languages.CompletionItemKind.Method, insertText: 'values()' },
-        { label: 'clear', kind: monaco.languages.CompletionItemKind.Method, insertText: 'clear()' },
-        { label: 'remove', kind: monaco.languages.CompletionItemKind.Method, insertText: 'remove(${1:key})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'contains', kind: monaco.languages.CompletionItemKind.Method, insertText: 'contains(${1:substring})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'containsIgnoreCase', kind: monaco.languages.CompletionItemKind.Method, insertText: 'containsIgnoreCase(${1:substring})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'startsWith', kind: monaco.languages.CompletionItemKind.Method, insertText: 'startsWith(${1:prefix})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'endsWith', kind: monaco.languages.CompletionItemKind.Method, insertText: 'endsWith(${1:suffix})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'indexOf', kind: monaco.languages.CompletionItemKind.Method, insertText: 'indexOf(${1:substring})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'replaceAll', kind: monaco.languages.CompletionItemKind.Method, insertText: 'replaceAll(${1:regex}, ${2:replacement})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'substring', kind: monaco.languages.CompletionItemKind.Method, insertText: 'substring(${1:start}, ${2:end})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'toLowerCase', kind: monaco.languages.CompletionItemKind.Method, insertText: 'toLowerCase()' },
-        { label: 'toUpperCase', kind: monaco.languages.CompletionItemKind.Method, insertText: 'toUpperCase()' },
-        { label: 'trim', kind: monaco.languages.CompletionItemKind.Method, insertText: 'trim()' },
-        { label: 'length', kind: monaco.languages.CompletionItemKind.Method, insertText: 'length()' },
-        { label: 'toList', kind: monaco.languages.CompletionItemKind.Method, insertText: 'toList(${1:delimiter})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'toString', kind: monaco.languages.CompletionItemKind.Method, insertText: 'toString()' },
-        { label: 'toNumber', kind: monaco.languages.CompletionItemKind.Method, insertText: 'toNumber()' },
-        { label: 'toLong', kind: monaco.languages.CompletionItemKind.Method, insertText: 'toLong()' },
-        { label: 'toDecimal', kind: monaco.languages.CompletionItemKind.Method, insertText: 'toDecimal()' },
-        { label: 'toDate', kind: monaco.languages.CompletionItemKind.Method, insertText: 'toDate()' },
-        { label: 'addDay', kind: monaco.languages.CompletionItemKind.Method, insertText: 'addDay(${1:number})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'addMonth', kind: monaco.languages.CompletionItemKind.Method, insertText: 'addMonth(${1:number})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'addYear', kind: monaco.languages.CompletionItemKind.Method, insertText: 'addYear(${1:number})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+        // Collection Methods (Maps & Lists)
+        ...[
+            { label: 'put', detail: 'Map: Add key-value pair', insertText: 'put(${1:key}, ${2:value})' },
+            { label: 'get', detail: 'Map/List: Get value', insertText: 'get(${1:index/key})' },
+            { label: 'add', detail: 'List: Add element', insertText: 'add(${1:value})' },
+            { label: 'addAll', detail: 'List: Add all elements', insertText: 'addAll(${1:list})' },
+            { label: 'size', detail: 'Size of collection', insertText: 'size()' },
+            { label: 'isEmpty', detail: 'Check if empty', insertText: 'isEmpty()' },
+            { label: 'keys', detail: 'Map: Get keys', insertText: 'keys()' },
+            { label: 'values', detail: 'Map: Get values', insertText: 'values()' },
+            { label: 'clear', detail: 'Clear collection', insertText: 'clear()' },
+            { label: 'remove', detail: 'Remove element', insertText: 'remove(${1:index/key})' },
+            { label: 'containKey', detail: 'Map: Has key?', insertText: 'containKey(${1:key})' },
+            { label: 'containValue', detail: 'Map: Has value?', insertText: 'containValue(${1:value})' },
+            { label: 'intersect', detail: 'List: Intersection', insertText: 'intersect(${1:list})' },
+            { label: 'distinct', detail: 'List: Distinct elements', insertText: 'distinct()' },
+            { label: 'sort', detail: 'List: Sort', insertText: 'sort(${1:true/false})' }
+        ].map(s => ({ ...s, kind: monaco.languages.CompletionItemKind.Method, insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet })),
 
-        // Zoho Namespaces
-        { label: 'zoho.crm.getRecordById', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.crm.getRecordById("${1:Module}", ${2:ID});', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'zoho.crm.getRecords', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.crm.getRecords("${1:Module}");', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'zoho.crm.searchRecords', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.crm.searchRecords("${1:Module}", "(${2:Criteria})");', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'zoho.crm.createRecord', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.crm.createRecord("${1:Module}", ${2:Map});', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'zoho.crm.updateRecord', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.crm.updateRecord("${1:Module}", ${2:ID}, ${3:Map});', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'zoho.creator.getRecords', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.creator.getRecords("${1:Owner}", "${2:App}", "${3:View}", ${4:Criteria});', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'zoho.creator.createRecord', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.creator.createRecord("${1:Owner}", "${2:App}", "${3:Form}", ${4:Map});', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'zoho.books.getRecords', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.books.getRecords("${1:Module}", "${2:OrgID}");', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'zoho.currentdate', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'zoho.currentdate' },
-        { label: 'zoho.currenttime', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'zoho.currenttime' },
-        { label: 'zoho.loginuser', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'zoho.loginuser' },
+        // String Methods
+        ...[
+            { label: 'length', insertText: 'length()' },
+            { label: 'subString', insertText: 'subString(${1:start}, ${2:end})' },
+            { label: 'indexOf', insertText: 'indexOf(${1:substring})' },
+            { label: 'lastIndexOf', insertText: 'lastIndexOf(${1:substring})' },
+            { label: 'startsWith', insertText: 'startsWith(${1:prefix})' },
+            { label: 'endsWith', insertText: 'endsWith(${1:suffix})' },
+            { label: 'toLowerCase', insertText: 'toLowerCase()' },
+            { label: 'toUpperCase', insertText: 'toUpperCase()' },
+            { label: 'trim', insertText: 'trim()' },
+            { label: 'replaceFirst', insertText: 'replaceFirst(${1:search}, ${2:replace})' },
+            { label: 'replaceAll', insertText: 'replaceAll(${1:search}, ${2:replace})' },
+            { label: 'toList', insertText: 'toList(${1:delimiter})' },
+            { label: 'toNumber', insertText: 'toNumber()' },
+            { label: 'toDecimal', insertText: 'toDecimal()' },
+            { label: 'toLong', insertText: 'toLong()' },
+            { label: 'contains', insertText: 'contains(${1:substring})' },
+            { label: 'containsIgnoreCase', insertText: 'containsIgnoreCase(${1:substring})' },
+            { label: 'left', insertText: 'left(${1:count})' },
+            { label: 'right', insertText: 'right(${1:count})' },
+            { label: 'mid', insertText: 'mid(${1:start}, ${2:count})' },
+            { label: 'padLeft', insertText: 'padLeft(${1:totalLength}, ${2:padChar})' },
+            { label: 'padRight', insertText: 'padRight(${1:totalLength}, ${2:padChar})' },
+            { label: 'proper', insertText: 'proper()' },
+            { label: 'reverse', insertText: 'reverse()' }
+        ].map(s => ({ ...s, kind: monaco.languages.CompletionItemKind.Method, insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet })),
+
+        // Date Methods
+        ...[
+            { label: 'addDay', insertText: 'addDay(${1:number})' },
+            { label: 'addMonth', insertText: 'addMonth(${1:number})' },
+            { label: 'addYear', insertText: 'addYear(${1:number})' },
+            { label: 'addWeek', insertText: 'addWeek(${1:number})' },
+            { label: 'addHour', insertText: 'addHour(${1:number})' },
+            { label: 'addMinutes', insertText: 'addMinutes(${1:number})' },
+            { label: 'addSeconds', insertText: 'addSeconds(${1:number})' },
+            { label: 'toTime', insertText: 'toTime()' },
+            { label: 'toDate', insertText: 'toDate()' },
+            { label: 'getHour', insertText: 'getHour()' },
+            { label: 'getMinutes', insertText: 'getMinutes()' },
+            { label: 'getSeconds', insertText: 'getSeconds()' },
+            { label: 'getDay', insertText: 'getDay()' },
+            { label: 'getMonth', insertText: 'getMonth()' },
+            { label: 'getYear', insertText: 'getYear()' },
+            { label: 'getDayOfWeek', insertText: 'getDayOfWeek()' }
+        ].map(s => ({ ...s, kind: monaco.languages.CompletionItemKind.Method, insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet })),
+
+        // Global Built-in Functions
+        ...[
+            { label: 'info', insertText: 'info ${1:message};' },
+            { label: 'invokeurl', insertText: 'invokeurl\n[\n\turl: "${1:url}"\n\ttype: ${2:GET}\n];' },
+            { label: 'postUrl', insertText: 'postUrl("${1:url}", ${2:map});' },
+            { label: 'getUrl', insertText: 'getUrl("${1:url}");' },
+            { label: 'getUrlinfo', insertText: 'getUrlinfo("${1:url}", ${2:map});' },
+            { label: 'sendmail', insertText: 'sendmail\n[\n\tfrom: zoho.adminuser\n\tto: "${1:to}"\n\tsubject: "${2:subject}"\n\tmessage: "${3:message}"\n];' },
+            { label: 'openUrl', insertText: 'openUrl("${1:url}", "${2:same window}");' }
+        ].map(s => ({ ...s, kind: monaco.languages.CompletionItemKind.Function, insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet })),
+
+        // Zoho Namespaces & Variables
+        ...[
+            { label: 'zoho.currentdate', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'zoho.currentdate' },
+            { label: 'zoho.currenttime', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'zoho.currenttime' },
+            { label: 'zoho.loginuser', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'zoho.loginuser' },
+            { label: 'zoho.adminuser', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'zoho.adminuser' },
+            { label: 'zoho.crm.getRecordById', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.crm.getRecordById("${1:Module}", ${2:ID});' },
+            { label: 'zoho.crm.getRecords', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.crm.getRecords("${1:Module}");' },
+            { label: 'zoho.crm.searchRecords', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.crm.searchRecords("${1:Module}", "(${2:Criteria})");' },
+            { label: 'zoho.crm.createRecord', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.crm.createRecord("${1:Module}", ${2:Map});' },
+            { label: 'zoho.crm.updateRecord', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.crm.updateRecord("${1:Module}", ${2:ID}, ${3:Map});' },
+            { label: 'zoho.creator.getRecords', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.creator.getRecords("${1:Owner}", "${2:App}", "${3:View}", ${4:Criteria});' },
+            { label: 'zoho.creator.createRecord', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.creator.createRecord("${1:Owner}", "${2:App}", "${3:Form}", ${4:Map});' },
+            { label: 'zoho.books.getRecords', kind: monaco.languages.CompletionItemKind.Function, insertText: 'zoho.books.getRecords("${1:Module}", "${2:OrgID}");' }
+        ].map(s => ({ ...s, insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }))
     ];
 
     monaco.languages.registerCompletionItemProvider('deluge', {
@@ -142,7 +206,7 @@ function registerDelugeLanguage() {
         }
     });
 
-    // Error Linting
+    // Error Linting (Simple Semicolon & Bracket check)
     monaco.editor.onDidCreateModel((model) => {
         if (model.getLanguageId() === 'deluge') {
             const validate = () => {
@@ -153,7 +217,9 @@ function registerDelugeLanguage() {
                     if (trimmed.length > 0 &&
                         !trimmed.endsWith('{') && !trimmed.endsWith('}') && !trimmed.endsWith(';') &&
                         !trimmed.startsWith('if') && !trimmed.startsWith('for') && !trimmed.startsWith('else') &&
-                        !trimmed.startsWith('//') && !trimmed.startsWith('/*')) {
+                        !trimmed.startsWith('//') && !trimmed.startsWith('/*') &&
+                        !trimmed.includes('[') // Skip multi-line maps/invokes for simplicity
+                    ) {
                         markers.push({
                             message: 'Likely missing semicolon',
                             severity: monaco.MarkerSeverity.Warning,
