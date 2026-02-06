@@ -192,3 +192,43 @@ body, html {
 .log-entry.info { color: #9cdcfe; }
 .log-entry.error { color: #f44747; }
 .log-entry.success { color: #4ec9b0; }
+
+/* Sidepanel Mode Overrides */
+.sidepanel-mode body, .sidepanel-mode #top-bar {
+    padding: 8px 4px;
+}
+
+.sidepanel-mode body, .sidepanel-mode .logo {
+    font-size: 12px;
+}
+
+.sidepanel-mode body, .sidepanel-mode .actions {
+    gap: 4px;
+}
+
+.sidepanel-mode body, .sidepanel-mode .actions button {
+    padding: 2px 6px;
+    font-size: 10px;
+}
+
+.sidepanel-mode body, .sidepanel-mode #bottom-panel {
+    height: 100px;
+}
+.sidepanel-mode #sidebar { display: none !important; }
+.sidepanel-mode .logo { display: none !important; }
+.sidepanel-mode #top-bar {
+    height: auto !important;
+    flex-direction: column !important;
+    padding: 5px !important;
+}
+.sidepanel-mode .actions {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    margin-top: 5px !important;
+    gap: 4px !important;
+}
+.sidepanel-mode .actions button {
+    padding: 2px 6px !important;
+    font-size: 10px !important;
+}
+.sidepanel-mode #bottom-panel { height: 100px !important; }

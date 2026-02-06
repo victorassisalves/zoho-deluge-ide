@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoho Deluge Advanced IDE</title>
     <link rel="stylesheet" href="ide.css">
+    <script>
+        if (window.location.search.includes("mode=sidepanel") || window.location.hash.includes("sidepanel")) {
+            document.documentElement.classList.add("sidepanel-mode");
+        }
+    </script>
     <link rel="stylesheet" data-name="vs/editor/editor.main" href="assets/monaco-editor/min/vs/editor/editor.main.css">
 </head>
 <body>

@@ -3,14 +3,33 @@
 <head>
   <title>Zoho Deluge IDE</title>
   <style>
-    body { width: 200px; padding: 10px; font-family: sans-serif; }
-    button { width: 100%; padding: 10px; background: #0067ff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    body { width: 220px; padding: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f4f4; }
+    h3 { margin-top: 0; color: #333; font-size: 16px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+    .btn-group { display: flex; flex-direction: column; gap: 10px; }
+    button {
+        width: 100%;
+        padding: 12px;
+        background: #0067ff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
     button:hover { background: #0056d6; }
+    button.secondary { background: #555; }
+    button.secondary:hover { background: #444; }
+    .footer { margin-top: 15px; font-size: 11px; color: #888; text-align: center; }
   </style>
 </head>
 <body>
-  <h3>Deluge IDE</h3>
-  <button id="openIDE">Open Full IDE</button>
+  <h3>Deluge Advanced IDE</h3>
+  <div class="btn-group">
+    <button id="openIDE">Open in New Tab</button>
+    <button id="openInPage" class="secondary">Open in Current Page</button>
+  </div>
+  <div class="footer">Works in Creator, CRM, Books & more</div>
   <script src="popup.js"></script>
 </body>
 </html>
