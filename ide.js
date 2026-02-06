@@ -1,16 +1,9 @@
 /**
- * Zoho Deluge Advanced IDE
- * Main logic script
+ * Zoho Deluge Advanced IDE - Main Logic
  */
 
-window.onerror = function(msg, url, line, col, error) {
-    console.error('[ZohoIDE Global Error]', msg, 'at', url, ':', line, ':', col, error);
-    // Don't alert in production if it's just a chrome api missing in some contexts
-    if (typeof chrome === 'undefined') return;
-    alert('IDE Error: ' + msg);
-};
-
 let editor;
+let isConnected = false;
 
 console.log('[ZohoIDE] ide.js loading...');
 
@@ -35,8 +28,8 @@ function initEditor() {
     }
 
     try {
-        if (!window.monaco) {
-            throw new Error('Monaco library not found. Check if assets/monaco-editor is correct.');
+        if (typeof monaco === 'undefined') {
+            throw new Error('Monaco library not found. Check loader-init.js and network errors.');
         }
 
         editor = monaco.editor.create(container, {
@@ -51,7 +44,8 @@ function initEditor() {
             roundedSelection: false,
             cursorStyle: 'line',
             glyphMargin: true,
-            readOnly: false
+            readOnly: false,
+            fixedOverflowWidgets: true
         });
 
         console.log('[ZohoIDE] Monaco Editor created successfully.');
@@ -64,7 +58,7 @@ function initEditor() {
         // Load saved code
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
             chrome.storage.local.get(['saved_deluge_code'], (result) => {
-                if (result.saved_deluge_code) {
+                if (result.saved_deluge_code && editor) {
                     editor.setValue(result.saved_deluge_code);
                     log('System', 'Loaded previously saved code.');
                 }
@@ -76,17 +70,21 @@ function initEditor() {
         editor.onDidChangeModelContent(() => {
             clearTimeout(autoSaveTimeout);
             autoSaveTimeout = setTimeout(() => {
+                if (!editor) return;
                 const code = editor.getValue();
                 if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                     chrome.storage.local.set({ 'saved_deluge_code': code });
                 }
                 const syncEl = document.getElementById('sync-status');
-                if (syncEl) syncEl.innerText = 'Auto-saved';
-                setTimeout(() => {
-                    if (syncEl && syncEl.innerText === 'Auto-saved') {
-                        checkConnection();
-                    }
-                }, 2000);
+                if (syncEl) {
+                    const originalText = syncEl.innerText;
+                    syncEl.innerText = 'Auto-saved';
+                    setTimeout(() => {
+                        if (syncEl && syncEl.innerText === 'Auto-saved') {
+                            syncEl.innerText = isConnected ? 'Connected' : 'Local';
+                        }
+                    }, 2000);
+                }
             }, 1000);
         });
 
@@ -96,18 +94,22 @@ function initEditor() {
 
     } catch (e) {
         console.error('[ZohoIDE] Critical failure during editor creation:', e);
-        container.innerHTML = `<div style="color:white;background:#333;padding:20px;border:1px solid red;">
+        container.innerHTML = `<div style="color:white;background:#333;padding:20px;border:1px solid red;height:100%;overflow:auto;">
             <h3 style="color:red;">Failed to load Monaco Editor</h3>
-            <p>${e.message}</p>
-            <p>If you see 'chrome is not defined', this is normal when viewing the file directly.
-               In the extension, this indicates a real problem.</p>
+            <p style="font-family:monospace;background:#222;padding:10px;">${e.message}</p>
+            <p>Common causes:</p>
+            <ul>
+                <li>Worker script failed to load (Check console)</li>
+                <li>Content Security Policy (CSP) restriction</li>
+                <li>Missing files in assets/monaco-editor</li>
+            </ul>
+            <button onclick="window.location.reload()" style="background:#0067ff;color:white;border:none;padding:10px 20px;cursor:pointer;border-radius:4px;">Reload IDE</button>
         </div>`;
     }
 }
 
 function checkConnection() {
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
-        console.log('[ZohoIDE] Offline mode (No Chrome API)');
         return;
     }
 
@@ -117,16 +119,19 @@ function checkConnection() {
 
         if (chrome.runtime.lastError) {
             console.warn('[ZohoIDE] Connection check failed:', chrome.runtime.lastError.message);
+            isConnected = false;
             return;
         }
 
         if (response && response.connected) {
+            isConnected = true;
             if (statusEl) {
                 statusEl.innerText = (response.isStandalone ? 'Target: ' : 'Local: ') + (response.tabTitle || 'Zoho Tab');
                 statusEl.style.color = '#4ec9b0';
             }
             if (syncStatusEl) syncStatusEl.innerText = 'Connected';
         } else {
+            isConnected = false;
             if (statusEl) {
                 statusEl.innerText = 'Local Mode (No Zoho Tab)';
                 statusEl.style.color = '#888';
@@ -143,13 +148,13 @@ function setupEventHandlers() {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener(event, fn);
-            console.log(`[ZohoIDE] Bound ${event} to #${id}`);
         } else {
-            console.error(`[ZohoIDE] Could not find element #${id} to bind ${event}`);
+            console.warn(`[ZohoIDE] Could not find element #${id} to bind ${event}`);
         }
     };
 
     bind('new-btn', 'click', () => {
+        if (!editor) return;
         if (confirm('Start a new script? Unsaved changes in the editor will be lost.')) {
             editor.setValue('// New Zoho Deluge Script\n\n');
             log('System', 'New script started.');
@@ -215,30 +220,50 @@ function log(type, message) {
     const entry = document.createElement('div');
     entry.className = `log-entry ${type.toLowerCase()}`;
     const timestamp = new Date().toLocaleTimeString();
+
+    // Handle objects or multi-line messages
+    if (typeof message === 'object') message = JSON.stringify(message, null, 2);
+
     entry.innerText = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
     consoleOutput.appendChild(entry);
     consoleOutput.scrollTop = consoleOutput.scrollHeight;
+
+    // Keep console from growing too large
+    if (consoleOutput.childNodes.length > 100) {
+        consoleOutput.removeChild(consoleOutput.firstChild);
+    }
 }
 
 function pullFromZoho() {
+    if (!editor) {
+        alert('Editor not ready.');
+        return;
+    }
+
     log('System', 'Searching for code in Zoho tab...');
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
         log('Error', 'Extension API not available.');
         return;
     }
 
+    const pullBtn = document.getElementById('pull-btn');
+    if (pullBtn) pullBtn.disabled = true;
+
     chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, (response) => {
+        if (pullBtn) pullBtn.disabled = false;
+
         if (chrome.runtime.lastError) {
             log('Error', 'Communication failed: ' + chrome.runtime.lastError.message);
             return;
         }
+
         if (response && response.code) {
             editor.setValue(response.code);
             log('Success', 'Code pulled successfully.');
         } else if (response && response.error) {
             log('Error', response.error);
         } else {
-            log('Error', 'No code found. Is the Zoho editor open?');
+            log('Error', 'No code found. Ensure a Zoho editor is open and has content.');
         }
     });
 }
@@ -246,23 +271,30 @@ function pullFromZoho() {
 function pushToZoho() {
     if (!editor) return;
     const code = editor.getValue();
+
     log('System', 'Pushing code to Zoho tab...');
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
         log('Error', 'Extension API not available.');
         return;
     }
 
+    const pushBtn = document.getElementById('push-btn');
+    if (pushBtn) pushBtn.disabled = true;
+
     chrome.runtime.sendMessage({ action: 'SET_ZOHO_CODE', code: code }, (response) => {
+        if (pushBtn) pushBtn.disabled = false;
+
         if (chrome.runtime.lastError) {
             log('Error', 'Communication failed: ' + chrome.runtime.lastError.message);
             return;
         }
+
         if (response && response.success) {
             log('Success', 'Code pushed successfully.');
         } else if (response && response.error) {
             log('Error', response.error);
         } else {
-            log('Error', 'Push failed. Ensure the Zoho tab is active.');
+            log('Error', 'Push failed. Is the Zoho tab still open?');
         }
     });
 }
@@ -280,14 +312,14 @@ function saveLocally() {
     }
 }
 
-// In case it was already ready
+// Initialization
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     initEditor();
 } else {
     document.addEventListener('DOMContentLoaded', initEditor);
 }
 
-// Compact UI
+// UI Mode handling
 if (window.location.search.includes('mode=sidepanel') || window.location.hash.includes('sidepanel')) {
     document.documentElement.classList.add('sidepanel-mode');
 }
