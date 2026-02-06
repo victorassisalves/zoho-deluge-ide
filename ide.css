@@ -241,3 +241,18 @@ html.sidepanel-mode .status-left,
 html.sidepanel-mode .status-right {
     gap: 8px !important;
 }
+
+/* Modal Styles */
+#json-modal button {
+    border-radius: 4px;
+    font-weight: 500;
+    transition: filter 0.2s;
+}
+
+#json-modal button:hover {
+    filter: brightness(1.2);
+}
+
+#json-modal textarea:focus {
+    outline: 1px solid var(--accent-color);
+}

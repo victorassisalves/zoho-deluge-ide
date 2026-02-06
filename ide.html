@@ -6,7 +6,6 @@
     <title>Zoho Deluge Advanced IDE</title>
     <link rel="stylesheet" href="ide.css">
     <script>
-        // Check for sidepanel mode early to avoid flash of unstyled content
         if (window.location.search.includes("mode=sidepanel") || window.location.hash.includes("sidepanel")) {
             document.documentElement.classList.add("sidepanel-mode");
         }
@@ -20,15 +19,16 @@
             <div class="actions">
                 <span id="status-indicator">Disconnected</span>
                 <button id="new-btn" title="New Script">New</button>
-                <button id="pull-btn" title="Pull from Zoho Tab">Pull Code</button>
-                <button id="push-btn" title="Push to Zoho Tab">Sync to Zoho</button>
+                <button id="pull-btn" title="Pull from Zoho Tab">Pull</button>
+                <button id="push-btn" title="Push to Zoho Tab">Sync</button>
+                <button id="json-btn" title="JSON to Deluge Map">JSON->Map</button>
                 <button id="save-btn" title="Save Locally">Save</button>
             </div>
         </header>
         <main id="main-content">
             <aside id="sidebar">
                 <div class="sidebar-item active" title="Explorer">📁</div>
-                <div class="sidebar-item" title="Search">🔍</div>
+                <div class="sidebar-item" title="Tools">🛠️</div>
                 <div class="sidebar-item" title="Zoho APIs">☁️</div>
                 <div class="sidebar-item" title="Settings">⚙️</div>
             </aside>
@@ -63,6 +63,19 @@
             </div>
             <div class="status-right">
                 <span>Deluge</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- JSON Input Modal -->
+    <div id="json-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#252526; padding:20px; border-radius:5px; width:80%; max-width:600px; border:1px solid #444;">
+            <h3 style="margin-top:0;">Convert JSON to Deluge Map</h3>
+            <p style="font-size:12px; color:#aaa;">Paste your JSON payload below:</p>
+            <textarea id="json-input" style="width:100%; height:200px; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:10px; font-family:monospace;"></textarea>
+            <div style="margin-top:15px; display:flex; justify-content:flex-end; gap:10px;">
+                <button id="modal-cancel" style="background:#444; color:white; border:none; padding:8px 15px; cursor:pointer;">Cancel</button>
+                <button id="modal-convert" style="background:#007acc; color:white; border:none; padding:8px 15px; cursor:pointer;">Convert & Insert</button>
             </div>
         </div>
     </div>
