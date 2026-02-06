@@ -1,4 +1,4 @@
-document.getElementById('openIDE').addEventListener('click', () => {
+document.getElementById('open-ide').addEventListener('click', () => {
     chrome.windows.getCurrent((win) => {
         chrome.tabs.create({
             url: chrome.runtime.getURL('ide.html'),
@@ -8,7 +8,7 @@ document.getElementById('openIDE').addEventListener('click', () => {
     });
 });
 
-document.getElementById('openInPage').addEventListener('click', () => {
+document.getElementById('open-sidepanel').addEventListener('click', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const activeTab = tabs[0];
         if (!activeTab || !isZohoUrl(activeTab.url)) {
@@ -16,28 +16,17 @@ document.getElementById('openInPage').addEventListener('click', () => {
             return;
         }
 
-        // Try to wake up the content script
         chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' }, (response) => {
             if (chrome.runtime.lastError) {
-                // If it fails, maybe it's not injected. Try manual injection.
-                console.log('Content script not responding, attempting manual injection...');
                 chrome.scripting.executeScript({
                     target: { tabId: activeTab.id },
                     files: ['content.js']
                 }).then(() => {
-                    // Give it a moment and try again
                     setTimeout(() => {
                         chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' }, (resp) => {
-                            if (chrome.runtime.lastError) {
-                                alert('Failed to inject IDE. Please refresh the page and try again.');
-                            } else {
-                                window.close();
-                            }
+                            if (!chrome.runtime.lastError) window.close();
                         });
                     }, 500);
-                }).catch(err => {
-                    console.error(err);
-                    alert('Cannot access this page. Ensure it is a Zoho domain and you have granted permissions.');
                 });
             } else {
                 window.close();
@@ -46,11 +35,22 @@ document.getElementById('openInPage').addEventListener('click', () => {
     });
 });
 
+function checkConnection() {
+    chrome.runtime.sendMessage({ action: 'CHECK_CONNECTION' }, (response) => {
+        const statusEl = document.getElementById('status');
+        if (response && response.connected) {
+            statusEl.innerText = 'Connected: ' + (response.tabTitle || 'Zoho');
+            statusEl.classList.add('connected');
+        } else {
+            statusEl.innerText = 'No Zoho tab detected';
+        }
+    });
+}
+
 function isZohoUrl(url) {
     if (!url) return false;
-    return url.includes('zoho.com') ||
-           url.includes('zoho.eu') ||
-           url.includes('zoho.in') ||
-           url.includes('zoho.com.au') ||
-           url.includes('zoho.jp');
+    const domains = ['zoho.com', 'zoho.eu', 'zoho.in', 'zoho.com.au', 'zoho.jp'];
+    return domains.some(d => url.includes(d));
 }
+
+checkConnection();

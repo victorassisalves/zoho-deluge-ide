@@ -65,9 +65,15 @@ function initEditor() {
 
         // Ctrl+Shift+S: Push & Save
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS, () => {
-            pushToZoho();
+            pushToZoho(true);
             saveLocally();
         });
+        // Ctrl+Shift+Enter: Sync & Execute
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => {
+            pushToZoho(false, true);
+            saveLocally();
+        });
+
 
         // Ctrl+Shift+P: Pull
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => {
@@ -168,7 +174,7 @@ function setupEventHandlers() {
     });
 
     bind('pull-btn', 'click', pullFromZoho);
-    bind('push-btn', 'click', pushToZoho);
+    bind('push-btn', 'click', () => pushToZoho(true));
     bind('save-btn', 'click', saveLocally);
 
     // Sidebar View Switching
@@ -323,13 +329,13 @@ function updateMappingsList() {
             }
             document.querySelectorAll('.mapping-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
-            renderTreeView(jsonMappings[name]);
+            renderTreeView(jsonMappings[name], name);
         };
         list.appendChild(item);
     });
 }
 
-function renderTreeView(obj) {
+function renderTreeView(obj, mappingName) {
     const tree = document.getElementById('json-tree-view');
     if (!tree) return;
     tree.innerHTML = '';
@@ -354,7 +360,7 @@ function renderTreeView(obj) {
                     label.innerHTML = `<span class="tree-key">${key}</span>: <span class="tree-val">${JSON.stringify(val)}</span>`;
                     label.title = "Click to insert .get()";
                     label.onclick = () => {
-                        const text = `.get("${key}")`;
+                        const text = `${mappingName}.get("${key}")`;
                         const selection = editor.getSelection();
                         editor.executeEdits("tree-insert", [{ range: selection, text: text }]);
                     };
@@ -389,13 +395,22 @@ function pullFromZoho() {
         }
     });
 }
-
-function pushToZoho() {
+function pushToZoho(triggerSave = false, triggerExecute = false) {
     const code = editor.getValue();
     log('System', 'Pushing code...');
     chrome.runtime.sendMessage({ action: 'SET_ZOHO_CODE', code: code }, (response) => {
         if (response && response.success) {
             log('Success', 'Code pushed.');
+            if (triggerSave) {
+                chrome.runtime.sendMessage({ action: 'SAVE_ZOHO_CODE' }, (res) => {
+                    if (res && res.success) log('Success', 'Zoho Save triggered.');
+                });
+            }
+            if (triggerExecute) {
+                chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (res) => {
+                    if (res && res.success) log('Success', 'Zoho Execute triggered.');
+                });
+            }
         } else {
             log('Error', response?.error || 'Push failed.');
         }

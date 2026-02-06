@@ -36,6 +36,15 @@
       "all_frames": true
     }
   ],
+  "commands": {
+    "open-ide": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+E",
+        "mac": "Command+Shift+E"
+      },
+      "description": "Open Deluge IDE"
+    }
+  },
   "web_accessible_resources": [
     {
       "resources": ["ide.html", "assets/*", "bridge.js"],
