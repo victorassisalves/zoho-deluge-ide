@@ -31,6 +31,9 @@ function initEditor() {
                 { token: 'identifier', foreground: 'f8f8f2' },
                 { token: 'type', foreground: '8be9fd', fontStyle: 'italic' },
                 { token: 'function', foreground: '50fa7b' },
+                { token: 'method', foreground: '50fa7b' },
+                { token: 'variable', foreground: 'ffb86c' },
+                { token: 'brackets', foreground: 'f8f8f2' }
             ],
             colors: {
                 'editor.background': '#282a36',
@@ -58,29 +61,24 @@ function initEditor() {
         });
 
         // Add Shortcuts
-        // Ctrl+S: Save Locally
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
             saveLocally();
         });
 
-        // Ctrl+Shift+S: Push & Save
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS, () => {
             pushToZoho(true);
             saveLocally();
         });
-        // Ctrl+Shift+Enter: Sync & Execute
+
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => {
             pushToZoho(false, true);
             saveLocally();
         });
 
-
-        // Ctrl+Shift+P: Pull
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => {
             pullFromZoho();
         });
 
-        // Ctrl+Shift+E: Open/Focus Zoho Editor
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyE, () => {
             chrome.runtime.sendMessage({ action: 'OPEN_ZOHO_EDITOR' });
         });
@@ -92,7 +90,7 @@ function initEditor() {
 
         // Load saved data
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.get(['saved_deluge_code', 'json_mappings', 'gemini_api_key', 'saved_files', 'theme'], (result) => {
+            chrome.storage.local.get(['saved_deluge_code', 'json_mappings', 'gemini_api_key', 'gemini_model', 'saved_files', 'theme'], (result) => {
                 if (result.saved_deluge_code && editor) {
                     editor.setValue(result.saved_deluge_code);
                 }
@@ -103,6 +101,10 @@ function initEditor() {
                 if (result.gemini_api_key) {
                     const keyInput = document.getElementById('gemini-api-key');
                     if (keyInput) keyInput.value = result.gemini_api_key;
+                }
+                if (result.gemini_model) {
+                    const modelSelector = document.getElementById('ai-model-selector');
+                    if (modelSelector) modelSelector.value = result.gemini_model;
                 }
                 if (result.saved_files) {
                     updateSavedFilesList(result.saved_files);
@@ -144,16 +146,14 @@ function checkConnection() {
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) return;
     chrome.runtime.sendMessage({ action: 'CHECK_CONNECTION' }, (response) => {
         const statusEl = document.getElementById('status-indicator');
-        if (response && response.connected) {
-            isConnected = true;
-            if (statusEl) {
+        if (statusEl) {
+            if (response && response.connected) {
+                isConnected = true;
                 statusEl.innerText = (response.isStandalone ? 'Target: ' : 'Local: ') + (response.tabTitle || 'Zoho Tab');
                 statusEl.style.color = '#4ec9b0';
                 window.currentTargetTab = response;
-            }
-        } else {
-            isConnected = false;
-            if (statusEl) {
+            } else {
+                isConnected = false;
                 statusEl.innerText = 'Disconnected';
                 statusEl.style.color = '#888';
             }
@@ -177,12 +177,10 @@ function setupEventHandlers() {
     bind('push-btn', 'click', () => pushToZoho(true));
     bind('save-btn', 'click', saveLocally);
 
-    // Sidebar View Switching
     document.querySelectorAll('.sidebar-item').forEach(item => {
         item.addEventListener('click', () => {
             document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
             document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));
-
             item.classList.add('active');
             const viewId = 'view-' + item.getAttribute('data-view');
             const view = document.getElementById(viewId);
@@ -190,66 +188,52 @@ function setupEventHandlers() {
         });
     });
 
-    // Theme selector
     bind('theme-selector', 'change', (e) => {
         const theme = e.target.value;
         monaco.editor.setTheme(theme);
         chrome.storage.local.set({ 'theme': theme });
     });
 
-    // Gemini settings
     bind('save-settings-btn', 'click', () => {
         const key = document.getElementById('gemini-api-key').value;
-        chrome.storage.local.set({ 'gemini_api_key': key }, () => {
+        const model = document.getElementById('ai-model-selector').value;
+        chrome.storage.local.set({ 'gemini_api_key': key, 'gemini_model': model }, () => {
             log('Success', 'Settings saved.');
         });
     });
 
-    // AI Agent button
     bind('ai-ask-btn', 'click', askGemini);
     bind('ai-question', 'keydown', (e) => {
         if (e.key === 'Enter' && e.ctrlKey) askGemini();
     });
 
-    // JSON Modal / Manager Handlers
     const modal = document.getElementById('json-modal');
-    const modalTitle = document.getElementById('modal-title');
-    const modalConvertBtn = document.getElementById('modal-convert');
-    const modalMapOnlyBtn = document.getElementById('modal-map-only');
-
     bind('json-btn', 'click', () => {
-        modalTitle.innerText = 'Convert JSON to Deluge Map';
-        modalConvertBtn.style.display = 'block';
-        modalMapOnlyBtn.style.display = 'none';
+        document.getElementById('modal-title').innerText = 'Convert JSON to Deluge Map';
+        document.getElementById('modal-convert').style.display = 'block';
+        document.getElementById('modal-map-only').style.display = 'none';
         modal.style.display = 'flex';
     });
 
     bind('add-json-btn', 'click', () => {
-        modalTitle.innerText = 'Add JSON Mapping';
-        modalConvertBtn.style.display = 'none';
-        modalMapOnlyBtn.style.display = 'block';
+        document.getElementById('modal-title').innerText = 'Add JSON Mapping';
+        document.getElementById('modal-convert').style.display = 'none';
+        document.getElementById('modal-map-only').style.display = 'block';
         modal.style.display = 'flex';
     });
 
-    bind('modal-cancel', 'click', () => {
-        modal.style.display = 'none';
-    });
+    bind('modal-cancel', 'click', () => { modal.style.display = 'none'; });
 
     bind('modal-convert', 'click', () => {
         const varName = document.getElementById('json-var-name').value || 'payload';
         const jsonStr = document.getElementById('json-input').value;
         try {
             const code = convertJsonToDeluge(varName, jsonStr);
-            editor.executeEdits('json-convert', [{
-                range: editor.getSelection(),
-                text: code
-            }]);
+            editor.executeEdits('json-convert', [{ range: editor.getSelection(), text: code }]);
             saveMapping(varName, jsonStr);
             modal.style.display = 'none';
             log('Success', 'JSON converted and mapped.');
-        } catch (e) {
-            alert('Error: ' + e.message);
-        }
+        } catch (e) { alert('Error: ' + e.message); }
     });
 
     bind('modal-map-only', 'click', () => {
@@ -264,6 +248,17 @@ function setupEventHandlers() {
         document.getElementById('console-output').innerHTML = '';
     });
 
+    document.querySelectorAll('.panel-header .tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.panel-header .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            const targetId = tab.getAttribute('data-target');
+            const target = document.getElementById(targetId);
+            if (target) target.classList.add('active');
+        });
+    });
+
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
         chrome.runtime.onMessage.addListener((request) => {
             if (request.action === 'IDE_CONSOLE_UPDATE') {
@@ -276,7 +271,6 @@ function setupEventHandlers() {
 function convertJsonToDeluge(varName, jsonStr) {
     const obj = JSON.parse(jsonStr);
     let code = `${varName} = Map();\n`;
-
     function process(data, path) {
         for (let key in data) {
             const val = data[key];
@@ -293,7 +287,6 @@ function convertJsonToDeluge(varName, jsonStr) {
             }
         }
     }
-
     process(obj, varName);
     return code;
 }
@@ -304,16 +297,13 @@ function saveMapping(name, jsonStr) {
         jsonMappings[name] = obj;
         chrome.storage.local.set({ 'json_mappings': jsonMappings });
         updateMappingsList();
-    } catch (e) {
-        alert('Invalid JSON: ' + e.message);
-    }
+    } catch (e) { alert('Invalid JSON: ' + e.message); }
 }
 
 function updateMappingsList() {
     const list = document.getElementById('json-mappings-list');
     if (!list) return;
     list.innerHTML = '';
-
     Object.keys(jsonMappings).forEach(name => {
         const item = document.createElement('div');
         item.className = 'mapping-item';
@@ -361,8 +351,7 @@ function renderTreeView(obj, mappingName) {
                     label.title = "Click to insert .get()";
                     label.onclick = () => {
                         const text = `${mappingName}.get("${key}")`;
-                        const selection = editor.getSelection();
-                        editor.executeEdits("tree-insert", [{ range: selection, text: text }]);
+                        editor.executeEdits("tree-insert", [{ range: editor.getSelection(), text: text }]);
                     };
                     node.appendChild(label);
                 }
@@ -378,8 +367,7 @@ function log(type, message) {
     if (!consoleOutput) return;
     const entry = document.createElement('div');
     entry.className = `log-entry ${type.toLowerCase()}`;
-    const timestamp = new Date().toLocaleTimeString();
-    entry.innerText = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+    entry.innerText = `[${new Date().toLocaleTimeString()}] ${type.toUpperCase()}: ${message}`;
     consoleOutput.appendChild(entry);
     consoleOutput.scrollTop = consoleOutput.scrollHeight;
 }
@@ -390,11 +378,10 @@ function pullFromZoho() {
         if (response && response.code) {
             editor.setValue(response.code);
             log('Success', 'Code pulled.');
-        } else {
-            log('Error', response?.error || 'No code found.');
-        }
+        } else { log('Error', response?.error || 'No code found.'); }
     });
 }
+
 function pushToZoho(triggerSave = false, triggerExecute = false) {
     const code = editor.getValue();
     log('System', 'Pushing code...');
@@ -411,9 +398,7 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
                     if (res && res.success) log('Success', 'Zoho Execute triggered.');
                 });
             }
-        } else {
-            log('Error', response?.error || 'Push failed.');
-        }
+        } else { log('Error', response?.error || 'Push failed.'); }
     });
 }
 
@@ -423,7 +408,6 @@ function saveLocally() {
     const title = 'Script ' + new Date().toLocaleTimeString();
     const source = window.currentTargetTab?.tabTitle || 'Local Editor';
     const vars = extractVarsFromCode(code);
-
     chrome.storage.local.get(['saved_files'], (result) => {
         const files = result.saved_files || [];
         files.unshift({ title, code, timestamp, source, vars });
@@ -450,11 +434,7 @@ function updateSavedFilesList(files) {
         card.className = 'file-card';
         const varsText = file.vars && file.vars.length ? `<br>Vars: ${file.vars.slice(0, 3).join(', ')}${file.vars.length > 3 ? '...' : ''}` : '';
         card.innerHTML = `<div class="file-title">${file.title}</div><div class="file-meta">${file.source} • ${file.timestamp}${varsText}</div>`;
-        card.onclick = () => {
-            if (confirm('Load this saved version?')) {
-                editor.setValue(file.code);
-            }
-        };
+        card.onclick = () => { if (confirm('Load this saved version?')) { editor.setValue(file.code); } };
         list.appendChild(card);
     });
 }
@@ -500,31 +480,26 @@ async function askGemini() {
     chatHistory.appendChild(aiMsg);
     chatHistory.scrollTop = chatHistory.scrollHeight;
 
-    const result = await chrome.storage.local.get(['gemini_api_key']);
+    const result = await chrome.storage.local.get(['gemini_api_key', 'gemini_model']);
     if (!result.gemini_api_key) {
         aiMsg.innerText = 'Error: Please set your Gemini API Key in Settings.';
         return;
     }
+    const model = result.gemini_model || 'gemini-1.5-flash';
     try {
         const prompt = `You are a Zoho Deluge expert. Code context:\n\`\`\`deluge\n${editor.getValue()}\n\`\`\`\n\nQuestion: ${question}`;
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${result.gemini_api_key}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${result.gemini_api_key}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
         const data = await response.json();
         aiMsg.innerText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Error: ' + (data.error?.message || 'Unknown');
-    } catch (e) {
-        aiMsg.innerText = 'Error: ' + e.message;
-    }
+    } catch (e) { aiMsg.innerText = 'Error: ' + e.message; }
     chatHistory.scrollTop = chatHistory.scrollHeight;
 }
 
-if (document.readyState === 'complete') {
-    initEditor();
-} else {
-    window.addEventListener('load', initEditor);
-}
+if (document.readyState === 'complete') { initEditor(); } else { window.addEventListener('load', initEditor); }
 
 document.getElementById('toggle-right-sidebar')?.addEventListener('click', () => {
     const sidebar = document.getElementById('right-sidebar');
@@ -540,3 +515,24 @@ document.getElementById('toggle-right-sidebar')?.addEventListener('click', () =>
     }
     editor.layout();
 });
+
+// Docs search implementation
+if (document.getElementById('docs-search')) {
+    document.getElementById('docs-search').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const sections = document.querySelectorAll('.resource-section');
+        sections.forEach(section => {
+            const items = section.querySelectorAll('li');
+            let sectionVisible = false;
+            items.forEach(item => {
+                if (item.textContent.toLowerCase().includes(term)) {
+                    item.style.display = 'block';
+                    sectionVisible = true;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            section.style.display = sectionVisible ? 'block' : 'none';
+        });
+    });
+}

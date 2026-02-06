@@ -2,7 +2,12 @@
  * Deluge Language Definition for Monaco Editor
  */
 
+let delugeRegistered = false;
+
 function registerDelugeLanguage() {
+    if (delugeRegistered) return;
+    delugeRegistered = true;
+
     monaco.languages.register({ id: 'deluge' });
 
     monaco.languages.setMonarchTokensProvider('deluge', {
@@ -21,12 +26,20 @@ function registerDelugeLanguage() {
         symbols: /[=><!~?:&|+\-*\/\^%]+/,
         tokenizer: {
             root: [
+                // Functions (identifier followed by open paren)
+                [/[a-z_$][\w$]*(?=\s*\()/, 'function'],
+
+                // Methods (dot followed by identifier)
+                [/\.[a-z_$][\w$]*/, 'method'],
+
+                // Keywords and Variables
                 [/[a-z_$][\w$]*/, {
                     cases: {
                         '@keywords': 'keyword',
-                        '@default': 'identifier'
+                        '@default': 'variable'
                     }
                 }],
+
                 { include: '@whitespace' },
                 [/[{}()\[\]]/, '@brackets'],
                 [/@symbols/, {
@@ -155,8 +168,19 @@ function registerDelugeLanguage() {
                 const varName = match[1];
                 const type = inferVarType(varName, code);
                 const suggestions = type && typeMethods[type.toLowerCase()] ? typeMethods[type.toLowerCase()] : [...typeMethods.map, ...typeMethods.list, ...typeMethods.string];
+
+                // Unique-ify suggestions by label
+                const uniqueSuggestions = [];
+                const seenLabels = new Set();
+                suggestions.forEach(s => {
+                    if (!seenLabels.has(s.label)) {
+                        uniqueSuggestions.push(s);
+                        seenLabels.add(s.label);
+                    }
+                });
+
                 return {
-                    suggestions: suggestions.map(s => ({
+                    suggestions: uniqueSuggestions.map(s => ({
                         ...s,
                         kind: monaco.languages.CompletionItemKind.Method,
                         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
@@ -179,8 +203,20 @@ function registerDelugeLanguage() {
                 insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
                 range: range
             }));
+
+            // Combine and unique-ify everything for the final list
+            const allSuggestions = [...staticSuggestions, ...varSuggestions, ...zohoSuggestions];
+            const finalSuggestions = [];
+            const seenFinal = new Set();
+            allSuggestions.forEach(s => {
+                if (!seenFinal.has(s.label)) {
+                    finalSuggestions.push({ ...s, range });
+                    seenFinal.add(s.label);
+                }
+            });
+
             return {
-                suggestions: [...staticSuggestions.map(s => ({ ...s, range })), ...varSuggestions, ...zohoSuggestions]
+                suggestions: finalSuggestions
             };
         }
     });
@@ -192,7 +228,7 @@ function registerDelugeLanguage() {
         let match;
         while ((match = assignmentRegex.exec(code)) !== null) {
             const name = match[1];
-            if (!seen.has(name) && !['if', 'for', 'else', 'return', 'try', 'catch'].includes(name)) {
+            if (!seen.has(name) && !['if', 'for', 'else', 'return', 'try', 'catch', 'while'].includes(name)) {
                 vars.push({ name, type: inferVarType(name, code) });
                 seen.add(name);
             }

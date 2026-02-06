@@ -1,0 +1,31 @@
+<<<<<<< SEARCH
+        monaco.editor.defineTheme('dracula', {
+            base: 'vs-dark',
+            inherit: true,
+            rules: [
+                { token: 'keyword', foreground: 'ff79c6', fontStyle: 'bold' },
+                { token: 'string', foreground: 'f1fa8c' },
+                { token: 'comment', foreground: '6272a4' },
+                { token: 'number', foreground: 'bd93f9' },
+                { token: 'function', foreground: '50fa7b' },
+                { token: 'method', foreground: '8be9fd' },
+                { token: 'variable', foreground: 'f8f8f2' }
+            ],
+            colors: {
+=======
+        monaco.editor.defineTheme('dracula', {
+            base: 'vs-dark',
+            inherit: true,
+            rules: [
+                { token: 'keyword', foreground: 'ff79c6', fontStyle: 'bold' },
+                { token: 'string', foreground: 'f1fa8c' },
+                { token: 'comment', foreground: '6272a4', fontStyle: 'italic' },
+                { token: 'number', foreground: 'bd93f9' },
+                { token: 'function', foreground: '50fa7b' },
+                { token: 'method', foreground: '8be9fd' },
+                { token: 'variable', foreground: 'bd93f9' },
+                { token: 'operator', foreground: 'ff79c6' },
+                { token: 'namespace', foreground: '8be9fd' }
+            ],
+            colors: {
+>>>>>>> REPLACE
