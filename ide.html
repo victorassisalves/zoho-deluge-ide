@@ -19,10 +19,10 @@
             <div class="actions">
                 <span id="status-indicator">Disconnected</span>
                 <button id="new-btn" title="New Script">New</button>
-                <button id="pull-btn" title="Pull from Zoho Tab">Pull</button>
-                <button id="push-btn" title="Push to Zoho Tab">Sync</button>
+                <button id="pull-btn" title="Pull (Ctrl+Shift+P)">Pull</button>
+                <button id="push-btn" title="Sync (Ctrl+Shift+S)">Sync</button>
                 <button id="json-btn" title="JSON to Deluge Map">JSON->Map</button>
-                <button id="save-btn" title="Save Locally">Save (Ctrl+S)</button>
+                <button id="save-btn" title="Save Locally (Ctrl+S)">Save</button>
             </div>
         </header>
         <main id="main-content">
@@ -48,7 +48,7 @@
                             <div class="chat-msg ai">Hello! I can help you with Deluge methods or explain your code. Make sure to add your Gemini API Key in Settings.</div>
                         </div>
                         <div class="ai-input-area">
-                            <textarea id="ai-question" placeholder="Ask about code or methods..."></textarea>
+                            <textarea id="ai-question" placeholder="Ask about code or methods... (Ctrl+Enter to send)"></textarea>
                             <button id="ai-ask-btn">Ask Gemini</button>
                         </div>
                     </div>
@@ -67,6 +67,21 @@
                         <label style="font-size:12px; margin-bottom:4px;">Gemini API Key:</label>
                         <input type="password" id="gemini-api-key" placeholder="AIZA...">
                         <button id="save-settings-btn" style="margin-top:10px;">Save Configuration</button>
+                    </div>
+                    <div class="setting-item" style="margin-top:20px;">
+                        <label style="font-size:12px; margin-bottom:4px;">Editor Theme:</label>
+                        <select id="theme-selector" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
+                            <option value="vs-dark">Dark (Default)</option>
+                            <option value="dracula">Dracula</option>
+                            <option value="vs-light">Light</option>
+                        </select>
+                    </div>
+                    <div style="margin-top:30px; font-size:11px; color:#888;">
+                        <strong>Shortcuts:</strong><br>
+                        Ctrl+S: Save Locally<br>
+                        Ctrl+Shift+S: Sync & Save<br>
+                        Ctrl+Shift+P: Pull from Zoho<br>
+                        Ctrl+Shift+E: Open Zoho Editor
                     </div>
                 </div>
             </div>

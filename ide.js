@@ -1,12 +1,10 @@
 /**
- * Zoho Deluge Advanced IDE - Main Logic
+ * Zoho Deluge Advanced IDE
  */
 
 let editor;
 let isConnected = false;
 let jsonMappings = {};
-
-console.log('[ZohoIDE] ide.js loading...');
 
 function initEditor() {
     if (editor) return;
@@ -19,6 +17,33 @@ function initEditor() {
     }
 
     try {
+        // Define Dracula Theme
+        monaco.editor.defineTheme('dracula', {
+            base: 'vs-dark',
+            inherit: true,
+            rules: [
+                { token: 'comment', foreground: '6272a4' },
+                { token: 'keyword', foreground: 'ff79c6' },
+                { token: 'number', foreground: 'bd93f9' },
+                { token: 'string', foreground: 'f1fa8c' },
+                { token: 'delimiter', foreground: 'f8f8f2' },
+                { token: 'operator', foreground: 'ff79c6' },
+                { token: 'identifier', foreground: 'f8f8f2' },
+                { token: 'type', foreground: '8be9fd', fontStyle: 'italic' },
+                { token: 'function', foreground: '50fa7b' },
+            ],
+            colors: {
+                'editor.background': '#282a36',
+                'editor.foreground': '#f8f8f2',
+                'editorCursor.foreground': '#f8f8f2',
+                'editor.lineHighlightBackground': '#44475a',
+                'editorLineNumber.foreground': '#6272a4',
+                'editor.selectionBackground': '#44475a',
+                'editorIndentGuide.background': '#44475a',
+                'editorIndentGuide.activeBackground': '#6272a4'
+            }
+        });
+
         editor = monaco.editor.create(container, {
             value: '// Start coding in Zoho Deluge...\n\ninfo "Hello, World!";',
             language: 'deluge',
@@ -32,9 +57,26 @@ function initEditor() {
             fixedOverflowWidgets: true
         });
 
-        // Add Ctrl+S support
+        // Add Shortcuts
+        // Ctrl+S: Save Locally
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
             saveLocally();
+        });
+
+        // Ctrl+Shift+S: Push & Save
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS, () => {
+            pushToZoho();
+            saveLocally();
+        });
+
+        // Ctrl+Shift+P: Pull
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => {
+            pullFromZoho();
+        });
+
+        // Ctrl+Shift+E: Open/Focus Zoho Editor
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyE, () => {
+            chrome.runtime.sendMessage({ action: 'OPEN_ZOHO_EDITOR' });
         });
 
         editor.onDidChangeCursorPosition((e) => {
@@ -44,7 +86,7 @@ function initEditor() {
 
         // Load saved data
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.get(['saved_deluge_code', 'json_mappings', 'gemini_api_key', 'saved_files'], (result) => {
+            chrome.storage.local.get(['saved_deluge_code', 'json_mappings', 'gemini_api_key', 'saved_files', 'theme'], (result) => {
                 if (result.saved_deluge_code && editor) {
                     editor.setValue(result.saved_deluge_code);
                 }
@@ -58,6 +100,11 @@ function initEditor() {
                 }
                 if (result.saved_files) {
                     updateSavedFilesList(result.saved_files);
+                }
+                if (result.theme) {
+                    monaco.editor.setTheme(result.theme);
+                    const selector = document.getElementById('theme-selector');
+                    if (selector) selector.value = result.theme;
                 }
             });
         }
@@ -137,6 +184,27 @@ function setupEventHandlers() {
         });
     });
 
+    // Theme selector
+    bind('theme-selector', 'change', (e) => {
+        const theme = e.target.value;
+        monaco.editor.setTheme(theme);
+        chrome.storage.local.set({ 'theme': theme });
+    });
+
+    // Gemini settings
+    bind('save-settings-btn', 'click', () => {
+        const key = document.getElementById('gemini-api-key').value;
+        chrome.storage.local.set({ 'gemini_api_key': key }, () => {
+            log('Success', 'Settings saved.');
+        });
+    });
+
+    // AI Agent button
+    bind('ai-ask-btn', 'click', askGemini);
+    bind('ai-question', 'keydown', (e) => {
+        if (e.key === 'Enter' && e.ctrlKey) askGemini();
+    });
+
     // JSON Modal / Manager Handlers
     const modal = document.getElementById('json-modal');
     const modalTitle = document.getElementById('modal-title');
@@ -148,7 +216,6 @@ function setupEventHandlers() {
         modalConvertBtn.style.display = 'block';
         modalMapOnlyBtn.style.display = 'none';
         modal.style.display = 'flex';
-        document.getElementById('json-input').focus();
     });
 
     bind('add-json-btn', 'click', () => {
@@ -156,7 +223,6 @@ function setupEventHandlers() {
         modalConvertBtn.style.display = 'none';
         modalMapOnlyBtn.style.display = 'block';
         modal.style.display = 'flex';
-        document.getElementById('json-input').focus();
     });
 
     bind('modal-cancel', 'click', () => {
@@ -164,47 +230,28 @@ function setupEventHandlers() {
     });
 
     bind('modal-convert', 'click', () => {
-        const json = document.getElementById('json-input').value;
         const varName = document.getElementById('json-var-name').value || 'payload';
-        if (!json.trim()) return;
-
-        const delugeCode = window.jsonToDeluge(json, varName);
-        const selection = editor.getSelection();
-        const op = { range: selection, text: delugeCode, forceMoveMarkers: true };
-        editor.executeEdits("json-to-map", [op]);
-
-        saveMapping(varName, json);
-        modal.style.display = 'none';
-        log('Success', 'JSON converted and mapping saved.');
+        const jsonStr = document.getElementById('json-input').value;
+        try {
+            const code = convertJsonToDeluge(varName, jsonStr);
+            editor.executeEdits('json-convert', [{
+                range: editor.getSelection(),
+                text: code
+            }]);
+            saveMapping(varName, jsonStr);
+            modal.style.display = 'none';
+            log('Success', 'JSON converted and mapped.');
+        } catch (e) {
+            alert('Error: ' + e.message);
+        }
     });
 
     bind('modal-map-only', 'click', () => {
-        const json = document.getElementById('json-input').value;
         const varName = document.getElementById('json-var-name').value || 'payload';
-        if (!json.trim()) return;
-
-        saveMapping(varName, json);
+        const jsonStr = document.getElementById('json-input').value;
+        saveMapping(varName, jsonStr);
         modal.style.display = 'none';
-        log('Success', `Mapping for '${varName}' saved.`);
-    });
-
-    bind('save-settings-btn', 'click', () => {
-        const key = document.getElementById('gemini-api-key').value;
-        chrome.storage.local.set({ 'gemini_api_key': key }, () => {
-            log('Success', 'Settings saved.');
-        });
-    });
-
-    bind('ai-ask-btn', 'click', askGemini);
-
-    document.querySelectorAll('.panel-header .tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.panel-header .tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
-            tab.classList.add('active');
-            const target = document.getElementById(tab.getAttribute('data-target'));
-            if (target) target.classList.add('active');
-        });
+        log('Success', 'JSON mapped for autocomplete.');
     });
 
     bind('clear-console', 'click', () => {
@@ -218,6 +265,31 @@ function setupEventHandlers() {
             }
         });
     }
+}
+
+function convertJsonToDeluge(varName, jsonStr) {
+    const obj = JSON.parse(jsonStr);
+    let code = `${varName} = Map();\n`;
+
+    function process(data, path) {
+        for (let key in data) {
+            const val = data[key];
+            if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+                const subVar = `${key}_map`;
+                code += `${subVar} = Map();\n`;
+                process(val, subVar);
+                code += `${path}.put("${key}", ${subVar});\n`;
+            } else if (Array.isArray(val)) {
+                code += `${path}.put("${key}", { ${val.map(v => typeof v === 'string' ? '"' + v + '"' : v).join(', ')} });\n`;
+            } else {
+                const safeVal = typeof val === 'string' ? '"' + val + '"' : val;
+                code += `${path}.put("${key}", ${safeVal});\n`;
+            }
+        }
+    }
+
+    process(obj, varName);
+    return code;
 }
 
 function saveMapping(name, jsonStr) {

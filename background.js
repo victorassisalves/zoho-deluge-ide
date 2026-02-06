@@ -27,6 +27,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    if (request.action === 'OPEN_ZOHO_EDITOR') {
+        const handleOpen = (tabId) => {
+            chrome.tabs.update(tabId, { active: true });
+            chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                func: () => {
+                    const ed = document.querySelector('[id*="delugeEditor"]') || document.querySelector('.ace_editor') || document.querySelector('.monaco-editor');
+                    if (ed) {
+                        ed.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        ed.click();
+                        // Try to focus it
+                        const inner = ed.querySelector('textarea, .ace_text-input, .monaco-mouse-cursor-text');
+                        if (inner) inner.focus();
+                    }
+                }
+            });
+        };
+
+        if (targetTabId) {
+            handleOpen(targetTabId);
+        } else {
+            findZohoTab((tab) => {
+                if (tab) handleOpen(tab.id);
+            });
+        }
+        sendResponse({ success: true });
+        return true;
+    }
+
     if (request.action === 'GET_ZOHO_CODE') {
         const handleResponse = (tabId) => {
             lastZohoTabId = tabId;

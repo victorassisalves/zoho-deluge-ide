@@ -23,19 +23,15 @@ const path = require('path');
   });
 
   const fileUrl = 'file://' + path.resolve('ide.html');
-  console.log('Opening page:', fileUrl);
-
   await page.goto(fileUrl);
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(500);
 
-  await page.screenshot({ path: 'ide_fixed_screenshot.png', fullPage: true });
-  console.log('Screenshot saved to ide_fixed_screenshot.png');
+  // Click on AI Agent icon
+  await page.click('.sidebar-item[data-view="ai-agent"]');
+  await page.waitForTimeout(500);
 
-  // Test sidepanel mode
-  await page.goto(fileUrl + '?mode=sidepanel');
-  await page.waitForTimeout(2000);
-  await page.screenshot({ path: 'ide_sidepanel_fixed_screenshot.png', fullPage: true });
-  console.log('Sidepanel screenshot saved to ide_sidepanel_fixed_screenshot.png');
+  await page.screenshot({ path: 'ide_ai_screenshot.png' });
+  console.log('AI screenshot saved to ide_ai_screenshot.png');
 
   await browser.close();
 })();
