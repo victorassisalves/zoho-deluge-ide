@@ -1,44 +1,30 @@
-// Deluge Language Definition for Monaco Editor
+/**
+ * Deluge Language Definition for Monaco Editor
+ */
 
 function registerDelugeLanguage() {
-    if (typeof monaco === 'undefined') return;
-    if (monaco.languages.getLanguages().some(lang => lang.id === 'deluge')) {
-        return; // Already registered
-    }
-
     monaco.languages.register({ id: 'deluge' });
 
     monaco.languages.setMonarchTokensProvider('deluge', {
         defaultToken: '',
         tokenPostfix: '.deluge',
-
         keywords: [
-            'if', 'else', 'for', 'each', 'in', 'return', 'break', 'continue',
-            'void', 'info', 'true', 'false', 'null', 'and', 'or', 'not',
-            'yield', 'as', 'distinct', 'sort', 'by', 'asc', 'desc', 'input',
-            'cancel', 'confirm'
+            'if', 'else', 'for', 'in', 'return', 'info', 'debug', 'while', 'break', 'continue',
+            'try', 'catch', 'Map', 'List', 'zoho', 'invokeurl', 'insert', 'update', 'delete'
         ],
-
-        typeKeywords: [
-            'string', 'int', 'decimal', 'map', 'list', 'date', 'datetime', 'boolean', 'file', 'json'
-        ],
-
         operators: [
             '=', '>', '<', '!', '~', '?', ':', '==', '<=', '>=', '!=',
             '&&', '||', '++', '--', '+', '-', '*', '/', '&', '|', '^', '%',
-            '<<', '>>', '+=', '-=', '*=', '/=', '&=', '|=', '^=', '%=', '<<=', '>>='
+            '<<', '>>', '>>>', '+=', '-=', '*=', '/=', '&=', '|=', '^=',
+            '%=', '<<=', '>>=', '>>>='
         ],
-
         symbols: /[=><!~?:&|+\-*\/\^%]+/,
-
         tokenizer: {
             root: [
-                [/zoho\.[a-zA-Z0-9._]*/, 'keyword.zoho'],
-                [/[a-zA-Z_][a-zA-Z0-9_]*/, {
+                [/[a-z_$][\w$]*/, {
                     cases: {
-                        '@typeKeywords': 'keyword.type',
                         '@keywords': 'keyword',
-                        '@default': 'variable'
+                        '@default': 'identifier'
                     }
                 }],
                 { include: '@whitespace' },
@@ -52,8 +38,15 @@ function registerDelugeLanguage() {
                 [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
                 [/\d+/, 'number'],
                 [/[;,.]/, 'delimiter'],
-                [/"([^"\\]|\\.)*"/, 'string'],
-                [/'([^'\\]|\\.)*'/, 'string'],
+                [/"([^"\\]|\\.)*$/, 'string.invalid'],
+                [/"/, { token: 'string.quote', bracket: '@open', next: '@string' }],
+                [/'[^\\']'/, 'string'],
+                [/'/, 'string.invalid']
+            ],
+            string: [
+                [/[^\\"]+/, 'string'],
+                [/\\./, 'string.escape.invalid'],
+                [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }]
             ],
             whitespace: [
                 [/[ \t\r\n]+/, 'white'],
@@ -63,43 +56,28 @@ function registerDelugeLanguage() {
             comment: [
                 [/[^\/*]+/, 'comment'],
                 [/\/\*/, 'comment', '@push'],
-                [/\*\//, 'comment', '@pop'],
+                ["\\*/", 'comment', '@pop'],
                 [/[\/*]/, 'comment']
             ],
-        }
-    });
-
-    monaco.languages.setLanguageConfiguration('deluge', {
-        wordPattern: /(-?\d*\.\d\w*)|([^\`~!@#%^&*()\-=+\[\]\\{}|;:',.<>?\s]+)/g,
-        brackets: [['{', '}'], ['[', ']'], ['(', ')']],
-        autoClosingPairs: [
-            { open: '{', close: '}' }, { open: '[', close: ']' }, { open: '(', close: ')' },
-            { open: '"', close: '"' }, { open: "'", close: "'" }
-        ],
-        surroundingPairs: [
-            { open: '{', close: '}' }, { open: '[', close: ']' }, { open: '(', close: ')' },
-            { open: '"', close: '"' }, { open: "'", close: "'" }
-        ],
-        comments: { lineComment: '//', blockComment: ['/*', '*/'] }
+        },
     });
 
     const staticSuggestions = [
-        ...['if', 'else', 'for each', 'return', 'break', 'continue', 'info', 'true', 'false', 'null', 'and', 'or', 'not', 'in', 'yield', 'as'].map(k => ({
-            label: k, kind: monaco.languages.CompletionItemKind.Keyword, insertText: k
-        })),
-        { label: 'Map', kind: monaco.languages.CompletionItemKind.Class, insertText: 'Map()' },
-        { label: 'List', kind: monaco.languages.CompletionItemKind.Class, insertText: 'List()' }
+        { label: 'info', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'info ${1:message};', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+        { label: 'if', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'if (${1:condition}) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+        { label: 'for each', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'for each ${1:var} in ${2:list} {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+        { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'response = invokeurl\n[\n\turl: "${1:https://}"\n\ttype: ${2:GET}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+        { label: 'Map()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'Map();' },
+        { label: 'List()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'List();' }
     ];
 
     const typeMethods = {
         'map': [
-            { label: 'put', detail: 'Map: Add key-value pair', insertText: 'put(${1:key}, ${2:value})' },
-            { label: 'get', detail: 'Map: Get value', insertText: 'get(${1:key})' },
-            { label: 'keys', detail: 'Map: Get keys', insertText: 'keys()' },
-            { label: 'values', detail: 'Map: Get values', insertText: 'values()' },
-            { label: 'remove', detail: 'Map: Remove key', insertText: 'remove(${1:key})' },
-            { label: 'containKey', detail: 'Map: Has key?', insertText: 'containKey(${1:key})' },
-            { label: 'size', detail: 'Map: Size', insertText: 'size()' },
+            { label: 'put', detail: 'Map: Add/Update key', insertText: 'put("${1:key}", ${2:value})' },
+            { label: 'get', detail: 'Map: Get value by key', insertText: 'get("${1:key}")' },
+            { label: 'getJSON', detail: 'Map: Get value by key (JSON)', insertText: 'getJSON("${1:key}")' },
+            { label: 'keys', detail: 'Map: Get all keys', insertText: 'keys()' },
+            { label: 'remove', detail: 'Map: Remove key', insertText: 'remove("${1:key}")' },
             { label: 'clear', detail: 'Map: Clear', insertText: 'clear()' }
         ],
         'list': [
@@ -137,8 +115,8 @@ function registerDelugeLanguage() {
     };
 
     monaco.languages.registerCompletionItemProvider('deluge', {
-        triggerCharacters: ['.', ' ', '='],
-        provideCompletionItems: (model, position) => {
+        triggerCharacters: ['.', ' ', '=', '(', '"', "'"],
+        provideCompletionItems: async (model, position) => {
             const code = model.getValue();
             const line = model.getLineContent(position.lineNumber);
             const word = model.getWordUntilPosition(position);
@@ -149,6 +127,29 @@ function registerDelugeLanguage() {
                 endColumn: word.endColumn
             };
             const lineUntilPos = line.substring(0, position.column - 1);
+
+            // 1. JSON Mapping Autocomplete
+            const getMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.(get|getJSON)\(["']$/);
+            if (getMatch && typeof chrome !== 'undefined' && chrome.storage) {
+                const varName = getMatch[1];
+                const result = await new Promise(resolve => chrome.storage.local.get(['json_mappings'], resolve));
+                const mappings = result.json_mappings || {};
+                if (mappings[varName]) {
+                    const obj = mappings[varName];
+                    const keys = Object.keys(obj);
+                    return {
+                        suggestions: keys.map(key => ({
+                            label: key,
+                            kind: monaco.languages.CompletionItemKind.Property,
+                            detail: `Key from ${varName}`,
+                            insertText: key,
+                            range: range
+                        }))
+                    };
+                }
+            }
+
+            // 2. Method Autocomplete
             const match = lineUntilPos.match(/([a-zA-Z0-9_]+)\.$/);
             if (match) {
                 const varName = match[1];
@@ -163,6 +164,7 @@ function registerDelugeLanguage() {
                     }))
                 };
             }
+
             const variables = extractVariables(code);
             const varSuggestions = variables.map(v => ({
                 label: v.name,
@@ -190,7 +192,7 @@ function registerDelugeLanguage() {
         let match;
         while ((match = assignmentRegex.exec(code)) !== null) {
             const name = match[1];
-            if (!seen.has(name) && !['if', 'for', 'else', 'return'].includes(name)) {
+            if (!seen.has(name) && !['if', 'for', 'else', 'return', 'try', 'catch'].includes(name)) {
                 vars.push({ name, type: inferVarType(name, code) });
                 seen.add(name);
             }
@@ -215,20 +217,48 @@ function registerDelugeLanguage() {
                 const markers = [];
                 const lines = model.getLinesContent();
                 const code = model.getValue();
+
+                let inBracketBlock = 0;
+                let inCommentBlock = false;
+
                 lines.forEach((line, i) => {
                     const trimmed = line.trim();
-                    if (trimmed.length > 0 &&
-                        !trimmed.endsWith('{') && !trimmed.endsWith('}') && !trimmed.endsWith(';') &&
-                        !trimmed.startsWith('if') && !trimmed.startsWith('for') && !trimmed.startsWith('else') &&
-                        !trimmed.startsWith('//') && !trimmed.startsWith('/*') && !trimmed.includes('[')
-                    ) {
-                        markers.push({
-                            message: 'Likely missing semicolon',
-                            severity: monaco.MarkerSeverity.Warning,
-                            startLineNumber: i + 1, startColumn: 1,
-                            endLineNumber: i + 1, endColumn: line.length + 1
-                        });
+                    if (trimmed.length === 0) return;
+
+                    // Comment handling
+                    if (trimmed.startsWith('//')) return;
+                    if (trimmed.startsWith('/*')) {
+                        if (!trimmed.includes('*/')) inCommentBlock = true;
+                        return;
                     }
+                    if (inCommentBlock) {
+                        if (trimmed.includes('*/')) inCommentBlock = false;
+                        return;
+                    }
+
+                    // Count brackets/square brackets
+                    const opens = (trimmed.match(/\[/g) || []).length;
+                    const closes = (trimmed.match(/\]/g) || []).length;
+                    const prevInBracketBlock = inBracketBlock;
+                    inBracketBlock += opens - closes;
+
+                    const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'while'];
+                    const startsWithKeyword = skipKeywords.some(kw => trimmed.toLowerCase().startsWith(kw));
+                    const endsWithSpecial = trimmed.endsWith('{') || trimmed.endsWith('}') || trimmed.endsWith(';') || trimmed.endsWith(':') || trimmed.endsWith(',');
+
+                    if (!endsWithSpecial && !startsWithKeyword && inBracketBlock === 0 && prevInBracketBlock === 0) {
+                        let nextLineTrimmed = (lines[i+1] || "").trim();
+                        if (!nextLineTrimmed.startsWith('[') && !nextLineTrimmed.startsWith('{') && !trimmed.includes('[') && !trimmed.includes('{')) {
+                            markers.push({
+                                message: 'Likely missing semicolon',
+                                severity: monaco.MarkerSeverity.Warning,
+                                startLineNumber: i + 1, startColumn: 1,
+                                endLineNumber: i + 1, endColumn: line.length + 1
+                            });
+                        }
+                    }
+
+                    // Method validation (.put, .add)
                     const putMatch = trimmed.match(/([a-zA-Z0-9_]+)\.put\(/);
                     if (putMatch) {
                         const type = inferVarType(putMatch[1], code);
