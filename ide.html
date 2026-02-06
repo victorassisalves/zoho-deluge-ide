@@ -6,6 +6,7 @@
     <title>Zoho Deluge Advanced IDE</title>
     <link rel="stylesheet" href="ide.css">
     <script>
+        // Check for sidepanel mode early to avoid flash of unstyled content
         if (window.location.search.includes("mode=sidepanel") || window.location.hash.includes("sidepanel")) {
             document.documentElement.classList.add("sidepanel-mode");
         }
@@ -17,7 +18,7 @@
         <header id="top-bar">
             <div class="logo">Zoho Deluge IDE</div>
             <div class="actions">
-                <span id="status-indicator">Disconnected (Local Mode)</span>
+                <span id="status-indicator">Disconnected</span>
                 <button id="new-btn" title="New Script">New</button>
                 <button id="pull-btn" title="Pull from Zoho Tab">Pull Code</button>
                 <button id="push-btn" title="Push to Zoho Tab">Sync to Zoho</button>
@@ -37,7 +38,7 @@
             <div class="panel-header">
                 <div class="tab active" data-target="console-output">Console</div>
                 <div class="tab" data-target="problems-output">Problems</div>
-                <div class="tab" data-target="docs-output">Zoho Docs</div>
+                <div class="tab" data-target="docs-output">Docs</div>
                 <div class="panel-actions">
                     <button id="manual-console-btn" title="Manual Console Input">➕</button>
                     <button id="clear-console">Clear</button>
@@ -45,7 +46,7 @@
             </div>
             <div id="panel-body">
                 <div id="console-output" class="panel-content active">
-                    <div class="log-entry system">Welcome to Deluge IDE. Connect to a Zoho tab to begin.</div>
+                    <div class="log-entry system">Welcome to Deluge IDE.</div>
                 </div>
                 <div id="problems-output" class="panel-content">
                     <div class="log-entry">No problems detected.</div>
@@ -62,7 +63,6 @@
             </div>
             <div class="status-right">
                 <span>Deluge</span>
-                <span>UTF-8</span>
             </div>
         </div>
     </div>
