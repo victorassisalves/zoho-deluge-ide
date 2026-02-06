@@ -171,5 +171,3 @@ function saveLocally() {
     const code = editor.getValue();
     chrome.storage.local.set({ 'saved_deluge_code': code }, () => {
         log('Success', 'Code saved locally.');
-    });
-}
