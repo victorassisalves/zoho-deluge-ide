@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zoho Deluge Advanced IDE</title>
+    <title>Zoho Deluge Advanced IDE v1.1</title>
     <link rel="stylesheet" href="ide.css">
     <script>
         if (window.location.search.includes("mode=sidepanel") || window.location.hash.includes("sidepanel")) {
@@ -15,7 +15,7 @@
 <body>
     <div id="app-container">
         <header id="top-bar">
-            <div class="logo">Zoho Deluge IDE</div>
+            <div class="logo">Zoho Deluge IDE <span style="font-size:10px; opacity:0.5;">v1.1</span></div>
             <div class="actions">
                 <span id="status-indicator">Disconnected</span>
                 <button id="new-btn" title="New Script">New</button>
@@ -96,10 +96,17 @@
 
             <div id="editor-container"></div>
 
+            <div id="right-sidebar-resizer"></div>
             <aside id="right-sidebar">
                 <div class="right-sidebar-header">
-                    <span id="toggle-right-sidebar" style="cursor:pointer;" title="Toggle Sidebar">▶</span> <span>JSON Manager</span>
-                    <button id="add-json-btn" title="Add JSON Mapping">+</button>
+                    <div class="header-top">
+                        <span id="toggle-right-sidebar" style="cursor:pointer;" title="Toggle Sidebar">▶</span>
+                        <span class="header-title">JSON Manager</span>
+                        <button id="add-json-btn" title="Add JSON Mapping">+</button>
+                    </div>
+                    <div class="search-container">
+                        <input type="text" id="json-search" placeholder="Search keys...">
+                    </div>
                 </div>
                 <div id="json-mappings-list">
                     <!-- Mappings will appear here -->
@@ -129,11 +136,9 @@
                 </div>
                 <div id="docs-output" class="panel-content">
                     <div class="docs-search-container"><input type="text" id="docs-search" placeholder="Search methods..."></div>
-                    <div id="docs-resources-list"><div id="docs-resources-list" style="font-size:12px;">
-                        <div class="resource-section"><h5>String Methods</h5><ul><li>length()</li><li>subString(start, end)</li><li>indexOf(str)</li><li>startsWith(prefix)</li><li>toLowerCase()</li><li>toUpperCase()</li><li>trim()</li><li>toList(delim)</li></ul></div><div class="resource-section"><h5>List Methods</h5><ul><li>add(val)</li><li>addAll(list)</li><li>get(index)</li><li>size()</li><li>isEmpty()</li><li>remove(index)</li><li>contains(val)</li></ul></div><div class="resource-section"><h5>Map Methods</h5><ul><li>put(key, val)</li><li>get(key)</li><li>getJSON(key)</li><li>keys()</li><li>remove(key)</li><li>clear()</li></ul></div>
-                    </div></div>
-                </div>
-                    <div class="log-entry">Select a function to see documentation.</div>
+                    <div id="docs-resources-list">
+                         <div class="resource-section"><h5>String Methods</h5><ul><li>length()</li><li>subString(start, end)</li><li>indexOf(str)</li><li>startsWith(prefix)</li><li>toLowerCase()</li><li>toUpperCase()</li><li>trim()</li><li>toList(delim)</li></ul></div><div class="resource-section"><h5>List Methods</h5><ul><li>add(val)</li><li>addAll(list)</li><li>get(index)</li><li>size()</li><li>isEmpty()</li><li>remove(index)</li><li>contains(val)</li></ul></div><div class="resource-section"><h5>Map Methods</h5><ul><li>put(key, val)</li><li>get(key)</li><li>getJSON(key)</li><li>keys()</li><li>remove(key)</li><li>clear()</li></ul></div>
+                    </div>
                 </div>
             </div>
         </footer>

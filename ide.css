@@ -536,3 +536,69 @@ html.sidepanel-mode #right-sidebar {
 .docs-section li {
     padding: 4px 0;
 }
+
+/* JSON Manager Enhancements */
+#right-sidebar-resizer {
+    width: 4px;
+    cursor: ew-resize;
+    background: #333;
+    transition: background 0.2s;
+}
+#right-sidebar-resizer:hover {
+    background: #007acc;
+}
+.right-sidebar-header {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    background: #252526;
+    border-bottom: 1px solid #333;
+}
+.header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.header-title {
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #aaa;
+}
+.search-container {
+    padding: 0 5px;
+}
+#json-search {
+    width: 100%;
+    background: #1e1e1e;
+    border: 1px solid #444;
+    color: #ccc;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 3px;
+}
+#json-search:focus {
+    border-color: #007acc;
+    outline: none;
+}
+.tree-node {
+    margin-left: 15px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+}
+.tree-key {
+    color: #9cdcfe;
+}
+.tree-val {
+    color: #ce9178;
+}
+.tree-label {
+    cursor: pointer;
+}
+.tree-label:hover {
+    background: #2a2d2e;
+}
+.tree-node.hidden {
+    display: none;
+}

@@ -4,11 +4,14 @@ let lastZohoTabId = null;
 
 chrome.commands.onCommand.addListener((command) => {
     if (command === "open-ide") {
-        chrome.tabs.query({ url: chrome.runtime.getURL('ide.html*') }, (tabs) => {
-            if (tabs.length > 0) {
-                chrome.tabs.update(tabs[0].id, { active: true });
+        const ideUrl = chrome.runtime.getURL('ide.html');
+        chrome.tabs.query({}, (tabs) => {
+            const existingTab = tabs.find(t => t.url && t.url.startsWith(ideUrl));
+            if (existingTab) {
+                chrome.tabs.update(existingTab.id, { active: true });
+                chrome.windows.update(existingTab.windowId, { focused: true });
             } else {
-                chrome.tabs.create({ url: chrome.runtime.getURL('ide.html') });
+                chrome.tabs.create({ url: ideUrl });
             }
         });
     }
@@ -38,6 +41,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'OPEN_ZOHO_EDITOR') {
         const handleOpen = (tabId) => {
             chrome.tabs.update(tabId, { active: true });
+            chrome.windows.update(sender.tab ? sender.tab.windowId : tabId, { focused: true }); // focused true if possible
             chrome.scripting.executeScript({
                 target: { tabId: tabId },
                 func: () => {
@@ -134,6 +138,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 function findZohoTab(callback) {
+    // Note: To find incognito tabs, extension must have "allow in incognito" enabled.
     chrome.tabs.query({}, (allTabs) => {
         const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url));
         if (zohoTabs.length === 0) {

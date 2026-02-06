@@ -329,29 +329,37 @@ function renderTreeView(obj, mappingName) {
     const tree = document.getElementById('json-tree-view');
     if (!tree) return;
     tree.innerHTML = '';
-    function buildTree(data, container) {
+
+    function buildTree(data, container, path = "") {
         if (typeof data === 'object' && data !== null) {
-            Object.keys(data).forEach(key => {
+            const keys = Object.keys(data);
+            keys.forEach(key => {
                 const val = data[key];
+                const isArr = Array.isArray(data);
+                const currentPath = isArr ? `${path}.get(${key})` : `${path}.get("${key}")`;
+
                 const node = document.createElement('div');
                 node.className = 'tree-node';
+                node.setAttribute('data-key', key.toLowerCase());
+
                 const label = document.createElement('span');
                 label.className = 'tree-label';
+
                 if (typeof val === 'object' && val !== null) {
                     label.innerHTML = `<span class="tree-key">${key}</span>: ${Array.isArray(val) ? '[' : '{'}`;
                     node.appendChild(label);
                     const subContainer = document.createElement('div');
-                    buildTree(val, subContainer);
+                    buildTree(val, subContainer, currentPath);
                     node.appendChild(subContainer);
                     const footer = document.createElement('div');
                     footer.innerText = Array.isArray(val) ? ']' : '}';
                     node.appendChild(footer);
                 } else {
                     label.innerHTML = `<span class="tree-key">${key}</span>: <span class="tree-val">${JSON.stringify(val)}</span>`;
-                    label.title = "Click to insert .get()";
+                    label.title = "Click to insert path";
                     label.onclick = () => {
-                        const text = `${mappingName}.get("${key}")`;
-                        editor.executeEdits("tree-insert", [{ range: editor.getSelection(), text: text }]);
+                        const fullPath = mappingName + currentPath;
+                        editor.executeEdits("tree-insert", [{ range: editor.getSelection(), text: fullPath }]);
                     };
                     node.appendChild(label);
                 }
@@ -536,3 +544,48 @@ if (document.getElementById('docs-search')) {
         });
     });
 }
+
+// Resizing Right Sidebar
+let isResizingRight = false;
+document.getElementById('right-sidebar-resizer')?.addEventListener('mousedown', (e) => {
+    isResizingRight = true;
+    document.body.style.userSelect = 'none';
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (!isResizingRight) return;
+    const width = window.innerWidth - e.clientX;
+    if (width > 50 && width < 600) {
+        const sidebar = document.getElementById('right-sidebar');
+        if (sidebar) {
+            sidebar.style.width = width + 'px';
+            if (editor) editor.layout();
+        }
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    isResizingRight = false;
+    document.body.style.userSelect = 'auto';
+});
+
+// JSON Search
+document.getElementById('json-search')?.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const nodes = document.querySelectorAll('#json-tree-view .tree-node');
+    nodes.forEach(node => {
+        const key = node.getAttribute('data-key');
+        if (key && key.includes(term)) {
+            node.classList.remove('hidden');
+            let p = node.parentElement;
+            while (p && p.id !== 'json-tree-view') {
+                if (p.classList.contains('tree-node')) p.classList.remove('hidden');
+                p = p.parentElement;
+            }
+        } else if (term) {
+            node.classList.add('hidden');
+        } else {
+            node.classList.remove('hidden');
+        }
+    });
+});

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zoho Deluge Advanced IDE",
-  "version": "1.0",
+  "version": "1.1",
   "description": "A full-featured IDE for Zoho Deluge with real-time sync and autocomplete.",
   "permissions": [
     "tabs",
@@ -14,7 +14,8 @@
     "https://*.zoho.eu/*",
     "https://*.zoho.in/*",
     "https://*.zoho.com.au/*",
-    "https://*.zoho.jp/*"
+    "https://*.zoho.jp/*",
+    "https://generativelanguage.googleapis.com/*"
   ],
   "action": {
     "default_popup": "popup.html"

@@ -103,39 +103,51 @@
         if (type === 'save') {
             selectors = [
                 'button[id="save_script"]',
-                '.save-btn',
-                '#save-btn',
+                'button[id="save_btn"]',
+                '#save_script',
+                '#save_btn',
                 '.zc-save-btn',
+                '.save-btn',
                 '.lyte-button[data-id="save"]',
+                '.lyte-button[data-id="update"]',
                 '.save_btn',
                 '#save_btn'
             ];
         } else if (type === 'execute') {
             selectors = [
                 'button[id="execute_script"]',
-                '.execute-btn',
-                '#execute-btn',
+                'button[id="run_script"]',
+                '#execute_script',
+                '#run_script',
                 '.zc-execute-btn',
+                '.execute-btn',
                 '.lyte-button[data-id="execute"]',
+                '.lyte-button[data-id="run"]',
                 '.execute_btn',
                 '#execute_btn'
             ];
         }
 
         for (let sel of selectors) {
-            const el = document.querySelector(sel);
-            if (el) { el.click(); return true; }
+            try {
+                const el = document.querySelector(sel);
+                if (el) { el.click(); return true; }
+            } catch(e) {}
         }
 
-        // Fallback: search by text
-        const buttons = document.querySelectorAll('button, .lyte-button, a.btn, input[type="button"]');
+        // Fallback: search by text and ARIA labels
+        const buttons = document.querySelectorAll('button, .lyte-button, a.btn, input[type="button"], [role="button"]');
         for (let btn of buttons) {
-            const txt = (btn.innerText || btn.value || '').toLowerCase().trim();
-            if (type === 'save' && (txt === 'save' || txt === 'update')) {
-                btn.click(); return true;
+            const txt = (btn.innerText || btn.textContent || btn.value || btn.getAttribute('aria-label') || '').toLowerCase().trim();
+            if (type === 'save') {
+                if (txt === 'save' || txt === 'update' || txt.includes('save script') || txt.includes('update script')) {
+                    btn.click(); return true;
+                }
             }
-            if (type === 'execute' && (txt.includes('execute') || txt.includes('run'))) {
-                btn.click(); return true;
+            if (type === 'execute') {
+                if (txt === 'execute' || txt === 'run' || txt.includes('execute script') || txt.includes('run script')) {
+                    btn.click(); return true;
+                }
             }
         }
         return false;
