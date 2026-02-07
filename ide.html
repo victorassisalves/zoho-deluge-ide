@@ -197,10 +197,14 @@
             <div id="right-sidebar-resizer" class="resizer"></div>
             <aside id="right-sidebar">
                 <div class="right-sidebar-header">
-                    <div class="header-top">
-                        <div style="display:flex; align-items:center; gap:8px; overflow:hidden;"><span id="toggle-right-sidebar" style="cursor:pointer;" title="Toggle Sidebar">▶</span>
-                        <span class="header-title">Interface Manager</span></div>
-                        <button id="add-interface-btn" title="Add Interface Mapping">+</button>
+                    <div class="header-row">
+                        <span class="header-title">Interface Manager</span>
+                    </div>
+                    <div class="header-row icons-row">
+                        <button id="toggle-right-sidebar" class="sidebar-btn" title="Toggle Sidebar">
+                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+                        </button>
+                        <button id="add-interface-btn" class="sidebar-btn" title="Add Interface Mapping">+</button>
                     </div>
                     <div class="search-container">
                         <input type="text" id="interface-search" placeholder="Search keys...">

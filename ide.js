@@ -544,7 +544,7 @@ function renderInterfaceTree(mappingName, obj) {
                 const val = data[key];
                 const isObject = typeof val === 'object' && val !== null;
                 const isArray = Array.isArray(val);
-                const currentPath = isArray ? `.get(${key})` : (Array.isArray(data) ? `.get(${key})` : `.get("${key}")`);
+                const currentPath = Array.isArray(data) ? `.get(${key})` : `.get("${key}")`;
                 const fullPath = mappingName + path + currentPath;
 
                 const node = document.createElement('div');
@@ -838,15 +838,12 @@ if (document.readyState === 'complete') { initEditor(); } else { window.addEvent
 
 document.getElementById('toggle-right-sidebar')?.addEventListener('click', () => {
     const sidebar = document.getElementById('right-sidebar');
-    const icon = document.getElementById('toggle-right-sidebar');
     sidebar.classList.toggle('collapsed');
 
     if (sidebar.classList.contains('collapsed')) {
-        icon.innerText = '◀';
         sidebar.dataset.oldWidth = sidebar.style.width || '250px';
         sidebar.style.width = ''; // Let CSS take over
     } else {
-        icon.innerText = '▶';
         sidebar.style.width = sidebar.dataset.oldWidth || '250px';
     }
     if (editor) editor.layout();
@@ -896,8 +893,6 @@ window.addEventListener('mousemove', (e) => {
         const width = window.innerWidth - e.clientX;
         if (width > 50 && width < 600) {
             sidebar.classList.remove('collapsed');
-            const icon = document.getElementById('toggle-right-sidebar');
-            if (icon) icon.innerText = '▶';
             sidebar.style.width = width + 'px';
             if (editor) editor.layout();
         }
