@@ -39,6 +39,7 @@ function initEditor() {
                 { token: 'function', foreground: '50fa7b' },
                 { token: 'method', foreground: '50fa7b' },
                 { token: 'variable', foreground: 'ffb86c' },
+                { token: 'key', foreground: '8be9fd' },
                 { token: 'brackets', foreground: 'f8f8f2' }
             ],
             colors: {
@@ -82,6 +83,18 @@ function initEditor() {
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => { pushToZoho(true, true); });
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => { pullFromZoho(); });
 
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+            chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+                if (request.action === "CMD_SYNC_SAVE") {
+                    pushToZoho(true);
+                } else if (request.action === "CMD_SYNC_SAVE_EXECUTE") {
+                    pushToZoho(true, true);
+                } else if (request.action === "CMD_PULL_CODE") {
+                    pullFromZoho();
+                }
+            });
+        }
+
         editor.onDidChangeModelContent(() => {
             const code = editor.getValue();
             if (typeof chrome !== "undefined" && chrome.storage) {
@@ -123,27 +136,7 @@ function initEditor() {
             });
         }
 
-        // Global Fallback for Shortcuts (Incognito support)
-        window.addEventListener("keydown", (e) => {
-            const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-            const ctrlCmd = isMac ? e.metaKey : e.ctrlKey;
-            if (ctrlCmd && e.shiftKey) {
-                const code = e.code;
-                if (code === "KeyS") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    pushToZoho(true);
-                } else if (code === "Enter") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    pushToZoho(true, true);
-                } else if (code === "KeyP") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    pullFromZoho();
-                }
-            }
-        }, true);
+
 
         setupEventHandlers();
         checkConnection();

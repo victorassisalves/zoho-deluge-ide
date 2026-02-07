@@ -1,10 +1,25 @@
 // Background script for Zoho Deluge IDE
 
 let lastZohoTabId = null;
-
+function broadcastToIDE(message) {
+    const ideUrl = chrome.runtime.getURL("ide.html");
+    chrome.tabs.query({}, (tabs) => {
+        tabs.forEach(tab => {
+            if (tab.url && tab.url.startsWith(ideUrl)) {
+                chrome.tabs.sendMessage(tab.id, message);
+            }
+        });
+    });
+}
 
 chrome.commands.onCommand.addListener((command) => {
-    if (command === "open-ide") {
+    if (command === "sync-save") {
+        broadcastToIDE({ action: "CMD_SYNC_SAVE" });
+    } else if (command === "sync-save-execute") {
+        broadcastToIDE({ action: "CMD_SYNC_SAVE_EXECUTE" });
+    } else if (command === "pull-code") {
+        broadcastToIDE({ action: "CMD_PULL_CODE" });
+    } else if (command === "open-ide") {
         const ideUrl = chrome.runtime.getURL('ide.html');
         chrome.tabs.query({}, (tabs) => {
             const existingTab = tabs.find(t => t.url && t.url.startsWith(ideUrl));

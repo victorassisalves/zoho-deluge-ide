@@ -38,12 +38,17 @@
                     // Functions
                     [/[a-zA-Z_][\w]*\s*(?=\()/, 'function'],
 
+                    // Map Keys
+                    [/[a-zA-Z_]\w*(?=\s*:)/, 'key'],
+
+                    // Constants (UPPERCASE)
+                    [/[A-Z][A-Z_0-9]*/, 'identifier'],
+
                     // Identifiers and Keywords
                     [/[a-z_$][\w$]*/, {
                         cases: {
-                            'if|else|for|each|in|return|info|true|false|null|break|continue|while|try|catch|finally|throw|void|string|int|decimal|boolean|map|list': 'keyword',
-                            'zoho|thisapp|standalone|input': 'type',
-                            '@default': 'identifier'
+                            'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|void|string|int|decimal|boolean|map|list': 'keyword',
+                            'zoho|thisapp|standalone|input': 'type', 'invokeurl': 'identifier', '@default': 'variable'
                         }
                     }],
 
@@ -88,7 +93,27 @@
             let inCommentBlock = false;
 
             // 1. Collect defined variables
-            const definedVars = new Set(['input', 'zoho', 'thisapp', 'standalone', 'today', 'now']);
+            const definedVars = new Set(['input', 'zoho', 'thisapp', 'standalone', 'today', 'now', 'invokeurl']);
+
+            // Extract parameters from function signatures
+            const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
+            let pMatch;
+            while ((pMatch = funcParamRegex.exec(code)) !== null) {
+                const params = pMatch[1].split(',');
+                params.forEach(p => {
+                    const parts = p.trim().split(/\s+/);
+                    if (parts.length > 0) {
+                        const paramName = parts[parts.length - 1].trim();
+                        if (paramName) definedVars.add(paramName);
+                    }
+                });
+            }
+
+            // Extract variables from catch blocks
+            const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
+            while ((pMatch = catchRegex.exec(code)) !== null) {
+                definedVars.add(pMatch[1]);
+            }
             const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
             let match;
             while ((match = assignmentRegex.exec(code)) !== null) {
@@ -138,7 +163,7 @@
                 openParens += (trimmed.match(/\(/g) || []).length;
                 openParens -= (trimmed.match(/\)/g) || []).length;
 
-                const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'while', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'break', 'continue', 'return', 'info'];
+                const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'break', 'continue', 'return', 'info', 'invokeurl'];
                 const startsWithKeyword = skipKeywords.some(kw => {
                     const regex = new RegExp('^' + kw + '(\\s|\\(|$)', 'i');
                     return regex.test(trimmed);
@@ -164,8 +189,8 @@
 
                     // Check if it's followed by ( or . (might be a function/namespace)
                     const index = line.indexOf(word);
-                    const charAfter = line[index + word.length];
-                    if (charAfter === '(' || charAfter === '.') return;
+                    const restOfLine = line.substring(index + word.length).trim();
+                    if (restOfLine.startsWith('(') || restOfLine.startsWith('.') || restOfLine.startsWith(':')) return;
 
                     // Check if it's part of a string
                     // (Simplified check: if it's between quotes on same line)
