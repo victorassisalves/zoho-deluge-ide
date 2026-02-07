@@ -1,4 +1,3 @@
-let currentProjectName = "Untitled Project";
 let currentProjectUrl = null;
 let currentProjectName = "Untitled Project";
 
@@ -165,10 +164,12 @@ function loadProjectData() {
         const notesEl = document.getElementById("project-notes");
         if (notesEl) notesEl.value = notes[currentProjectUrl] || "";
 
-        const lastCodes = result.last_project_code || {};
-        const currentVal = editor.getValue();
-        if (lastCodes[currentProjectUrl] && (!currentVal || currentVal.trim() === "" || currentVal.startsWith("// Start coding"))) {
-            editor.setValue(lastCodes[currentProjectUrl]);
+        if (editor) {
+            const lastCodes = result.last_project_code || {};
+            const currentVal = editor.getValue();
+            if (lastCodes[currentProjectUrl] && (!currentVal || currentVal.trim() === "" || currentVal.startsWith("// Start coding"))) {
+                editor.setValue(lastCodes[currentProjectUrl]);
+            }
         }
 
         const projectMappings = result.project_mappings || {};
@@ -373,7 +374,15 @@ function updateMappingsList() {
             if (e.target.classList.contains('delete-mapping')) {
                 delete jsonMappings[name];
                 if (typeof chrome !== "undefined" && chrome.storage) {
-                    chrome.storage.local.set({ 'json_mappings': jsonMappings });
+                    if (currentProjectUrl) {
+                        chrome.storage.local.get(['project_mappings'], (result) => {
+                            const projectMappings = result.project_mappings || {};
+                            projectMappings[currentProjectUrl] = jsonMappings;
+                            chrome.storage.local.set({ 'project_mappings': projectMappings });
+                        });
+                    } else {
+                        chrome.storage.local.set({ 'json_mappings': jsonMappings });
+                    }
                 }
                 updateMappingsList();
                 return;
@@ -436,6 +445,10 @@ function log(type, message) {
 }
 
 function pullFromZoho() {
+    if (!isConnected) {
+        log('Error', 'No Zoho tab connected. Please open a Zoho Deluge editor tab first.');
+        return;
+    }
     log('System', 'Pulling code...');
     if (typeof chrome !== "undefined" && chrome.runtime) {
         chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, (response) => {
@@ -448,6 +461,10 @@ function pullFromZoho() {
 }
 
 function pushToZoho(triggerSave = false, triggerExecute = false) {
+    if (!isConnected) {
+        log('Error', 'No Zoho tab connected. Sync/Execute failed.');
+        return;
+    }
     const code = editor.getValue();
     log('System', 'Pushing code...');
     if (typeof chrome !== "undefined" && chrome.runtime) {
