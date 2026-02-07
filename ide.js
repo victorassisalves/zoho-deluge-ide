@@ -39,6 +39,7 @@ function initEditor() {
                 { token: 'function', foreground: '50fa7b' },
                 { token: 'method', foreground: '50fa7b' },
                 { token: 'variable', foreground: 'ffb86c' },
+                { token: 'key', foreground: '8be9fd' },
                 { token: 'brackets', foreground: 'f8f8f2' }
             ],
             colors: {
@@ -82,6 +83,18 @@ function initEditor() {
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => { pushToZoho(true, true); });
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => { pullFromZoho(); });
 
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+            chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+                if (request.action === "CMD_SYNC_SAVE") {
+                    pushToZoho(true);
+                } else if (request.action === "CMD_SYNC_SAVE_EXECUTE") {
+                    pushToZoho(true, true);
+                } else if (request.action === "CMD_PULL_CODE") {
+                    pullFromZoho();
+                }
+            });
+        }
+
         editor.onDidChangeModelContent(() => {
             const code = editor.getValue();
             if (typeof chrome !== "undefined" && chrome.storage) {
@@ -91,11 +104,12 @@ function initEditor() {
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.get(['saved_deluge_code', 'theme', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height'], (result) => {
+            chrome.storage.local.get(['saved_deluge_code', 'theme', 'activation_behavior', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height'], (result) => {
                 if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
         if (typeof initApiExplorer === 'function') initApiExplorer();
         if (typeof syncProblemsPanel === 'function') syncProblemsPanel();
                 if (result.theme) monaco.editor.setTheme(result.theme);
+                if (result.activation_behavior) document.getElementById("activation-behavior").value = result.activation_behavior;
                 if (result.bottom_panel_height) {
                     const bottomPanel = document.getElementById('bottom-panel');
                     if (bottomPanel) {
@@ -123,27 +137,7 @@ function initEditor() {
             });
         }
 
-        // Global Fallback for Shortcuts (Incognito support)
-        window.addEventListener("keydown", (e) => {
-            const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-            const ctrlCmd = isMac ? e.metaKey : e.ctrlKey;
-            if (ctrlCmd && e.shiftKey) {
-                const code = e.code;
-                if (code === "KeyS") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    pushToZoho(true);
-                } else if (code === "Enter") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    pushToZoho(true, true);
-                } else if (code === "KeyP") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    pullFromZoho();
-                }
-            }
-        }, true);
+
 
         setupEventHandlers();
         checkConnection();
@@ -269,6 +263,7 @@ function setupEventHandlers() {
         });
     });
 
+    bind('activation-behavior', 'change', (e) => {        const behavior = e.target.value;        if (typeof chrome !== "undefined" && chrome.storage) {            chrome.storage.local.set({ 'activation_behavior': behavior });        }    });
     bind('theme-selector', 'change', (e) => {
         const theme = e.target.value;
         monaco.editor.setTheme(theme);
@@ -281,7 +276,7 @@ function setupEventHandlers() {
         const key = document.getElementById('gemini-api-key').value;
         const model = document.getElementById('ai-model-selector').value;
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.set({ 'gemini_api_key': key, 'gemini_model': model }, () => {
+            chrome.storage.local.set({ 'gemini_api_key': key, 'gemini_model': model, 'activation_behavior': document.getElementById('activation-behavior').value }, () => {
                 log('Success', 'Settings saved.');
             });
         }

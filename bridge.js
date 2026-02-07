@@ -108,12 +108,16 @@
                 'button[id="save_btn"]',
                 '#save_script',
                 '#save_btn',
+                '#crmsave', 'lyte-button[data-zcqa="functionSavev2"]', '.dxEditorPrimaryBtn',
+                '.crm-save-btn',
                 '.zc-save-btn',
                 '.save-btn',
                 '.lyte-button[data-id="save"]',
                 '.lyte-button[data-id="update"]',
+                '.lyte-button[data-id="save_and_close"]',
                 '.save_btn',
-                '#save_btn'
+                'input#saveBtn',
+                'input[value="Save"]'
             ];
         } else if (type === 'execute') {
             selectors = [
@@ -121,12 +125,18 @@
                 'button[id="run_script"]',
                 '#execute_script',
                 '#run_script',
+                '#crmexecute', 'span[data-zcqa="delgv2execPlay"]', '.dx_execute_icon',
+                '#runscript',
                 '.zc-execute-btn',
                 '.execute-btn',
                 '.lyte-button[data-id="execute"]',
                 '.lyte-button[data-id="run"]',
+                '.lyte-button[data-id="save_and_execute"]',
                 '.execute_btn',
-                '#execute_btn'
+                '#execute_btn',
+                'input#executeBtn',
+                'input[value="Execute"]',
+                'input[value="Run"]'
             ];
         }
 
@@ -142,12 +152,12 @@
         for (let btn of buttons) {
             const txt = (btn.innerText || btn.textContent || btn.value || btn.getAttribute('aria-label') || '').toLowerCase().trim();
             if (type === 'save') {
-                if (txt === 'save' || txt === 'update' || txt.includes('save script') || txt.includes('update script')) {
+                if (txt === 'save' || txt === 'update' || txt.includes('save script') || txt.includes('update script') || txt.includes('save & close') || txt.includes('save and close')) {
                     btn.click(); return true;
                 }
             }
             if (type === 'execute') {
-                if (txt === 'execute' || txt === 'run' || txt.includes('execute script') || txt.includes('run script')) {
+                if (txt === 'execute' || txt === 'run' || txt.includes('execute script') || txt.includes('run script') || txt.includes('save & execute') || txt.includes('save and execute')) {
                     btn.click(); return true;
                 }
             }

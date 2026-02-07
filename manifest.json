@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zoho Deluge Advanced IDE",
-  "version": "1.3.0",
+  "version": "1.3.2",
   "description": "A full-featured IDE for Zoho Deluge with Workspaces and Online Sync.",
   "permissions": [
     "tabs",
@@ -19,7 +19,15 @@
     "https://generativelanguage.googleapis.com/*",
     "https://*.firebaseio.com/*",
     "https://*.googleapis.com/*",
-    "https://*.firebaseapp.com/*"
+    "https://*.firebaseapp.com/*",
+    "https://deluge.zoho.com/*",
+    "https://deluge.zoho.eu/*",
+    "https://deluge.zoho.in/*",
+    "https://deluge.zoho.com.au/*",
+    "https://deluge.zoho.jp/*",
+    "https://deluge.zoho.ca/*",
+    "https://deluge.zoho.uk/*",
+    "https://deluge.zoho.com.cn/*"
   ],
   "action": {
     "default_popup": "popup.html"
@@ -34,7 +42,15 @@
         "https://*.zoho.eu/*",
         "https://*.zoho.in/*",
         "https://*.zoho.com.au/*",
-        "https://*.zoho.jp/*"
+        "https://*.zoho.jp/*",
+        "https://deluge.zoho.com/*",
+        "https://deluge.zoho.eu/*",
+        "https://deluge.zoho.in/*",
+        "https://deluge.zoho.com.au/*",
+        "https://deluge.zoho.jp/*",
+        "https://deluge.zoho.ca/*",
+        "https://deluge.zoho.uk/*",
+        "https://deluge.zoho.com.cn/*"
       ],
       "js": [
         "content.js"
@@ -44,18 +60,30 @@
     }
   ],
   "commands": {
-    "open-ide": {
+    "activate-ide": {
       "suggested_key": {
         "default": "Ctrl+Shift+E",
         "mac": "Command+Shift+E"
       },
-      "description": "Open Deluge IDE in new tab"
+      "description": "Activate IDE (Open tab or Side Panel)"
     },
-    "open-integrated": {
+    "sync-save": {
       "suggested_key": {
-        "default": "Ctrl+Shift+3"
+        "default": "Ctrl+Shift+S"
       },
-      "description": "Open IDE in Integrated Side Panel mode"
+      "description": "Sync and Save to Zoho"
+    },
+    "sync-save-execute": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+X"
+      },
+      "description": "Sync, Save and Execute"
+    },
+    "pull-code": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P"
+      },
+      "description": "Pull Code from Zoho"
     }
   },
   "web_accessible_resources": [
