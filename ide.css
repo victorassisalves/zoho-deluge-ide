@@ -995,3 +995,17 @@ html.sidepanel-mode .resizer {
 .resizer.horizontal:hover {
     background: #007acc;
 }
+
+.view-content {
+    height: calc(100% - 40px);
+    overflow-y: auto;
+    padding-bottom: 20px;
+}
+
+.panel-content {
+    overflow-y: auto;
+}
+
+.snippets-container {
+    padding-bottom: 20px;
+}

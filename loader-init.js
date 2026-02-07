@@ -70,9 +70,6 @@ require(['vs/editor/editor.main'], async function() {
 
         // Load Deluge Language
         await loadScript('deluge-lang.js');
-        if (typeof registerDelugeLanguage === 'function') {
-            registerDelugeLanguage();
-        }
 
         // Finally load main IDE logic
         await loadScript('ide.js');

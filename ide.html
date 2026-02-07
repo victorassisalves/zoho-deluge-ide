@@ -17,7 +17,7 @@
                 <button id="new-btn" title="New Script">New</button>
                 <button id="pull-btn" title="Pull (Ctrl+Shift+P)">Pull</button>
                 <button id="push-btn" title="Sync (Ctrl+Shift+S)">Sync</button>
-                <button id="interface-btn" title="JSON to Deluge Map Map">JSON->Map</button>
+                <button id="interface-btn" title="JSON to Deluge Map">JSON->Map</button>
                 <button id="execute-btn" style="background:#28a745;" title="Sync + Execute (Ctrl+Shift+Enter)">Run</button>
                     <button id="save-btn" title="Save Locally (Ctrl+S)">Save</button>
             </div>
@@ -29,6 +29,7 @@
                 <div class="sidebar-item" data-view="ai-agent" title="AI Agent">🤖</div>
                 <div class="sidebar-item" data-view="zoho-apis" title="Zoho APIs">📖</div>
                 <div class="sidebar-item" data-view="snippets" title="Snippets">📋</div>
+                <div class="sidebar-item" data-view="extensions" title="Extensions">🧩</div>
                 <div class="sidebar-item" data-view="settings" title="Settings">⚙️</div>
             </aside>
             <div id="left-panel-content" class="sidebar-panel">
@@ -39,75 +40,10 @@
                         <div class="log-entry" style="font-size:11px; opacity:0.6;">No saved files yet.</div>
                     </div>
                 </div>
-                <!-- AI Agent View -->
-                <div id="view-ai-agent" class="view-content">
-                    <h4>AI Agent (Gemini)</h4>
-                    <div id="ai-chat-container">
-                        <div id="ai-chat-history">
-                            <div class="chat-msg ai">Hello! I can help you with Deluge methods or explain your code. Make sure to add your Gemini API Key in Settings.</div>
-                        </div>
-                        <div class="ai-input-area">
-                            <textarea id="ai-question" placeholder="Ask about code or methods... (Ctrl+Enter to send)"></textarea>
-                            <button id="ai-ask-btn">Ask Gemini</button>
-                        </div>
-                    </div>
-                </div>
-                <!-- Zoho APIs View -->
 
-                <!-- Snippets View -->
-                <div id="view-snippets" class="view-content">
-                    <h4>Deluge Snippets</h4>
-                    <div class="snippets-container" style="font-size:12px;">
-                        <div class="snippet-group">
-                            <h5>Condition</h5>
-                            <div class="snippet-btn" data-snippet="if">if</div>
-                            <div class="snippet-btn" data-snippet="else if">else if</div>
-                            <div class="snippet-btn" data-snippet="else">else</div>
-                            <div class="snippet-btn" data-snippet="conditional if">conditional if</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Data Access</h5>
-                            <div class="snippet-btn" data-snippet="insert">add record</div>
-                            <div class="snippet-btn" data-snippet="fetch">fetch records</div>
-                            <div class="snippet-btn" data-snippet="aggregate">aggregate records</div>
-                            <div class="snippet-btn" data-snippet="update">update record</div>
-                            <div class="snippet-btn" data-snippet="for each">for each record</div>
-                            <div class="snippet-btn" data-snippet="delete">delete records</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>List Manipulation</h5>
-                            <div class="snippet-btn" data-snippet="list">create list</div>
-                            <div class="snippet-btn" data-snippet="add">add</div>
-                            <div class="snippet-btn" data-snippet="remove">remove index</div>
-                            <div class="snippet-btn" data-snippet="clear">clear list</div>
-                            <div class="snippet-btn" data-snippet="sort">sort list</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Map Manipulation</h5>
-                            <div class="snippet-btn" data-snippet="map">create map</div>
-                            <div class="snippet-btn" data-snippet="put">put</div>
-                            <div class="snippet-btn" data-snippet="remove_key">remove key</div>
-                            <div class="snippet-btn" data-snippet="clear_map">clear map</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Miscellaneous</h5>
-                            <div class="snippet-btn" data-snippet="variable">set variable</div>
-                            <div class="snippet-btn" data-snippet="function">call function</div>
-                            <div class="snippet-btn" data-snippet="mail">send mail</div>
-                            <div class="snippet-btn" data-snippet="info">info</div>
-                        </div>
-                    </div>
-                </div>
-                <div id="view-zoho-apis" class="view-content">
-                    <h4>Zoho Resources</h4>
-                    <div id="zoho-resources-list" style="font-size:12px;">
-                        <div class="resource-section"><h5>String Methods</h5><ul><li>length()</li><li>subString(start, end)</li><li>indexOf(str)</li><li>startsWith(prefix)</li><li>toLowerCase()</li><li>toUpperCase()</li><li>trim()</li><li>toList(delim)</li></ul></div><div class="resource-section"><h5>List Methods</h5><ul><li>add(val)</li><li>addAll(list)</li><li>get(index)</li><li>size()</li><li>isEmpty()</li><li>remove(index)</li><li>contains(val)</li></ul></div><div class="resource-section"><h5>Map Methods</h5><ul><li>put(key, val)</li><li>get(key)</li><li>getJSON(key)</li><li>keys()</li><li>remove(key)</li><li>clear()</li></ul></div>
-                    </div>
-                </div>
-
+                <!-- Cloud View -->
                 <div id="view-cloud" class="view-content">
                     <h4>Cloud Workspaces</h4>
-
                     <div id="cloud-auth-section">
                         <div id="auth-logged-out">
                             <input type="email" id="auth-email" placeholder="Email" class="cloud-input">
@@ -125,43 +61,175 @@
                             <div id="org-display" style="font-size:12px; font-weight:bold; margin-top:5px; color:#50fa7b;"></div>
                         </div>
                     </div>
-
                     <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
-
                     <div id="cloud-hierarchy-section" style="display:none;">
-                        <div class="hierarchy-level">
-                            <label>Team</label>
-                            <select id="team-selector" class="cloud-select"></select>
-                            <button id="create-team-btn" class="mini-btn">+</button>
-                        </div>
-                        <div class="hierarchy-level">
-                            <label>Workspace</label>
-                            <select id="workspace-selector" class="cloud-select"></select>
-                            <button id="create-workspace-btn" class="mini-btn">+</button>
-                        </div>
-                        <div class="hierarchy-level">
-                            <label>Project</label>
-                            <select id="project-selector" class="cloud-select"></select>
-                            <button id="create-project-btn" class="mini-btn">+</button>
-                        </div>
+                        <div class="hierarchy-level"><label>Team</label><select id="team-selector" class="cloud-select"></select><button id="create-team-btn" class="mini-btn">+</button></div>
+                        <div class="hierarchy-level"><label>Workspace</label><select id="workspace-selector" class="cloud-select"></select><button id="create-workspace-btn" class="mini-btn">+</button></div>
+                        <div class="hierarchy-level"><label>Project</label><select id="project-selector" class="cloud-select"></select><button id="create-project-btn" class="mini-btn">+</button></div>
                         <div class="hierarchy-level" style="flex-direction:column; align-items:flex-start;">
                             <label style="width:100%;">Files</label>
                             <div id="cloud-file-list" class="cloud-list"></div>
                             <button id="create-file-btn" class="cloud-btn" style="width:100%; margin-top:5px;">+ New Cloud File</button>
                         </div>
                     </div>
+                </div>
 
-                    <div id="cloud-idle-msg" style="text-align:center; opacity:0.5; margin-top:20px; font-size:12px;">
-                        Login to access cloud workspaces
+                <!-- AI Agent View -->
+                <div id="view-ai-agent" class="view-content">
+                    <h4>AI Agent (Gemini)</h4>
+                    <div id="ai-chat-container">
+                        <div id="ai-chat-history">
+                            <div class="chat-msg ai">Hello! I can help you with Deluge methods or explain your code. Make sure to add your Gemini API Key in Settings.</div>
+                        </div>
+                        <div class="ai-input-area">
+                            <textarea id="ai-question" placeholder="Ask about code or methods... (Ctrl+Enter to send)"></textarea>
+                            <button id="ai-ask-btn">Ask Gemini</button>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Zoho APIs View -->
+                <div id="view-zoho-apis" class="view-content">
+                    <h4>Zoho Resources</h4>
+                    <div id="zoho-resources-list" style="font-size:12px;">
+                        <div style="opacity:0.6; padding:10px;">Quick reference for common methods. Use the Docs tab below for search.</div>
+                        <div class="resource-section"><h5>String</h5><ul><li>length()</li><li>subString()</li><li>indexOf()</li></ul></div>
+                        <div class="resource-section"><h5>List</h5><ul><li>add()</li><li>get()</li><li>size()</li></ul></div>
+                        <div class="resource-section"><h5>Map</h5><ul><li>put()</li><li>get()</li><li>keys()</li></ul></div>
+                    </div>
+                </div>
+
+                <!-- Snippets View -->
+                <div id="view-snippets" class="view-content">
+                    <h4>Deluge Snippets</h4>
+                    <div class="snippets-container" style="font-size:12px;">
+                        <div class="snippet-group">
+                            <h5>Map Manipulation</h5>
+                            <div class="snippet-btn" data-snippet="map">create map</div>
+                            <div class="snippet-btn" data-snippet="put">put</div>
+                            <div class="snippet-btn" data-snippet="put_all">put all keys</div>
+                            <div class="snippet-btn" data-snippet="remove_key">remove key</div>
+                            <div class="snippet-btn" data-snippet="clear_map">clear map</div>
+                            <div class="snippet-btn" data-snippet="get">get value</div>
+                            <div class="snippet-btn" data-snippet="keys">get keys</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Collection (Native)</h5>
+                            <div class="snippet-btn" data-snippet="collection_create">create collection</div>
+                            <div class="snippet-btn" data-snippet="collection_insert">insert</div>
+                            <div class="snippet-btn" data-snippet="collection_get">get</div>
+                            <div class="snippet-btn" data-snippet="collection_insert_all">insertAll</div>
+                            <div class="snippet-btn" data-snippet="collection_update">update</div>
+                            <div class="snippet-btn" data-snippet="collection_delete">delete</div>
+                            <div class="snippet-btn" data-snippet="collection_keys">keys</div>
+                            <div class="snippet-btn" data-snippet="collection_values">values</div>
+                            <div class="snippet-btn" data-snippet="collection_contains_key">contains key</div>
+                            <div class="snippet-btn" data-snippet="collection_contains_value">contains value</div>
+                            <div class="snippet-btn" data-snippet="collection_clear">clear</div>
+                            <div class="snippet-btn" data-snippet="collection_sort">sort value</div>
+                            <div class="snippet-btn" data-snippet="collection_is_empty">is empty</div>
+                            <div class="snippet-btn" data-snippet="collection_size">size</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Web Data</h5>
+                            <div class="snippet-btn" data-snippet="zoho_integration">zoho integration</div>
+                            <div class="snippet-btn" data-snippet="other_integration">other integration</div>
+                            <div class="snippet-btn" data-snippet="get_url">get url</div>
+                            <div class="snippet-btn" data-snippet="post_url">post url</div>
+                            <div class="snippet-btn" data-snippet="invoke_url">invoke url</div>
+                            <div class="snippet-btn" data-snippet="open_url">open url</div>
+                            <div class="snippet-btn" data-snippet="invoke_api">invoke API</div>
+                            <div class="snippet-btn" data-snippet="ftp">FTP/SFTP</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Xml Manipulation</h5>
+                            <div class="snippet-btn" data-snippet="xpath">execute XPath</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Condition</h5>
+                            <div class="snippet-btn" data-snippet="if">if</div>
+                            <div class="snippet-btn" data-snippet="else if">else if</div>
+                            <div class="snippet-btn" data-snippet="else">else</div>
+                            <div class="snippet-btn" data-snippet="conditional if">conditional if</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Data Access (Creator)</h5>
+                            <div style="margin-bottom:10px; display:flex; flex-direction:column; gap:5px; border-bottom:1px solid #333; padding-bottom:10px;">
+                                <button id="fetch-creator-forms-btn" class="mini-btn" style="width:100%; font-size:10px;">Fetch Creator Forms</button>
+                                <select id="creator-form-selector" class="mini-select" style="width:100%; display:none; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:2px; font-size:10px;"></select>
+                            </div>
+                            <div class="snippet-btn" data-snippet="insert">add record</div>
+                            <div class="snippet-btn" data-snippet="fetch">fetch records</div>
+                            <div class="snippet-btn" data-snippet="aggregate">aggregate records</div>
+                            <div class="snippet-btn" data-snippet="update">update record</div>
+                            <div class="snippet-btn" data-snippet="update_multiple">update multiple fields</div>
+                            <div class="snippet-btn" data-snippet="for each">for each record</div>
+                            <div class="snippet-btn" data-snippet="delete">delete records</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>List Manipulation</h5>
+                            <div class="snippet-btn" data-snippet="list">create list</div>
+                            <div class="snippet-btn" data-snippet="add">add</div>
+                            <div class="snippet-btn" data-snippet="remove">remove index</div>
+                            <div class="snippet-btn" data-snippet="remove_element">remove element</div>
+                            <div class="snippet-btn" data-snippet="add_all">add all | remove all</div>
+                            <div class="snippet-btn" data-snippet="clear">clear list</div>
+                            <div class="snippet-btn" data-snippet="sort">sort</div>
+                            <div class="snippet-btn" data-snippet="for_each_element">for each element</div>
+                            <div class="snippet-btn" data-snippet="for_each_index">for each index</div>
+                            <div class="snippet-btn" data-snippet="list_get">get element</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Miscellaneous</h5>
+                            <div class="snippet-btn" data-snippet="variable">set variable</div>
+                            <div class="snippet-btn" data-snippet="function">call function</div>
+                            <div class="snippet-btn" data-snippet="mail">send mail</div>
+                            <div class="snippet-btn" data-snippet="add_comment">add comment</div>
+                            <div class="snippet-btn" data-snippet="return">return</div>
+                            <div class="snippet-btn" data-snippet="info">info (debug)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extensions View -->
+                <div id="view-extensions" class="view-content">
+                    <h4>Extensions</h4>
+                    <div style="padding:10px;">
+                        <div class="extension-item" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+                            <div style="background:#007acc; width:40px; height:40px; border-radius:5px; display:flex; align-items:center; justify-content:center;">L</div>
+                            <div style="flex:1;">
+                                <div style="font-size:13px; font-weight:bold;">Deluge Linter</div>
+                                <div style="font-size:11px; opacity:0.7;">Real-time syntax & semicolon checking.</div>
+                                <div style="font-size:10px; color:#50fa7b; margin-top:3px;">Enabled (Built-in)</div>
+                            </div>
+                        </div>
+                        <div class="extension-item" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+                            <div style="background:#ff79c6; width:40px; height:40px; border-radius:5px; display:flex; align-items:center; justify-content:center;">A</div>
+                            <div style="flex:1;">
+                                <div style="font-size:13px; font-weight:bold;">AI Agent (Gemini)</div>
+                                <div style="font-size:11px; opacity:0.7;">Explain code and generate snippets.</div>
+                                <div style="font-size:10px; color:#50fa7b; margin-top:3px;">Enabled (Built-in)</div>
+                            </div>
+                        </div>
+                        <div class="extension-item" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px; opacity:0.5;">
+                            <div style="background:#444; width:40px; height:40px; border-radius:5px; display:flex; align-items:center; justify-content:center;">F</div>
+                            <div style="flex:1;">
+                                <div style="font-size:13px; font-weight:bold;">Deluge Formatter</div>
+                                <div style="font-size:11px; opacity:0.7;">Auto-format your Deluge code.</div>
+                                <div style="font-size:10px; color:#aaa; margin-top:3px;">Coming Soon...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Settings View -->
                 <div id="view-settings" class="view-content">
                     <h4>Settings</h4>
-                    <div class="setting-item" style="margin-bottom:15px;">
-                        <label style="font-size:12px; margin-bottom:4px;">AI Model:</label>
-                        <select id="ai-model-selector" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
-                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Latest)</option><option value="gemini-3-flash-preview">Gemini 3.0 Flash (Experimental)</option>
+                    <div class="setting-item">
+                        <label style="font-size:12px; margin-bottom:4px;">Gemini Model:</label>
+                        <select id="gemini-model" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
+                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Latest)</option>
+                            <option value="gemini-3-flash-preview">Gemini 3.0 Flash (Experimental)</option>
                             <option value="gemini-3-pro-preview">Gemini 3.0 Pro (Most Powerful)</option>
                             <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
                             <option value="gemini-1.5-pro">Gemini 1.5 Pro (Better results)</option>
@@ -190,8 +258,7 @@
                     </div>
                 </div>
             </div>
-
-            <div id="left-resizer" class="resizer"></div>
+<div id="left-resizer" class="resizer"></div>
             <div id="editor-container"></div>
 
             <div id="right-sidebar-resizer" class="resizer"></div>
@@ -294,7 +361,7 @@
     <!-- JSON Input Modal -->
     <div id="interface-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center;">
         <div style="background:#252526; padding:20px; border-radius:5px; width:80%; max-width:600px; border:1px solid #444;">
-            <h3 id="modal-title" style="margin-top:0;">Convert JSON to Deluge Map Map</h3>
+            <h3 id="modal-title" style="margin-top:0;">Convert JSON to Deluge Map</h3>
             <div id="modal-var-container" style="margin-bottom:10px;">
                 <label style="font-size:12px; color:#aaa;">Variable Name:</label>
                 <input type="text" id="interface-var-name" value="payload" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px; margin-top:4px;">

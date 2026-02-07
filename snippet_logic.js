@@ -46,12 +46,15 @@
             case 'sort': snippet = "${1:var}.sort(${2:true});"; break;
             case 'for_each_element': snippet = "for each ${1:item} in ${2:list}\n{\n\t$0\n}"; break;
             case 'for_each_index': snippet = "for ${1:i} in ${2:list}\n{\n\t$0\n}"; break;
+            case 'list_get': snippet = "${1:var}.get(${2:index})"; break; // No semicolon
 
             // Map Manipulation
             case 'map': snippet = "${1:var} = Map();"; break;
             case 'put': snippet = "${1:var}.put(\"${2:key}\", ${3:value});"; break;
             case 'put_all': snippet = "${1:var}.putAll(${2:other_map});"; break;
             case 'remove_key': snippet = "${1:var}.remove(\"${2:key}\");"; break;
+            case 'get': snippet = "${1:var}.get(\"${2:key}\")"; break; // No semicolon
+            case 'keys': snippet = "${1:var}.keys()"; break; // No semicolon
             case 'clear_map': snippet = "${1:var}.clear();"; break;
 
             // Web Data

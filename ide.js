@@ -68,6 +68,7 @@ function initEditor() {
             glyphMargin: true
         });
         window.editor = editor;
+        if (typeof validateDelugeModel === "function") validateDelugeModel(editor.getModel());
         window.addEventListener('resize', () => { if (editor) editor.layout(); });
     // Ensure editor layouts correctly after initialization
     setTimeout(() => { if (editor) editor.layout(); }, 500);
@@ -86,6 +87,7 @@ function initEditor() {
             if (typeof chrome !== "undefined" && chrome.storage) {
                 chrome.storage.local.set({ 'saved_deluge_code': code });
             }
+            if (window.validateDelugeModel) window.validateDelugeModel(editor.getModel());
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
@@ -354,48 +356,6 @@ function setupEventHandlers() {
 
     initResources();
 
-    function insertSnippet(type) {
-        if (!editor) return;
-        let snippet = "";
-        switch (type) {
-            case 'if': snippet = "if (  ) \n{\n\t\n}"; break;
-            case 'else if': snippet = "else if (  ) \n{\n\t\n}"; break;
-            case 'else': snippet = "else \n{\n\t\n}"; break;
-            case 'conditional if': snippet = "if( , , )"; break;
-            case 'insert': snippet = "insert into <Form>\n[\n\t<Field> : <Value>\n];"; break;
-            case 'fetch': snippet = "<var> = <Form> [ <Criteria> ];"; break;
-            case 'aggregate': snippet = "<var> = <Form> [ <Criteria> ].count();"; break;
-            case 'update': snippet = "<Form> [ <Criteria> ]\n{\n\t<Field> : <Value>\n};"; break;
-            case 'for each': snippet = "for each <var> in <Form> [ <Criteria> ]\n{\n\t\n}"; break;
-            case 'delete': snippet = "delete from <Form> [ <Criteria> ];"; break;
-            case 'list': snippet = "<var> = List();"; break;
-            case 'add': snippet = "<var>.add();"; break;
-            case 'remove': snippet = "<var>.remove();"; break;
-            case 'clear': snippet = "<var>.clear();"; break;
-            case 'sort': snippet = "<var>.sort();"; break;
-            case 'map': snippet = "<var> = Map();"; break;
-            case 'put': snippet = "<var>.put(\"\", \"\");"; break;
-            case 'remove_key': snippet = "<var>.remove(\"\");"; break;
-            case 'clear_map': snippet = "<var>.clear();"; break;
-            case 'variable': snippet = "<var> = ;"; break;
-            case 'function': snippet = "thisapp.<function_name>();"; break;
-            case 'mail': snippet = "sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: \"\"\n\tsubject: \"\"\n\tmessage: \"\"\n\tto: \"\"\n\tsubject: \"\"\n\tmessage: \"\"\n];"; break;
-            case 'info': snippet = "info ;"; break;
-        }
-        if (snippet) {
-            const selection = editor.getSelection();
-            const range = new monaco.Range(selection.startLineNumber, selection.startColumn, selection.endLineNumber, selection.endColumn);
-            editor.executeEdits("snippet-insert", [{ range: range, text: snippet, forceMoveMarkers: true }]);
-            editor.focus();
-        }
-    }
-
-    document.querySelectorAll('.snippet-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const type = btn.getAttribute('data-snippet');
-            insertSnippet(type);
-        });
-    });
 
 }
 
@@ -413,6 +373,7 @@ function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
             } else if (typeof val === "object" && val !== null) {
                 let parts = [];
                 for (const key in val) {
+                    if (key.startsWith("$")) continue;
                     parts.push(`"${key}": ${toInline(val[key])}`);
                 }
                 return "{" + parts.join(", ") + "}";
@@ -443,6 +404,7 @@ function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
 `;
             }
             for (const key in val) {
+                    if (key.startsWith("$")) continue;
                 const memberVal = processValue(val[key]);
                 code += `${mapVar}.put("${key}", ${memberVal});
 `;
@@ -1009,40 +971,44 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
     // Expose internal functions to window for Cloud UI
     window.updateInterfaceMappingsList = updateInterfaceMappingsList;
     window.showStatus = showStatus;
-})();window.syncProblemsPanel = function() {
-    const list = document.getElementById('problems-list');
-    if (!list) return;
 
-    if (!editor) return;
-    const model = editor.getModel();
-    if (!model) return;
+    function syncProblemsPanel() {
+        const list = document.getElementById('problems-list');
+        if (!list) return;
 
-    const markers = monaco.editor.getModelMarkers({ resource: model.uri });
-    list.innerHTML = '';
+        if (!editor) return;
+        const model = editor.getModel();
+        if (!model) return;
 
-    if (markers.length === 0) {
-        list.innerHTML = '<div class="log-entry">No problems detected.</div>';
-        return;
+        const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+        list.innerHTML = '';
+
+        if (markers.length === 0) {
+            list.innerHTML = '<div class="log-entry">No problems detected.</div>';
+            return;
+        }
+
+        markers.forEach(m => {
+            const item = document.createElement('div');
+            item.className = 'problem-item';
+            const sevClass = m.severity === monaco.MarkerSeverity.Error ? 'problem-severity-error' : 'problem-severity-warning';
+            const sevText = m.severity === monaco.MarkerSeverity.Error ? 'Error' : 'Warning';
+
+            item.innerHTML = `
+                <span class="${sevClass}">[${sevText}]</span>
+                <span class="problem-msg">${m.message}</span>
+                <span class="problem-loc">Ln ${m.startLineNumber}, Col ${m.startColumn}</span>
+            `;
+
+            item.onclick = () => {
+                editor.setPosition({ lineNumber: m.startLineNumber, column: m.startColumn });
+                editor.revealLineInCenter(m.startLineNumber);
+                editor.focus();
+            };
+
+            list.appendChild(item);
+        });
     }
+    window.syncProblemsPanel = syncProblemsPanel;
 
-    markers.forEach(m => {
-        const item = document.createElement('div');
-        item.className = 'problem-item';
-        const sevClass = m.severity === monaco.MarkerSeverity.Error ? 'problem-severity-error' : 'problem-severity-warning';
-        const sevText = m.severity === monaco.MarkerSeverity.Error ? 'Error' : 'Warning';
-
-        item.innerHTML = `
-            <span class="${sevClass}">[${sevText}]</span>
-            <span class="problem-msg">${m.message}</span>
-            <span class="problem-loc">Ln ${m.startLineNumber}, Col ${m.startColumn}</span>
-        `;
-
-        item.onclick = () => {
-            editor.setPosition({ lineNumber: m.startLineNumber, column: m.startColumn });
-            editor.revealLineInCenter(m.startLineNumber);
-            editor.focus();
-        };
-
-        list.appendChild(item);
-    });
-};
+})();
