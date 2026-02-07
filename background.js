@@ -186,6 +186,6 @@ function findZohoTab(callback) {
 
 function isZohoUrl(url) {
     if (!url) return false;
-    const domains = ['zoho.com', 'zoho.eu', 'zoho.in', 'zoho.com.au', 'zoho.jp', 'zoho.ca', 'zoho.uk'];
-    return domains.some(d => url.includes(d));
+    const domains = ["zoho.com", "zoho.eu", "zoho.in", "zoho.com.au", "zoho.jp", "zoho.ca", "zoho.uk", "zoho.com.cn"];
+    return domains.some(d => url.includes(d)) || url.includes("zoho.");
 }

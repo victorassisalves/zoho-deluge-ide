@@ -265,32 +265,59 @@ function registerDelugeLanguage() {
         }
     });
 
+
+    const typeCache = new Map();
+    let lastCodeForCache = "";
+
+    function getVarTypes(code) {
+        if (code === lastCodeForCache && typeCache.size > 0) return typeCache;
+
+        typeCache.clear();
+        lastCodeForCache = code;
+
+        const mapAssign = /([a-zA-Z0-9_]+)\s*=\s*Map\(\)/gi;
+        const listAssign = /([a-zA-Z0-9_]+)\s*=\s*List\(\)/gi;
+        const stringAssign = /([a-zA-Z0-9_]+)\s*=\s*["']/gi;
+
+        let m;
+        while ((m = mapAssign.exec(code)) !== null) typeCache.set(m[1], 'Map');
+        while ((m = listAssign.exec(code)) !== null) typeCache.set(m[1], 'List');
+        while ((m = stringAssign.exec(code)) !== null) typeCache.set(m[1], 'String');
+
+        return typeCache;
+    }
+
+    function inferVarType(varName, code) {
+        const types = getVarTypes(code);
+        if (types.has(varName)) return types.get(varName);
+        if (varName.toLowerCase().includes('response')) return 'Map';
+        return null;
+    }
+
     function extractVariables(code) {
         const vars = [];
         const seen = new Set();
+        const types = getVarTypes(code);
 
-        // Assignments: var = ...
         const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
         let match;
         while ((match = assignmentRegex.exec(code)) !== null) {
             const name = match[1];
             if (!seen.has(name) && !['if', 'for', 'else', 'return', 'try', 'catch', 'while'].includes(name)) {
-                vars.push({ name, type: inferVarType(name, code) });
+                vars.push({ name, type: types.get(name) || null });
                 seen.add(name);
             }
         }
 
-        // For each loops: for each var in ...
         const forEachRegex = /for each\s+([a-zA-Z0-9_]+)\s+in/g;
         while ((match = forEachRegex.exec(code)) !== null) {
             const name = match[1];
             if (!seen.has(name)) {
-                vars.push({ name, type: 'Map' }); // Usually a record/map
+                vars.push({ name, type: 'Map' });
                 seen.add(name);
             }
         }
 
-        // Functions: functionName(arg1, arg2)
         const funcRegex = /([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
         while ((match = funcRegex.exec(code)) !== null) {
             const args = match[2].split(',');
@@ -304,17 +331,6 @@ function registerDelugeLanguage() {
         }
 
         return vars;
-    }
-
-    function inferVarType(varName, code) {
-        const mapRegex = new RegExp(`${varName}\\s*=\\s*Map\\(\\)`, 'i');
-        const listRegex = new RegExp(`${varName}\\s*=\\s*List\\(\\)`, 'i');
-        const stringRegex = new RegExp(`${varName}\\s*=\\s*["']`, 'i');
-        if (mapRegex.test(code)) return 'Map';
-        if (listRegex.test(code)) return 'List';
-        if (stringRegex.test(code)) return 'String';
-        if (varName.toLowerCase().includes('response')) return 'Map';
-        return null;
     }
 
     monaco.editor.onDidCreateModel((model) => {

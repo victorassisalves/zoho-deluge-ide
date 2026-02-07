@@ -641,7 +641,7 @@ function renderInterfaceTree(mappingName, obj) {
 function showStatus(message, type = 'info') {
     const statusEl = document.getElementById("status-indicator");
     if (statusEl) {
-        statusEl.innerText = message;
+        statusEl.innerText = message; statusEl.style.cursor = "pointer"; statusEl.onclick = () => { showStatus("Reconnecting..."); checkConnection(); };
         statusEl.style.color = type === 'success' ? '#4ec9b0' : (type === 'error' ? '#f44747' : '#888');
     }
     log(type, message);
@@ -934,24 +934,31 @@ window.addEventListener('mouseup', () => {
 });
 
 // Interface Search
+
+let searchTimeout;
 document.getElementById('interface-search')?.addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase();
-    const nodes = document.querySelectorAll('#interface-tree-view .tree-node');
-    nodes.forEach(node => {
-        const key = node.getAttribute('data-key');
-        if (key && key.includes(term)) {
-            node.classList.remove('hidden');
-            let p = node.parentElement;
-            while (p && p.id !== 'interface-tree-view') {
-                if (p.classList.contains('tree-node')) p.classList.remove('hidden');
-                p = p.parentElement;
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        const term = e.target.value.toLowerCase();
+        const nodes = document.querySelectorAll('#interface-tree-view .tree-node');
+        nodes.forEach(node => {
+            const key = node.getAttribute('data-key');
+            if (key && key.includes(term)) {
+                node.classList.remove('hidden');
+                let p = node.parentElement;
+                while (p && p.id !== 'interface-tree-view') {
+                    if (p.classList.contains('tree-node')) p.classList.remove('hidden');
+                    p = p.parentElement;
+                }
+            } else if (term) {
+                node.classList.add('hidden');
+            } else {
+                node.classList.remove('hidden');
             }
-        } else if (term) {
-            node.classList.add('hidden');
-        } else {
-            node.classList.remove('hidden');
-        }
-    });
+        });
+    }, 300);
+});
+
 });
 
     // Expose internal functions to window for Cloud UI

@@ -203,7 +203,7 @@ body, html {
 
 /* Sidepanel Mode Overrides */
 html.sidepanel-mode #sidebar {
-    width: 40px !important;
+
 }
 
 html.sidepanel-mode .logo {
@@ -229,7 +229,7 @@ html.sidepanel-mode .actions button {
 }
 
 html.sidepanel-mode #bottom-panel {
-    height: 120px !important;
+
 }
 
 html.sidepanel-mode #status-bar {
@@ -298,15 +298,7 @@ html.sidepanel-mode .status-right {
     flex-shrink: 0;
 }
 
-.right-sidebar-header {
-    padding: 8px 10px;
-    background-color: #333;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    font-weight: bold;
-}
+
 
 #add-json-btn {
     background: var(--accent-color);
@@ -541,34 +533,18 @@ html.sidepanel-mode #right-sidebar {
 
 /* Interface Manager Enhancements */
 .resizer {
-    width: 4px;
+    width: 6px;
     cursor: ew-resize;
     background: #333;
     transition: background 0.2s;
-    z-index: 100;
+    z-index: 1000;
 }
 .resizer:hover {
     background: #007acc;
 }
-.right-sidebar-header {
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
-    background: #252526;
-    border-bottom: 1px solid #333;
-}
-.header-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-}
-.header-title {
-    font-size: 12px;
-    font-weight: bold;
-    text-transform: uppercase;
-    color: #aaa;
-}
+
+
+
 .search-container {
     padding: 0 5px;
 }
@@ -618,10 +594,7 @@ html.sidepanel-mode #right-sidebar {
     display: none !important;
 }
 
-#right-sidebar.collapsed .right-sidebar-header {
-    padding: 10px 0;
-    align-items: center;
-}
+#right-sidebar.collapsed
 
 #right-sidebar.collapsed #toggle-right-sidebar {
     margin: 0 auto;
@@ -884,4 +857,123 @@ body.resizing { cursor: ew-resize !important; }
     justify-content: flex-end;
     gap: 10px;
     margin-top: 15px;
+}
+
+.right-sidebar-header {
+    padding: 12px 10px;
+    background-color: #252526;
+    border-bottom: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.header-top {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+}
+
+.header-title {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #aaa;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+
+#add-interface-btn {
+    background: #3a3d41;
+    color: #ccc;
+    border: 1px solid #45494e;
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 2px 8px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    height: 24px;
+    width: 28px;
+    flex-shrink: 0;
+}
+
+#add-interface-btn:hover {
+    background: #45494e;
+    color: white;
+    border-color: #007acc;
+}
+
+#toggle-right-sidebar {
+    color: #888;
+    transition: color 0.2s;
+    font-size: 12px;
+}
+
+#toggle-right-sidebar:hover {
+    color: white;
+}
+html.sidepanel-mode .resizer {
+    background: #444;
+}
+.search-container {
+    padding: 0;
+}
+
+#interface-search {
+    width: 100%;
+    background: #1e1e1e;
+    border: 1px solid #3c3c3c;
+    color: #ccc;
+    padding: 5px 8px;
+    font-size: 11px;
+    border-radius: 3px;
+    transition: border-color 0.2s;
+}
+
+#interface-search:focus {
+    border-color: #007acc;
+    outline: none;
+}
+.mapping-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid #2d2d2d;
+    cursor: pointer;
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #bbb;
+}
+
+.mapping-item.active {
+    background-color: #37373d;
+    color: #eee;
+    box-shadow: inset 2px 0 0 #007acc;
+}
+
+.mapping-item:hover:not(.active) {
+    background-color: #2a2d2e;
+}
+
+#interface-tree-view:empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+}
+
+#interface-tree-view:empty::after {
+    content: "Select a mapping to explore its structure";
+    color: #666;
+    font-size: 11px;
+    text-align: center;
+    padding: 20px;
 }
