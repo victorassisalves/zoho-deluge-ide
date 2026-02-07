@@ -1,5 +1,6 @@
+let currentProjectName = "Untitled Project";
 let currentProjectUrl = null;
-let lastProjectUrl = null;
+let currentProjectName = "Untitled Project";
 
 /**
  * Zoho Deluge Advanced IDE v1.2
@@ -88,6 +89,25 @@ function initEditor() {
             });
         }
 
+        // Global Fallback for Shortcuts (Incognito support)
+        window.addEventListener("keydown", (e) => {
+            const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+            const ctrlCmd = isMac ? e.metaKey : e.ctrlKey;
+            if (ctrlCmd && e.shiftKey) {
+                const key = e.key.toLowerCase();
+                if (key === "s") {
+                    e.preventDefault();
+                    pushToZoho(true);
+                } else if (e.code === "Enter" || e.key === "Enter") {
+                    e.preventDefault();
+                    pushToZoho(true, true);
+                } else if (key === "p") {
+                    e.preventDefault();
+                    pullFromZoho();
+                }
+            }
+        }, true);
+
         setupEventHandlers();
         checkConnection();
         setInterval(checkConnection, 5000);
@@ -102,20 +122,26 @@ function checkConnection() {
         chrome.runtime.sendMessage({ action: "CHECK_CONNECTION" }, (response) => {
             const statusEl = document.getElementById("status-indicator");
             if (statusEl) {
+                let nextProjectUrl = "global";
                 if (response && response.connected) {
                     isConnected = true;
                     statusEl.innerText = (response.isStandalone ? "Target: " : "Local: ") + (response.tabTitle || "Zoho Tab");
                     statusEl.style.color = "#4ec9b0";
                     window.currentTargetTab = response;
-                    currentProjectUrl = response.url;
+                    nextProjectUrl = response.url;
                 } else {
                     isConnected = false;
                     statusEl.innerText = "Disconnected";
                     statusEl.style.color = "#888";
-                    currentProjectUrl = "global";
+                    nextProjectUrl = "global";
                 }
-                if (currentProjectUrl !== lastProjectUrl) {
-                    lastProjectUrl = currentProjectUrl;
+
+                if (nextProjectUrl !== currentProjectUrl) {
+                    // Context switch detected
+                    if (currentProjectUrl && editor && editor.getValue().trim() !== "" && !editor.getValue().startsWith("// Start coding")) {
+                        saveLocally();
+                    }
+                    currentProjectUrl = nextProjectUrl;
                     loadProjectData();
                 }
             }
@@ -125,19 +151,29 @@ function checkConnection() {
 
 function loadProjectData() {
     if (!currentProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
-    chrome.storage.local.get(["saved_files", "project_notes", "last_project_code"], (result) => {
+    chrome.storage.local.get(["saved_files", "project_notes", "last_project_code", "project_names", "project_mappings"], (result) => {
         const allFiles = result.saved_files || [];
         const projectFiles = allFiles.filter(f => f.projectUrl === currentProjectUrl || (!f.projectUrl && currentProjectUrl === "global"));
         updateSavedFilesList(projectFiles);
+
+        const projectNames = result.project_names || {};
+        currentProjectName = projectNames[currentProjectUrl] || "Untitled Project";
+        const nameInput = document.getElementById("project-name-input");
+        if (nameInput) nameInput.value = currentProjectName;
 
         const notes = result.project_notes || {};
         const notesEl = document.getElementById("project-notes");
         if (notesEl) notesEl.value = notes[currentProjectUrl] || "";
 
         const lastCodes = result.last_project_code || {};
-        if (lastCodes[currentProjectUrl] && !editor.getValue().trim()) {
+        const currentVal = editor.getValue();
+        if (lastCodes[currentProjectUrl] && (!currentVal || currentVal.trim() === "" || currentVal.startsWith("// Start coding"))) {
             editor.setValue(lastCodes[currentProjectUrl]);
         }
+
+        const projectMappings = result.project_mappings || {};
+        jsonMappings = projectMappings[currentProjectUrl] || {};
+        updateMappingsList();
     });
 }
 
@@ -156,6 +192,17 @@ function setupEventHandlers() {
     bind('pull-btn', 'click', pullFromZoho);
     bind('push-btn', 'click', () => pushToZoho(true));
     bind('save-btn', 'click', saveLocally);
+
+    bind('project-name-input', 'input', (e) => {
+        currentProjectName = e.target.value;
+        if (currentProjectUrl) {
+            chrome.storage.local.get(['project_names'], (result) => {
+                const names = result.project_names || {};
+                names[currentProjectUrl] = currentProjectName;
+                chrome.storage.local.set({ 'project_names': names });
+            });
+        }
+    });
 
     document.querySelectorAll('.sidebar-item').forEach(item => {
         item.addEventListener('click', () => {
@@ -300,7 +347,15 @@ function saveMapping(name, jsonStr) {
         const obj = JSON.parse(jsonStr);
         jsonMappings[name] = obj;
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.set({ 'json_mappings': jsonMappings });
+            if (currentProjectUrl) {
+                chrome.storage.local.get(['project_mappings'], (result) => {
+                    const projectMappings = result.project_mappings || {};
+                    projectMappings[currentProjectUrl] = jsonMappings;
+                    chrome.storage.local.set({ 'project_mappings': projectMappings });
+                });
+            } else {
+                chrome.storage.local.set({ 'json_mappings': jsonMappings });
+            }
         }
         updateMappingsList();
     } catch (e) { alert('Invalid JSON: ' + e.message); }
@@ -509,7 +564,7 @@ async function askGemini(customPrompt = null) {
             aiMsg.innerText = "Error: Please set your Gemini API Key in Settings.";
             return;
         }
-        const model = document.getElementById("ai-model-selector")?.value || result.gemini_model || "gemini-1.5-flash";
+        const model = document.getElementById("ai-model-selector")?.value || result.gemini_model || "gemini-3-flash-preview";
         try {
             const codeContext = editor.getValue();
             const prompt = customPrompt ? question : `You are a Zoho Deluge expert. Code context:\n\`\`\`deluge\n${codeContext}\n\`\`\`\n\nQuestion: ${question}`;
