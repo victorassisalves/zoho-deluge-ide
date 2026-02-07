@@ -13,7 +13,7 @@ if (!document.getElementById('zoho-deluge-bridge')) {
 
 // 2. Listen for messages from the extension (IDE -> Background -> Content)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'GET_ZOHO_CODE' || request.action === 'SET_ZOHO_CODE') {
+    if (['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE'].includes(request.action)) {
         // Relay to bridge
         window.postMessage({ type: 'FROM_EXTENSION', ...request }, '*');
 

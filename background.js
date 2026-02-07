@@ -2,28 +2,68 @@
 
 let lastZohoTabId = null;
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    // Determine which tab to target.
-    // If we're in sidepanel mode, sender.tab.id is the Zoho tab.
-    // If we're in standalone tab, sender.tab.id is the IDE tab itself (don't use it).
+chrome.commands.onCommand.addListener((command) => {
+    if (command === "open-ide") {
+        const ideUrl = chrome.runtime.getURL('ide.html');
+        chrome.tabs.query({}, (tabs) => {
+            const existingTab = tabs.find(t => t.url && t.url.startsWith(ideUrl));
+            if (existingTab) {
+                chrome.tabs.update(existingTab.id, { active: true });
+                chrome.windows.update(existingTab.windowId, { focused: true });
+            } else {
+                chrome.tabs.create({ url: ideUrl });
+            }
+        });
+    }
+});
 
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
     let targetTabId = isSidePanel ? sender.tab.id : null;
 
     if (request.action === 'CHECK_CONNECTION') {
         if (targetTabId) {
             chrome.tabs.get(targetTabId, (tab) => {
-                sendResponse({ connected: true, tabTitle: tab.title });
+                sendResponse({ connected: true, tabTitle: tab.title, url: tab.url });
             });
         } else {
             findZohoTab((tab) => {
                 if (tab) {
-                    sendResponse({ connected: true, tabTitle: tab.title, isStandalone: true });
+                    sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone: true });
                 } else {
                     sendResponse({ connected: false });
                 }
             });
         }
+        return true;
+    }
+
+    if (request.action === 'OPEN_ZOHO_EDITOR') {
+        const handleOpen = (tabId) => {
+            chrome.tabs.update(tabId, { active: true });
+            chrome.windows.update(sender.tab ? sender.tab.windowId : tabId, { focused: true }); // focused true if possible
+            chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                func: () => {
+                    const ed = document.querySelector('[id*="delugeEditor"]') || document.querySelector('.ace_editor') || document.querySelector('.monaco-editor');
+                    if (ed) {
+                        ed.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        ed.click();
+                        const inner = ed.querySelector('textarea, .ace_text-input, .monaco-mouse-cursor-text');
+                        if (inner) inner.focus();
+                    }
+                }
+            });
+        };
+
+        if (targetTabId) {
+            handleOpen(targetTabId);
+        } else {
+            findZohoTab((tab) => {
+                if (tab) handleOpen(tab.id);
+            });
+        }
+        sendResponse({ success: true });
         return true;
     }
 
@@ -34,11 +74,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (chrome.runtime.lastError) {
                     sendResponse({ error: 'Tab not responding' });
                 } else {
-                    if (response && response.code !== undefined) {
-                        sendResponse(response);
-                    } else {
-                        sendResponse({ error: 'No editor found in any frame. Try refreshing the Zoho page.' });
-                    }
+                    sendResponse(response || { error: 'No response from tab' });
                 }
             });
         };
@@ -50,31 +86,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (tab) {
                     handleResponse(tab.id);
                 } else {
-                    sendResponse({ error: 'No Zoho Deluge tab found. Open a Zoho editor first.' });
+                    sendResponse({ error: 'No Zoho Deluge tab found.' });
                 }
             });
         }
         return true;
     }
 
-    if (request.action === 'SET_ZOHO_CODE') {
-        const handleSet = (tabId) => {
-            chrome.tabs.sendMessage(tabId, { action: 'SET_ZOHO_CODE', code: request.code }, (response) => {
-                sendResponse(response || { error: 'Failed to push. Is the Zoho tab still open?' });
+    if (request.action === 'SET_ZOHO_CODE' || request.action === 'SAVE_ZOHO_CODE' || request.action === 'EXECUTE_ZOHO_CODE') {
+        const handleAction = (tabId) => {
+            chrome.tabs.sendMessage(tabId, request, (response) => {
+                sendResponse(response || { error: 'Failed to perform action.' });
             });
         };
 
         if (targetTabId) {
-            handleSet(targetTabId);
+            handleAction(targetTabId);
         } else if (lastZohoTabId) {
-            // Check if lastZohoTabId is still valid
             chrome.tabs.get(lastZohoTabId, (tab) => {
                 if (!chrome.runtime.lastError && tab) {
-                    handleSet(lastZohoTabId);
+                    handleAction(lastZohoTabId);
                 } else {
                     findZohoTab((tab) => {
                         if (tab) {
-                            handleSet(tab.id);
+                            handleAction(tab.id);
                         } else {
                             sendResponse({ error: 'No Zoho tab connected' });
                         }
@@ -84,7 +119,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         } else {
             findZohoTab((tab) => {
                 if (tab) {
-                    handleSet(tab.id);
+                    handleAction(tab.id);
                 } else {
                     sendResponse({ error: 'No Zoho tab connected' });
                 }
@@ -103,43 +138,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 function findZohoTab(callback) {
-    // Look in all windows for a Zoho tab
+    // Note: To find incognito tabs, extension must have "allow in incognito" enabled.
     chrome.tabs.query({}, (allTabs) => {
         const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url));
-
         if (zohoTabs.length === 0) {
             callback(null);
             return;
         }
-
-        // Prioritize the active tab if it's Zoho
         const activeZoho = zohoTabs.find(t => t.active);
         if (activeZoho) {
             callback(activeZoho);
             return;
         }
-
-        // Prioritize tabs that look like editors
         const editorTab = zohoTabs.find(t =>
             t.url.includes('creator') ||
             t.url.includes('crm') ||
             t.url.includes('recruit') ||
             t.url.includes('books') ||
-            t.url.includes('workflow') ||
-            t.url.includes('builder') ||
             t.title.toLowerCase().includes('deluge') ||
             t.title.toLowerCase().includes('editor')
         );
-
         callback(editorTab || zohoTabs[0]);
     });
 }
 
 function isZohoUrl(url) {
     if (!url) return false;
-    return url.includes('zoho.com') ||
-           url.includes('zoho.eu') ||
-           url.includes('zoho.in') ||
-           url.includes('zoho.com.au') ||
-           url.includes('zoho.jp');
+    const domains = ['zoho.com', 'zoho.eu', 'zoho.in', 'zoho.com.au', 'zoho.jp'];
+    return domains.some(d => url.includes(d));
 }
