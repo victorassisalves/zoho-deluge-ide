@@ -370,7 +370,7 @@ function setupEventHandlers() {
             case 'clear_map': snippet = "<var>.clear();"; break;
             case 'variable': snippet = "<var> = ;"; break;
             case 'function': snippet = "thisapp.<function_name>();"; break;
-            case 'mail': snippet = "sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: \"\"\n\tsubject: \"\"\n\tmessage: \"\"\n];"; break;
+            case 'mail': snippet = "sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: \"\"\n\tsubject: \"\"\n\tmessage: \"\"\n\tto: \"\"\n\tsubject: \"\"\n\tmessage: \"\"\n];"; break;
             case 'info': snippet = "info ;"; break;
         }
         if (snippet) {
@@ -404,43 +404,43 @@ function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
             } else if (typeof val === "object" && val !== null) {
                 let parts = [];
                 for (const key in val) {
-                    parts.push(`"${key}": \${toInline(val[key])}`);
+                    parts.push(`"${key}": ${toInline(val[key])}`);
                 }
                 return "{" + parts.join(", ") + "}";
             } else {
-                if (typeof val === "string") return `"\${val.replace(/"/g, '\"')}"`;
+                if (typeof val === "string") return `"${val.replace(/"/g, '\\"')}"`;
                 return val;
             }
         }
-        return `\${varName} = \${toInline(obj)};`;
+        return `${varName} = ${toInline(obj)};`;
     }
 
     // Step-by-step logic (improved)
     function processValue(val, name) {
         if (Array.isArray(val)) {
-            const listVar = name || \`list_\${\+\+varCounter}\`;
-            code += \`\${listVar} = List();
-\`;
+            const listVar = name || `list_${++varCounter}`;
+            code += `${listVar} = List();
+`;
             val.forEach(item => {
                 const itemVal = processValue(item);
-                code += \`\${listVar}.add(\${itemVal});
-\`;
+                code += `${listVar}.add(${itemVal});
+`;
             });
             return listVar;
         } else if (typeof val === "object" && val !== null) {
-            const mapVar = name || \`map_\${\+\+varCounter}\`;
+            const mapVar = name || `map_${++varCounter}`;
             if (!isUpdate || name !== varName) {
-                code += \`\${mapVar} = Map();
-\`;
+                code += `${mapVar} = Map();
+`;
             }
             for (const key in val) {
                 const memberVal = processValue(val[key]);
-                code += \`\${mapVar}.put("\${key}", \${memberVal});
-\`;
+                code += `${mapVar}.put("${key}", ${memberVal});
+`;
             }
             return mapVar;
         } else {
-            if (typeof val === "string") return \`"\${val.replace(/"/g, '\"')}"\`;
+            if (typeof val === "string") return `"${val.replace(/"/g, '\\"')}"`;
             return val;
         }
     }
@@ -957,8 +957,6 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
             }
         });
     }, 300);
-});
-
 });
 
     // Expose internal functions to window for Cloud UI
