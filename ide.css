@@ -203,7 +203,7 @@ body, html {
 
 /* Sidepanel Mode Overrides */
 html.sidepanel-mode #sidebar {
-    display: none !important;
+    width: 40px !important;
 }
 
 html.sidepanel-mode .logo {
@@ -479,8 +479,8 @@ html.sidepanel-mode .status-right {
 /* Hide sidebars in sidepanel mode if needed */
 html.sidepanel-mode .sidebar-panel,
 html.sidepanel-mode #right-sidebar {
-    overflow: hidden;
-    display: none !important;
+    display: flex !important;
+    width: 180px !important;
 }
 
 .resource-section h5 {
@@ -625,4 +625,27 @@ html.sidepanel-mode #right-sidebar {
 
 #right-sidebar.collapsed #toggle-right-sidebar {
     margin: 0 auto;
+}
+
+/* Snippet Styles */
+.snippet-group h5 {
+    margin: 15px 0 8px 0;
+    color: var(--accent-color);
+    border-bottom: 1px solid #333;
+    padding-bottom: 2px;
+    font-size: 11px;
+}
+.snippet-btn {
+    background: #252526;
+    border: 1px dashed #444;
+    padding: 6px 10px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+.snippet-btn:hover {
+    border-color: var(--accent-color);
+    background: #2d2d30;
 }

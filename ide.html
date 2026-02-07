@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zoho Deluge Advanced IDE v1.2</title>
+    <title>Zoho Deluge Advanced IDE v1.2.3</title>
     <link rel="stylesheet" href="ide.css">
 
     <link rel="stylesheet" data-name="vs/editor/editor.main" href="assets/monaco-editor/min/vs/editor/editor.main.css">
@@ -18,7 +18,8 @@
                 <button id="pull-btn" title="Pull (Ctrl+Shift+P)">Pull</button>
                 <button id="push-btn" title="Sync (Ctrl+Shift+S)">Sync</button>
                 <button id="json-btn" title="JSON to Deluge Map">JSON->Map</button>
-                <button id="save-btn" title="Save Locally (Ctrl+S)">Save</button>
+                <button id="execute-btn" style="background:#28a745;" title="Sync + Execute (Ctrl+Shift+Enter)">Run</button>
+                    <button id="save-btn" title="Save Locally (Ctrl+S)">Save</button>
             </div>
         </header>
         <main id="main-content">
@@ -26,6 +27,7 @@
                 <div class="sidebar-item active" data-view="explorer" title="Explorer">📁</div>
                 <div class="sidebar-item" data-view="ai-agent" title="AI Agent">🤖</div>
                 <div class="sidebar-item" data-view="zoho-apis" title="Zoho APIs">☁️</div>
+                <div class="sidebar-item" data-view="snippets" title="Snippets">📋</div>
                 <div class="sidebar-item" data-view="settings" title="Settings">⚙️</div>
             </aside>
             <div id="left-panel-content" class="sidebar-panel">
@@ -50,6 +52,51 @@
                     </div>
                 </div>
                 <!-- Zoho APIs View -->
+
+                <!-- Snippets View -->
+                <div id="view-snippets" class="view-content">
+                    <h4>Deluge Snippets</h4>
+                    <div class="snippets-container" style="font-size:12px;">
+                        <div class="snippet-group">
+                            <h5>Condition</h5>
+                            <div class="snippet-btn" data-snippet="if">if</div>
+                            <div class="snippet-btn" data-snippet="else if">else if</div>
+                            <div class="snippet-btn" data-snippet="else">else</div>
+                            <div class="snippet-btn" data-snippet="conditional if">conditional if</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Data Access</h5>
+                            <div class="snippet-btn" data-snippet="insert">add record</div>
+                            <div class="snippet-btn" data-snippet="fetch">fetch records</div>
+                            <div class="snippet-btn" data-snippet="aggregate">aggregate records</div>
+                            <div class="snippet-btn" data-snippet="update">update record</div>
+                            <div class="snippet-btn" data-snippet="for each">for each record</div>
+                            <div class="snippet-btn" data-snippet="delete">delete records</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>List Manipulation</h5>
+                            <div class="snippet-btn" data-snippet="list">create list</div>
+                            <div class="snippet-btn" data-snippet="add">add</div>
+                            <div class="snippet-btn" data-snippet="remove">remove index</div>
+                            <div class="snippet-btn" data-snippet="clear">clear list</div>
+                            <div class="snippet-btn" data-snippet="sort">sort list</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Map Manipulation</h5>
+                            <div class="snippet-btn" data-snippet="map">create map</div>
+                            <div class="snippet-btn" data-snippet="put">put</div>
+                            <div class="snippet-btn" data-snippet="remove_key">remove key</div>
+                            <div class="snippet-btn" data-snippet="clear_map">clear map</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Miscellaneous</h5>
+                            <div class="snippet-btn" data-snippet="variable">set variable</div>
+                            <div class="snippet-btn" data-snippet="function">call function</div>
+                            <div class="snippet-btn" data-snippet="mail">send mail</div>
+                            <div class="snippet-btn" data-snippet="info">info</div>
+                        </div>
+                    </div>
+                </div>
                 <div id="view-zoho-apis" class="view-content">
                     <h4>Zoho Resources</h4>
                     <div id="zoho-resources-list" style="font-size:12px;">
@@ -62,7 +109,7 @@
                     <div class="setting-item" style="margin-bottom:15px;">
                         <label style="font-size:12px; margin-bottom:4px;">AI Model:</label>
                         <select id="ai-model-selector" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
-                            <option value="gemini-3-flash-preview">Gemini 3.0 Flash (Latest)</option>
+                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Latest)</option><option value="gemini-3-flash-preview">Gemini 3.0 Flash (Experimental)</option>
                             <option value="gemini-3-pro-preview">Gemini 3.0 Pro (Most Powerful)</option>
                             <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
                             <option value="gemini-1.5-pro">Gemini 1.5 Pro (Better results)</option>
