@@ -68,6 +68,10 @@ function initEditor() {
             glyphMargin: true
         });
         window.editor = editor;
+    // Ensure editor layouts correctly after initialization
+    setTimeout(() => { if (editor) editor.layout(); }, 500);
+    setTimeout(() => { if (editor) editor.layout(); }, 2000);
+
 
 
         // Keyboard Shortcuts
@@ -122,6 +126,7 @@ function initEditor() {
         setInterval(checkConnection, 5000);
 
     } catch (e) {
+        console.error("[ZohoIDE] initEditor Error:", e);
         console.error('[ZohoIDE] Monaco Load Error:', e);
     }
 }
@@ -299,7 +304,8 @@ function setupEventHandlers() {
             const code = convertJsonToDeluge(varName, jsonStr);
             editor.executeEdits('json-convert', [{ range: editor.getSelection(), text: code }]);
             document.getElementById('json-modal').style.display = 'none';
-        } catch (e) { alert('Invalid JSON: ' + e.message); }
+        } catch (e) {
+        console.error("[ZohoIDE] initEditor Error:", e); alert('Invalid JSON: ' + e.message); }
     });
 
     bind('modal-map-only', 'click', () => {
@@ -417,7 +423,8 @@ function saveMapping(name, jsonStr) {
             }
         }
         updateMappingsList();
-    } catch (e) { alert('Invalid JSON: ' + e.message); }
+    } catch (e) {
+        console.error("[ZohoIDE] initEditor Error:", e); alert('Invalid JSON: ' + e.message); }
 }
 
 function updateMappingsList() {
@@ -675,7 +682,8 @@ async function askGemini(customPrompt = null) {
             const data = await response.json();
             const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "Error: " + (data.error?.message || "Unknown");
             aiMsg.innerHTML = textResponse.replace(/\n/g, "<br>").replace(/\`\`\`deluge/g, "<pre>").replace(/\`\`\`/g, "</pre>");
-        } catch (e) { aiMsg.innerText = "Error: " + e.message; }
+        } catch (e) {
+        console.error("[ZohoIDE] initEditor Error:", e); aiMsg.innerText = "Error: " + e.message; }
     } else {
         aiMsg.innerText = "Error: Extension context unavailable.";
     }

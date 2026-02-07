@@ -24,7 +24,13 @@ const CloudService = {
         const domain = email.split('@')[1];
 
         // Check if organization for this domain exists
-        let orgId = await this.findOrgByDomain(domain);
+        let orgId = null;
+        try {
+            orgId = await this.findOrgByDomain(domain);
+        } catch (e) {
+            console.warn('[ZohoIDE] findOrgByDomain failed (expected for new domains):', e);
+        }
+
         if (!orgId) {
             // Create new organization
             orgId = await this.createOrganization(domain, user.uid);
@@ -154,13 +160,11 @@ const CloudService = {
         // Find files across all projects in the org that match this URL
         // In a real SaaS, we might limit this to workspaces the user has access to
         const snapshot = await this.db.collectionGroup('files')
+            .where('orgId', '==', orgId)
             .where('url', '==', url)
-            // We can't easily filter by orgId in collectionGroup without indexing
-            // So we might need to store orgId in the file doc too
             .get();
 
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-                       .filter(f => f.orgId === orgId);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     },
 
     async saveFile(fileId, data) {

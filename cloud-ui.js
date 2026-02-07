@@ -46,7 +46,25 @@ const CloudUI = {
                 document.getElementById('user-display').innerText = user.email;
 
                 // Get User Org
-                const userDoc = await CloudService.db.collection('users').doc(user.uid).get();
+                let userDoc = await CloudService.db.collection('users').doc(user.uid).get();
+
+                if (!userDoc.exists) {
+                    console.log('[ZohoIDE] User doc missing, attempting to create...');
+                    const domain = user.email.split('@')[1];
+                    let orgId = await CloudService.findOrgByDomain(domain);
+                    if (!orgId) orgId = await CloudService.createOrganization(domain, user.uid);
+
+                    await CloudService.db.collection('users').doc(user.uid).set({
+                        uid: user.uid,
+                        email: user.email,
+                        domain: domain,
+                        orgId: orgId,
+                        teams: [],
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    userDoc = await CloudService.db.collection('users').doc(user.uid).get();
+                }
+
                 if (userDoc.exists) {
                     const userData = userDoc.data();
                     this.activeOrgId = userData.orgId;
