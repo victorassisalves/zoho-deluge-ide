@@ -1,3 +1,4 @@
+(function() {
 var zideProjectUrl = null;
 var zideProjectName = "Untitled Project";
 
@@ -93,15 +94,18 @@ function initEditor() {
             const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
             const ctrlCmd = isMac ? e.metaKey : e.ctrlKey;
             if (ctrlCmd && e.shiftKey) {
-                const key = e.key.toLowerCase();
-                if (key === "s") {
+                const code = e.code;
+                if (code === "KeyS") {
                     e.preventDefault();
+                    e.stopPropagation();
                     pushToZoho(true);
-                } else if (e.code === "Enter" || e.key === "Enter") {
+                } else if (code === "Enter") {
                     e.preventDefault();
+                    e.stopPropagation();
                     pushToZoho(true, true);
-                } else if (key === "p") {
+                } else if (code === "KeyP") {
                     e.preventDefault();
+                    e.stopPropagation();
                     pullFromZoho();
                 }
             }
@@ -119,21 +123,18 @@ function initEditor() {
 function checkConnection() {
     if (typeof chrome !== "undefined" && chrome.runtime) {
         chrome.runtime.sendMessage({ action: "CHECK_CONNECTION" }, (response) => {
-            const statusEl = document.getElementById("status-indicator");
-            if (statusEl) {
-                let nextProjectUrl = "global";
-                if (response && response.connected) {
-                    isConnected = true;
-                    statusEl.innerText = (response.isStandalone ? "Target: " : "Local: ") + (response.tabTitle || "Zoho Tab");
-                    statusEl.style.color = "#4ec9b0";
-                    window.currentTargetTab = response;
-                    nextProjectUrl = response.url;
-                } else {
-                    isConnected = false;
-                    statusEl.innerText = "Disconnected";
-                    statusEl.style.color = "#888";
-                    nextProjectUrl = "global";
-                }
+            let nextProjectUrl = "global";
+            if (response && response.connected) {
+                isConnected = true;
+                const msg = (response.isStandalone ? "Connected to Target: " : "Connected Local: ") + (response.tabTitle || "Zoho Tab");
+                showStatus(msg, "success");
+                window.currentTargetTab = response;
+                nextProjectUrl = response.url;
+            } else {
+                isConnected = false;
+                showStatus("Disconnected from Zoho", "info");
+                nextProjectUrl = "global";
+            }
 
                 if (nextProjectUrl !== zideProjectUrl) {
                     // Context switch detected
@@ -434,6 +435,16 @@ function renderJsonTree(mappingName, obj) {
     buildTree(obj, tree);
 }
 
+
+function showStatus(message, type = 'info') {
+    const statusEl = document.getElementById("status-indicator");
+    if (statusEl) {
+        statusEl.innerText = message;
+        statusEl.style.color = type === 'success' ? '#4ec9b0' : (type === 'error' ? '#f44747' : '#888');
+    }
+    log(type, message);
+}
+
 function log(type, message) {
     const consoleOutput = document.getElementById('console-output');
     if (!consoleOutput) return;
@@ -692,3 +703,5 @@ document.getElementById('json-search')?.addEventListener('input', (e) => {
         }
     });
 });
+
+})();
