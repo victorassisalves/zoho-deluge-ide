@@ -3,6 +3,45 @@
                     <h4>Deluge Snippets</h4>
                     <div class="snippets-container" style="font-size:12px;">
                         <div class="snippet-group">
+                            <h5>Map Manipulation</h5>
+                            <div class="snippet-btn" data-snippet="put">put</div>
+                            <div class="snippet-btn" data-snippet="put_all">put all keys</div>
+                            <div class="snippet-btn" data-snippet="remove_key">remove key</div>
+                            <div class="snippet-btn" data-snippet="clear_map">clear map</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Collection</h5>
+                            <div class="snippet-btn" data-snippet="collection_create">create collection</div>
+                            <div class="snippet-btn" data-snippet="collection_insert">insert</div>
+                            <div class="snippet-btn" data-snippet="collection_get">get</div>
+                            <div class="snippet-btn" data-snippet="collection_insert_all">insertAll</div>
+                            <div class="snippet-btn" data-snippet="collection_update">update</div>
+                            <div class="snippet-btn" data-snippet="collection_delete">delete</div>
+                            <div class="snippet-btn" data-snippet="collection_keys">keys</div>
+                            <div class="snippet-btn" data-snippet="collection_values">values</div>
+                            <div class="snippet-btn" data-snippet="collection_contains_key">contains key</div>
+                            <div class="snippet-btn" data-snippet="collection_contains_value">contains value</div>
+                            <div class="snippet-btn" data-snippet="collection_clear">clear</div>
+                            <div class="snippet-btn" data-snippet="collection_sort">sort value</div>
+                            <div class="snippet-btn" data-snippet="collection_is_empty">is empty</div>
+                            <div class="snippet-btn" data-snippet="collection_size">size</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Web Data</h5>
+                            <div class="snippet-btn" data-snippet="zoho_integration">zoho integration</div>
+                            <div class="snippet-btn" data-snippet="other_integration">other integration</div>
+                            <div class="snippet-btn" data-snippet="get_url">get url</div>
+                            <div class="snippet-btn" data-snippet="post_url">post url</div>
+                            <div class="snippet-btn" data-snippet="invoke_url">invoke url</div>
+                            <div class="snippet-btn" data-snippet="open_url">open url</div>
+                            <div class="snippet-btn" data-snippet="invoke_api">invoke API</div>
+                            <div class="snippet-btn" data-snippet="ftp">FTP/SFTP</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Xml Manipulation</h5>
+                            <div class="snippet-btn" data-snippet="xpath">execute XPath</div>
+                        </div>
+                        <div class="snippet-group">
                             <h5>Condition</h5>
                             <div class="snippet-btn" data-snippet="if">if</div>
                             <div class="snippet-btn" data-snippet="else if">else if</div>
@@ -15,29 +54,37 @@
                             <div class="snippet-btn" data-snippet="fetch">fetch records</div>
                             <div class="snippet-btn" data-snippet="aggregate">aggregate records</div>
                             <div class="snippet-btn" data-snippet="update">update record</div>
+                            <div class="snippet-btn" data-snippet="update_multiple">update multiple fields</div>
                             <div class="snippet-btn" data-snippet="for each">for each record</div>
                             <div class="snippet-btn" data-snippet="delete">delete records</div>
+                            <div style="margin-top:5px; display:flex; gap:5px;">
+                                <button id="fetch-creator-forms-btn" class="mini-btn" style="flex:1; font-size:10px;">Fetch Creator Forms</button>
+                                <select id="creator-form-selector" class="mini-select" style="flex:1; display:none;"></select>
+                            </div>
                         </div>
                         <div class="snippet-group">
                             <h5>List Manipulation</h5>
                             <div class="snippet-btn" data-snippet="list">create list</div>
                             <div class="snippet-btn" data-snippet="add">add</div>
                             <div class="snippet-btn" data-snippet="remove">remove index</div>
+                            <div class="snippet-btn" data-snippet="remove_element">remove element</div>
+                            <div class="snippet-btn" data-snippet="add_all">add all | remove all</div>
                             <div class="snippet-btn" data-snippet="clear">clear list</div>
-                            <div class="snippet-btn" data-snippet="sort">sort list</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Map Manipulation</h5>
-                            <div class="snippet-btn" data-snippet="map">create map</div>
-                            <div class="snippet-btn" data-snippet="put">put</div>
-                            <div class="snippet-btn" data-snippet="remove_key">remove key</div>
-                            <div class="snippet-btn" data-snippet="clear_map">clear map</div>
+                            <div class="snippet-btn" data-snippet="sort">sort</div>
+                            <div class="snippet-btn" data-snippet="for_each_element">for each element</div>
+                            <div class="snippet-btn" data-snippet="for_each_index">for each index</div>
                         </div>
                         <div class="snippet-group">
                             <h5>Miscellaneous</h5>
+                            <div class="snippet-btn" data-snippet="map">create map</div>
                             <div class="snippet-btn" data-snippet="variable">set variable</div>
                             <div class="snippet-btn" data-snippet="function">call function</div>
                             <div class="snippet-btn" data-snippet="mail">send mail</div>
+                            <div class="snippet-btn" data-snippet="add_comment">add comment</div>
+                            <div class="snippet-btn" data-snippet="return">return</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Debug</h5>
                             <div class="snippet-btn" data-snippet="info">info</div>
                         </div>
                     </div>

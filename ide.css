@@ -983,3 +983,97 @@ html.sidepanel-mode .resizer {
     text-align: center;
     padding: 20px;
 }
+
+.resizer.horizontal {
+    height: 6px;
+    cursor: ns-resize;
+    width: 100%;
+    background: #333;
+    transition: background 0.2s;
+    z-index: 1001;
+}
+.resizer.horizontal:hover {
+    background: #007acc;
+}
+
+.view-content {
+    height: calc(100% - 40px);
+    overflow-y: auto;
+    padding-bottom: 20px;
+}
+
+.panel-content {
+    overflow-y: auto;
+}
+
+.snippets-container {
+    padding-bottom: 20px;
+}
+
+/* API Explorer Styles */
+.api-explorer-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background: #252526;
+    border-bottom: 1px solid #333;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+.api-select {
+    background: #3c3c3c;
+    color: white;
+    border: 1px solid #555;
+    padding: 6px;
+    font-size: 11px;
+    border-radius: 3px;
+}
+.api-search-input {
+    background: #3c3c3c;
+    color: white;
+    border: 1px solid #555;
+    padding: 6px 8px;
+    font-size: 11px;
+    border-radius: 3px;
+}
+.api-list { padding: 5px; }
+.api-item {
+    padding: 10px 8px;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 4px;
+    margin-bottom: 2px;
+}
+.api-item:hover { background: #2a2d2e; }
+.api-item-title {
+    font-weight: bold;
+    font-size: 12px;
+    color: #50fa7b;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+.api-item-desc {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 4px;
+    display: block;
+}
+.api-item-tag {
+    font-size: 9px;
+    background: #44475a;
+    color: #f8f8f2;
+    padding: 1px 4px;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+#problems-list .problem-item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #333; }
+#problems-list .problem-item:hover { background: #2a2d2e; }
+#problems-list .problem-severity-error { color: #ff5555; }
+#problems-list .problem-severity-warning { color: #ffb86c; }
+#problems-list .problem-loc { color: #888; font-size: 11px; margin-left: auto; }

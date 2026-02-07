@@ -70,13 +70,13 @@ require(['vs/editor/editor.main'], async function() {
 
         // Load Deluge Language
         await loadScript('deluge-lang.js');
-        if (typeof registerDelugeLanguage === 'function') {
-            registerDelugeLanguage();
-        }
 
         // Finally load main IDE logic
+
+        await loadScript('snippet_logic.js');
+        await loadScript('api_data.js');
         await loadScript('ide.js');
-        console.log('[ZohoIDE] ide.js loaded.');
+        console.log('[ZohoIDE] ide.js, snippet_logic.js and api_data.js loaded.');
 
     } catch (err) {
         console.error('[ZohoIDE] Critical error during script initialization:', err);

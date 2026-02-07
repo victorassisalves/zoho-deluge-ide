@@ -68,6 +68,7 @@ function initEditor() {
             glyphMargin: true
         });
         window.editor = editor;
+        if (typeof validateDelugeModel === "function") validateDelugeModel(editor.getModel());
         window.addEventListener('resize', () => { if (editor) editor.layout(); });
     // Ensure editor layouts correctly after initialization
     setTimeout(() => { if (editor) editor.layout(); }, 500);
@@ -86,12 +87,22 @@ function initEditor() {
             if (typeof chrome !== "undefined" && chrome.storage) {
                 chrome.storage.local.set({ 'saved_deluge_code': code });
             }
+            if (window.validateDelugeModel) window.validateDelugeModel(editor.getModel());
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.get(['saved_deluge_code', 'theme', 'json_mappings', 'left_panel_width', 'right_sidebar_width'], (result) => {
+            chrome.storage.local.get(['saved_deluge_code', 'theme', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height'], (result) => {
                 if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
+        if (typeof initApiExplorer === 'function') initApiExplorer();
+        if (typeof syncProblemsPanel === 'function') syncProblemsPanel();
                 if (result.theme) monaco.editor.setTheme(result.theme);
+                if (result.bottom_panel_height) {
+                    const bottomPanel = document.getElementById('bottom-panel');
+                    if (bottomPanel) {
+                        bottomPanel.style.height = result.bottom_panel_height;
+                        document.documentElement.style.setProperty('--footer-height', result.bottom_panel_height);
+                    }
+                }
                                 if (result.left_panel_width) {
                     const leftPanel = document.getElementById('left-panel-content');
                     if (leftPanel) {
@@ -345,48 +356,6 @@ function setupEventHandlers() {
 
     initResources();
 
-    function insertSnippet(type) {
-        if (!editor) return;
-        let snippet = "";
-        switch (type) {
-            case 'if': snippet = "if (  ) \n{\n\t\n}"; break;
-            case 'else if': snippet = "else if (  ) \n{\n\t\n}"; break;
-            case 'else': snippet = "else \n{\n\t\n}"; break;
-            case 'conditional if': snippet = "if( , , )"; break;
-            case 'insert': snippet = "insert into <Form>\n[\n\t<Field> : <Value>\n];"; break;
-            case 'fetch': snippet = "<var> = <Form> [ <Criteria> ];"; break;
-            case 'aggregate': snippet = "<var> = <Form> [ <Criteria> ].count();"; break;
-            case 'update': snippet = "<Form> [ <Criteria> ]\n{\n\t<Field> : <Value>\n};"; break;
-            case 'for each': snippet = "for each <var> in <Form> [ <Criteria> ]\n{\n\t\n}"; break;
-            case 'delete': snippet = "delete from <Form> [ <Criteria> ];"; break;
-            case 'list': snippet = "<var> = List();"; break;
-            case 'add': snippet = "<var>.add();"; break;
-            case 'remove': snippet = "<var>.remove();"; break;
-            case 'clear': snippet = "<var>.clear();"; break;
-            case 'sort': snippet = "<var>.sort();"; break;
-            case 'map': snippet = "<var> = Map();"; break;
-            case 'put': snippet = "<var>.put(\"\", \"\");"; break;
-            case 'remove_key': snippet = "<var>.remove(\"\");"; break;
-            case 'clear_map': snippet = "<var>.clear();"; break;
-            case 'variable': snippet = "<var> = ;"; break;
-            case 'function': snippet = "thisapp.<function_name>();"; break;
-            case 'mail': snippet = "sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: \"\"\n\tsubject: \"\"\n\tmessage: \"\"\n\tto: \"\"\n\tsubject: \"\"\n\tmessage: \"\"\n];"; break;
-            case 'info': snippet = "info ;"; break;
-        }
-        if (snippet) {
-            const selection = editor.getSelection();
-            const range = new monaco.Range(selection.startLineNumber, selection.startColumn, selection.endLineNumber, selection.endColumn);
-            editor.executeEdits("snippet-insert", [{ range: range, text: snippet, forceMoveMarkers: true }]);
-            editor.focus();
-        }
-    }
-
-    document.querySelectorAll('.snippet-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const type = btn.getAttribute('data-snippet');
-            insertSnippet(type);
-        });
-    });
 
 }
 
@@ -404,6 +373,7 @@ function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
             } else if (typeof val === "object" && val !== null) {
                 let parts = [];
                 for (const key in val) {
+                    if (key.startsWith("$")) continue;
                     parts.push(`"${key}": ${toInline(val[key])}`);
                 }
                 return "{" + parts.join(", ") + "}";
@@ -434,6 +404,7 @@ function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
 `;
             }
             for (const key in val) {
+                    if (key.startsWith("$")) continue;
                 const memberVal = processValue(val[key]);
                 code += `${mapVar}.put("${key}", ${memberVal});
 `;
@@ -678,6 +649,16 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
         log('Error', 'No Zoho tab connected. Sync/Execute failed.');
         return;
     }
+
+    // Check for errors
+    const markers = monaco.editor.getModelMarkers({ resource: editor.getModel().uri });
+    const errors = markers.filter(m => m.severity === monaco.MarkerSeverity.Error);
+    if (errors.length > 0) {
+        log('Error', 'Fix syntax errors before pushing to Zoho.');
+        showStatus('Push Blocked: Errors', 'error');
+        return;
+    }
+
     const code = editor.getValue();
     log('System', 'Pushing code...');
     if (typeof chrome !== "undefined" && chrome.runtime) {
@@ -700,6 +681,13 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 }
 
 function saveLocally() {
+    // Check for errors
+    const markers = monaco.editor.getModelMarkers({ resource: editor.getModel().uri });
+    const errors = markers.filter(m => m.severity === monaco.MarkerSeverity.Error);
+    if (errors.length > 0) {
+        showStatus('Cloud Sync Paused: Errors', 'warning');
+        // We still allow local storage save but maybe skip cloud sync if it's a hard error
+    }
 
     const code = editor.getValue();
     const timestamp = new Date().toLocaleString();
@@ -873,6 +861,13 @@ if (document.getElementById('docs-search')) {
 // Resizing Sidebars
 let isResizingRight = false;
 let isResizingLeft = false;
+let isResizingBottom = false;
+
+document.getElementById('bottom-resizer')?.addEventListener('mousedown', (e) => {
+    isResizingBottom = true;
+    document.body.style.userSelect = 'none';
+    document.body.classList.add('resizing');
+});
 
 document.getElementById('left-resizer')?.addEventListener('mousedown', (e) => {
     isResizingLeft = true;
@@ -887,6 +882,18 @@ document.getElementById('right-sidebar-resizer')?.addEventListener('mousedown', 
 });
 
 window.addEventListener('mousemove', (e) => {
+    if (isResizingBottom) {
+        const bottomPanel = document.getElementById('bottom-panel');
+        const height = window.innerHeight - e.clientY;
+        if (height > 50 && height < window.innerHeight * 0.8) {
+            bottomPanel.style.height = height + 'px';
+            document.documentElement.style.setProperty('--footer-height', height + 'px');
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                chrome.storage.local.set({ 'bottom_panel_height': height + 'px' });
+            }
+            if (editor) editor.layout();
+        }
+    }
     if (isResizingRight) {
         const sidebar = document.getElementById('right-sidebar');
         if (!sidebar) return;
@@ -922,8 +929,15 @@ window.addEventListener('mouseup', () => {
             chrome.storage.local.set({ 'right_sidebar_width': rightSidebar.style.width });
         }
     }
+    if (isResizingBottom) {
+        const bottomPanel = document.getElementById('bottom-panel');
+        if (bottomPanel && typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ 'bottom_panel_height': bottomPanel.style.height });
+        }
+    }
     isResizingRight = false;
     isResizingLeft = false;
+    isResizingBottom = false;
     document.body.style.userSelect = 'auto';
     document.body.classList.remove('resizing');
 });
@@ -957,4 +971,44 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
     // Expose internal functions to window for Cloud UI
     window.updateInterfaceMappingsList = updateInterfaceMappingsList;
     window.showStatus = showStatus;
+
+    function syncProblemsPanel() {
+        const list = document.getElementById('problems-list');
+        if (!list) return;
+
+        if (!editor) return;
+        const model = editor.getModel();
+        if (!model) return;
+
+        const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+        list.innerHTML = '';
+
+        if (markers.length === 0) {
+            list.innerHTML = '<div class="log-entry">No problems detected.</div>';
+            return;
+        }
+
+        markers.forEach(m => {
+            const item = document.createElement('div');
+            item.className = 'problem-item';
+            const sevClass = m.severity === monaco.MarkerSeverity.Error ? 'problem-severity-error' : 'problem-severity-warning';
+            const sevText = m.severity === monaco.MarkerSeverity.Error ? 'Error' : 'Warning';
+
+            item.innerHTML = `
+                <span class="${sevClass}">[${sevText}]</span>
+                <span class="problem-msg">${m.message}</span>
+                <span class="problem-loc">Ln ${m.startLineNumber}, Col ${m.startColumn}</span>
+            `;
+
+            item.onclick = () => {
+                editor.setPosition({ lineNumber: m.startLineNumber, column: m.startColumn });
+                editor.revealLineInCenter(m.startLineNumber);
+                editor.focus();
+            };
+
+            list.appendChild(item);
+        });
+    }
+    window.syncProblemsPanel = syncProblemsPanel;
+
 })();
