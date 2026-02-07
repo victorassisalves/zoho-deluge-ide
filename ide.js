@@ -1,13 +1,13 @@
-let currentProjectUrl = null;
-let currentProjectName = "Untitled Project";
+var zideProjectUrl = null;
+var zideProjectName = "Untitled Project";
 
 /**
  * Zoho Deluge Advanced IDE v1.2
  */
 
-let editor;
-let isConnected = false;
-let jsonMappings = {};
+var editor;
+var isConnected = false;
+var jsonMappings = {};
 
 function initEditor() {
     if (editor) return;
@@ -135,12 +135,12 @@ function checkConnection() {
                     nextProjectUrl = "global";
                 }
 
-                if (nextProjectUrl !== currentProjectUrl) {
+                if (nextProjectUrl !== zideProjectUrl) {
                     // Context switch detected
-                    if (currentProjectUrl && editor && editor.getValue().trim() !== "" && !editor.getValue().startsWith("// Start coding")) {
+                    if (zideProjectUrl && editor && editor.getValue().trim() !== "" && !editor.getValue().startsWith("// Start coding")) {
                         saveLocally();
                     }
-                    currentProjectUrl = nextProjectUrl;
+                    zideProjectUrl = nextProjectUrl;
                     loadProjectData();
                 }
             }
@@ -149,31 +149,31 @@ function checkConnection() {
 }
 
 function loadProjectData() {
-    if (!currentProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
+    if (!zideProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
     chrome.storage.local.get(["saved_files", "project_notes", "last_project_code", "project_names", "project_mappings"], (result) => {
         const allFiles = result.saved_files || [];
-        const projectFiles = allFiles.filter(f => f.projectUrl === currentProjectUrl || (!f.projectUrl && currentProjectUrl === "global"));
+        const projectFiles = allFiles.filter(f => f.projectUrl === zideProjectUrl || (!f.projectUrl && zideProjectUrl === "global"));
         updateSavedFilesList(projectFiles);
 
         const projectNames = result.project_names || {};
-        currentProjectName = projectNames[currentProjectUrl] || "Untitled Project";
+        zideProjectName = projectNames[zideProjectUrl] || "Untitled Project";
         const nameInput = document.getElementById("project-name-input");
-        if (nameInput) nameInput.value = currentProjectName;
+        if (nameInput) nameInput.value = zideProjectName;
 
         const notes = result.project_notes || {};
         const notesEl = document.getElementById("project-notes");
-        if (notesEl) notesEl.value = notes[currentProjectUrl] || "";
+        if (notesEl) notesEl.value = notes[zideProjectUrl] || "";
 
         if (editor) {
             const lastCodes = result.last_project_code || {};
             const currentVal = editor.getValue();
-            if (lastCodes[currentProjectUrl] && (!currentVal || currentVal.trim() === "" || currentVal.startsWith("// Start coding"))) {
-                editor.setValue(lastCodes[currentProjectUrl]);
+            if (lastCodes[zideProjectUrl] && (!currentVal || currentVal.trim() === "" || currentVal.startsWith("// Start coding"))) {
+                editor.setValue(lastCodes[zideProjectUrl]);
             }
         }
 
         const projectMappings = result.project_mappings || {};
-        jsonMappings = projectMappings[currentProjectUrl] || {};
+        jsonMappings = projectMappings[zideProjectUrl] || {};
         updateMappingsList();
     });
 }
@@ -195,11 +195,11 @@ function setupEventHandlers() {
     bind('save-btn', 'click', saveLocally);
 
     bind('project-name-input', 'input', (e) => {
-        currentProjectName = e.target.value;
-        if (currentProjectUrl) {
+        zideProjectName = e.target.value;
+        if (zideProjectUrl) {
             chrome.storage.local.get(['project_names'], (result) => {
                 const names = result.project_names || {};
-                names[currentProjectUrl] = currentProjectName;
+                names[zideProjectUrl] = zideProjectName;
                 chrome.storage.local.set({ 'project_names': names });
             });
         }
@@ -251,11 +251,11 @@ function setupEventHandlers() {
     });
 
     bind('project-notes', 'input', (e) => {
-        if (!currentProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
+        if (!zideProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
         const notesValue = e.target.value;
         chrome.storage.local.get(['project_notes'], (result) => {
             const notes = result.project_notes || {};
-            notes[currentProjectUrl] = notesValue;
+            notes[zideProjectUrl] = notesValue;
             chrome.storage.local.set({ 'project_notes': notes });
         });
     });
@@ -348,10 +348,10 @@ function saveMapping(name, jsonStr) {
         const obj = JSON.parse(jsonStr);
         jsonMappings[name] = obj;
         if (typeof chrome !== "undefined" && chrome.storage) {
-            if (currentProjectUrl) {
+            if (zideProjectUrl) {
                 chrome.storage.local.get(['project_mappings'], (result) => {
                     const projectMappings = result.project_mappings || {};
-                    projectMappings[currentProjectUrl] = jsonMappings;
+                    projectMappings[zideProjectUrl] = jsonMappings;
                     chrome.storage.local.set({ 'project_mappings': projectMappings });
                 });
             } else {
@@ -374,10 +374,10 @@ function updateMappingsList() {
             if (e.target.classList.contains('delete-mapping')) {
                 delete jsonMappings[name];
                 if (typeof chrome !== "undefined" && chrome.storage) {
-                    if (currentProjectUrl) {
+                    if (zideProjectUrl) {
                         chrome.storage.local.get(['project_mappings'], (result) => {
                             const projectMappings = result.project_mappings || {};
-                            projectMappings[currentProjectUrl] = jsonMappings;
+                            projectMappings[zideProjectUrl] = jsonMappings;
                             chrome.storage.local.set({ 'project_mappings': projectMappings });
                         });
                     } else {
@@ -492,7 +492,7 @@ function saveLocally() {
     const title = 'Script ' + new Date().toLocaleTimeString();
     const source = window.currentTargetTab?.tabTitle || 'Local Editor';
     const vars = extractVarsFromCode(code);
-    const projectUrl = currentProjectUrl || 'global';
+    const projectUrl = zideProjectUrl || 'global';
 
     if (typeof chrome !== "undefined" && chrome.storage) {
         chrome.storage.local.get(['saved_files', 'last_project_code'], (result) => {

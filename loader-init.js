@@ -1,3 +1,7 @@
+if (window.location.search.includes("mode=sidepanel") || window.location.hash.includes("sidepanel")) {
+    document.documentElement.classList.add("sidepanel-mode");
+}
+
 /**
  * Monaco Loader Initialization
  */
