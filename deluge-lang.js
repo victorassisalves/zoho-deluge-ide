@@ -420,22 +420,36 @@ function registerDelugeLanguage() {
                     openParens += (trimmed.match(/\(/g) || []).length;
                     openParens -= (trimmed.match(/\)/g) || []).length;
 
-                    const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'while', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list'];
-                    const startsWithKeyword = skipKeywords.some(kw => trimmed.toLowerCase().startsWith(kw));
+                    const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'while', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'break', 'continue'];
+                    const startsWithKeyword = skipKeywords.some(kw => {
+                        const regex = new RegExp('^' + kw + '(\\s|\\(|$)', 'i');
+                        return regex.test(trimmed);
+                    });
                     const endsWithSpecial = trimmed.endsWith('{') || trimmed.endsWith('}') || trimmed.endsWith(';') || trimmed.endsWith(':') || trimmed.endsWith(',');
 
                     // Semicolon check
                     if (!endsWithSpecial && !startsWithKeyword && openBrackets === 0 && openBraces === 0) {
-                         // Only warn if it looks like an assignment or function call
-                         if (trimmed.includes('=') || (trimmed.includes('(') && trimmed.includes(')'))) {
+                        markers.push({
+                            message: 'Missing semicolon',
+                            severity: monaco.MarkerSeverity.Error,
+                            startLineNumber: i + 1, startColumn: line.length + 1,
+                            endLineNumber: i + 1, endColumn: line.length + 2,
+                            code: 'missing-semicolon'
+                        });
+                    }
+
+                    // Garbage after semicolon check
+                    if (trimmed.includes(';') && !trimmed.endsWith(';')) {
+                        const lastSemiIndex = line.lastIndexOf(';');
+                        const afterSemi = line.substring(lastSemiIndex + 1).trim();
+                        if (afterSemi.length > 0 && !afterSemi.startsWith('//') && !afterSemi.startsWith('/*')) {
                             markers.push({
-                                message: 'Missing semicolon',
+                                message: 'Syntax error: characters after semicolon',
                                 severity: monaco.MarkerSeverity.Error,
-                                startLineNumber: i + 1, startColumn: line.length + 1,
-                                endLineNumber: i + 1, endColumn: line.length + 2,
-                                code: 'missing-semicolon'
+                                startLineNumber: i + 1, startColumn: lastSemiIndex + 2,
+                                endLineNumber: i + 1, endColumn: line.length + 1
                             });
-                         }
+                        }
                     }
 
                     // Method validation (.put, .add)

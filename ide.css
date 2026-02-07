@@ -983,3 +983,15 @@ html.sidepanel-mode .resizer {
     text-align: center;
     padding: 20px;
 }
+
+.resizer.horizontal {
+    height: 6px;
+    cursor: ns-resize;
+    width: 100%;
+    background: #333;
+    transition: background 0.2s;
+    z-index: 1001;
+}
+.resizer.horizontal:hover {
+    background: #007acc;
+}
