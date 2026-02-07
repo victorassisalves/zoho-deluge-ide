@@ -3,8 +3,8 @@
  */
 
 const CloudUI = {
-    activeFileId: null,
     activeOrgId: null,
+    activeFileId: null,
 
     init() {
         this.bindEvents();
@@ -13,21 +13,21 @@ const CloudUI = {
     },
 
     bindEvents() {
-        // Auth
-        document.getElementById('auth-login-btn').addEventListener('click', () => this.handleLogin());
-        document.getElementById('auth-signup-btn').addEventListener('click', () => this.handleSignUp());
-        document.getElementById('auth-logout-btn').addEventListener('click', () => this.handleLogout());
+        // Auth buttons
+        document.getElementById('auth-login-btn')?.addEventListener('click', () => this.handleLogin());
+        document.getElementById('auth-signup-btn')?.addEventListener('click', () => this.handleSignUp());
+        document.getElementById('auth-logout-btn')?.addEventListener('click', () => this.handleLogout());
 
-        // Hierarchy
-        document.getElementById('team-selector').addEventListener('change', (e) => this.loadWorkspaces(e.target.value));
-        document.getElementById('workspace-selector').addEventListener('change', (e) => this.loadProjects(e.target.value));
-        document.getElementById('project-selector').addEventListener('change', (e) => this.loadFiles(e.target.value));
+        // Hierarchy buttons
+        document.getElementById('create-team-btn')?.addEventListener('click', () => this.handleCreateTeam());
+        document.getElementById('create-workspace-btn')?.addEventListener('click', () => this.handleCreateWorkspace());
+        document.getElementById('create-project-btn')?.addEventListener('click', () => this.handleCreateProject());
+        document.getElementById('create-file-btn')?.addEventListener('click', () => this.handleCreateFile());
 
-        // Create Buttons
-        document.getElementById('create-team-btn').addEventListener('click', () => this.handleCreateTeam());
-        document.getElementById('create-workspace-btn').addEventListener('click', () => this.handleCreateWorkspace());
-        document.getElementById('create-project-btn').addEventListener('click', () => this.handleCreateProject());
-        document.getElementById('create-file-btn').addEventListener('click', () => this.handleCreateFile());
+        // Selectors
+        document.getElementById('team-selector')?.addEventListener('change', (e) => this.loadWorkspaces(e.target.value));
+        document.getElementById('workspace-selector')?.addEventListener('change', (e) => this.loadProjects(e.target.value));
+        document.getElementById('project-selector')?.addEventListener('change', (e) => this.loadFiles(e.target.value));
     },
 
     listenToAuth() {
@@ -38,59 +38,61 @@ const CloudUI = {
             const idleMsg = document.getElementById('cloud-idle-msg');
 
             if (user) {
-                loggedOut.style.display = 'none';
-                loggedIn.style.display = 'block';
-                hierarchy.style.display = 'block';
-                idleMsg.style.display = 'none';
+                if (loggedOut) loggedOut.style.display = 'none';
+                if (loggedIn) loggedIn.style.display = 'block';
+                if (hierarchy) hierarchy.style.display = 'block';
+                if (idleMsg) idleMsg.style.display = 'none';
 
                 document.getElementById('user-display').innerText = user.email;
 
-                // Get User Org
-                let userDoc = await CloudService.db.collection('users').doc(user.uid).get();
+                try {
+                    let userDoc = await CloudService.db.collection('users').doc(user.uid).get();
 
-                if (!userDoc.exists) {
-                    console.log('[ZohoIDE] User doc missing, attempting to create...');
-                    const domain = user.email.split('@')[1];
-                    let orgId = await CloudService.findOrgByDomain(domain);
-                    if (!orgId) orgId = await CloudService.createOrganization(domain, user.uid);
+                    if (!userDoc.exists) {
+                        console.log('[ZohoIDE] User doc missing, creating profile...');
+                        const domain = CloudService.getDomain(user.email);
+                        let orgId = await CloudService.findOrgByDomain(domain);
+                        if (!orgId) orgId = await CloudService.createOrganization(domain, user.uid);
 
-                    await CloudService.db.collection('users').doc(user.uid).set({
-                        uid: user.uid,
-                        email: user.email,
-                        domain: domain,
-                        orgId: orgId,
-                        teams: [],
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    userDoc = await CloudService.db.collection('users').doc(user.uid).get();
-                }
-
-                if (userDoc.exists) {
-                    const userData = userDoc.data();
-                    this.activeOrgId = userData.orgId;
-                    const orgDoc = await CloudService.db.collection('organizations').doc(this.activeOrgId).get();
-                    document.getElementById('org-display').innerText = orgDoc.data().name;
-
-                    this.loadTeams();
-
-                    // Offer migration if no files exist
-                    const files = await CloudService.getFilesByUrl(this.activeOrgId, window.zideProjectUrl || 'global');
-                    if (files.length === 0) {
-                        this.migrateLocalToCloud();
+                        await CloudService.db.collection('users').doc(user.uid).set({
+                            uid: user.uid,
+                            email: user.email,
+                            domain: domain,
+                            orgId: orgId,
+                            teams: [],
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        userDoc = await CloudService.db.collection('users').doc(user.uid).get();
                     }
+
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        this.activeOrgId = userData.orgId;
+                        const orgDoc = await CloudService.db.collection('organizations').doc(this.activeOrgId).get();
+                        if (orgDoc.exists) {
+                            document.getElementById('org-display').innerText = orgDoc.data().name || 'My Space';
+                        }
+
+                        this.loadTeams();
+
+                        // Check for cloud files for current URL
+                        this.checkForCloudFiles(window.zideProjectUrl || 'global');
+                    }
+                } catch (err) {
+                    console.error('[ZohoIDE] Auth state error:', err);
                 }
             } else {
-                loggedOut.style.display = 'block';
-                loggedIn.style.display = 'none';
-                hierarchy.style.display = 'none';
-                idleMsg.style.display = 'block';
+                if (loggedOut) loggedOut.style.display = 'block';
+                if (loggedIn) loggedIn.style.display = 'none';
+                if (hierarchy) hierarchy.style.display = 'none';
+                if (idleMsg) idleMsg.style.display = 'block';
                 this.activeOrgId = null;
             }
         });
     },
 
     async migrateLocalToCloud() {
-        if (!editor) return;
+        if (typeof editor === 'undefined' || !editor) return;
         const localCode = editor.getValue();
         const localMappings = window.jsonMappings || {};
         const localName = window.zideProjectName || 'Migrated Project';
@@ -100,18 +102,15 @@ const CloudUI = {
 
         if (confirm('You have local code. Would you like to migrate it to a new Cloud Workspace?')) {
             try {
-                // 1. Create a Default Workspace
                 const workspaceId = await CloudService.createWorkspace(this.activeOrgId, 'My Cloud Workspace');
-                // 2. Create a Project
                 const projectId = await CloudService.createProject(workspaceId, localName, localUrl);
-                // 3. Create File
                 const fileId = await CloudService.createFile(projectId, this.activeOrgId, 'Main', localCode, localUrl, localMappings);
 
                 this.activeFileId = fileId;
                 window.activeCloudFileId = fileId;
 
-                await this.loadTeams(); // Refresh UI
-                showStatus('Migration complete!', 'success');
+                this.loadTeams();
+                if (typeof showStatus === 'function') showStatus('Migration complete!', 'success');
             } catch (err) {
                 alert('Migration failed: ' + err.message);
             }
@@ -147,11 +146,11 @@ const CloudUI = {
         await CloudService.logout();
     },
 
-    // --- Hierarchy Loaders ---
-
     async loadTeams() {
+        if (!this.activeOrgId) return;
         const teams = await CloudService.getTeams(this.activeOrgId);
         const selector = document.getElementById('team-selector');
+        if (!selector) return;
         selector.innerHTML = '<option value="">Personal (No Team)</option>';
         teams.forEach(t => {
             const opt = document.createElement('option');
@@ -163,8 +162,10 @@ const CloudUI = {
     },
 
     async loadWorkspaces(teamId) {
+        if (!this.activeOrgId) return;
         const workspaces = await CloudService.getWorkspaces(this.activeOrgId, teamId);
         const selector = document.getElementById('workspace-selector');
+        if (!selector) return;
         selector.innerHTML = '<option value="">Select Workspace...</option>';
         workspaces.forEach(w => {
             const opt = document.createElement('option');
@@ -172,14 +173,17 @@ const CloudUI = {
             opt.innerText = w.name;
             selector.appendChild(opt);
         });
-        document.getElementById('project-selector').innerHTML = '';
-        document.getElementById('cloud-file-list').innerHTML = '';
+        const projSelector = document.getElementById('project-selector');
+        if (projSelector) projSelector.innerHTML = '';
+        const fileList = document.getElementById('cloud-file-list');
+        if (fileList) fileList.innerHTML = '';
     },
 
     async loadProjects(workspaceId) {
         if (!workspaceId) return;
         const projects = await CloudService.getProjects(workspaceId);
         const selector = document.getElementById('project-selector');
+        if (!selector) return;
         selector.innerHTML = '<option value="">Select Project...</option>';
         projects.forEach(p => {
             const opt = document.createElement('option');
@@ -187,7 +191,8 @@ const CloudUI = {
             opt.innerText = p.name;
             selector.appendChild(opt);
         });
-        document.getElementById('cloud-file-list').innerHTML = '';
+        const fileList = document.getElementById('cloud-file-list');
+        if (fileList) fileList.innerHTML = '';
     },
 
     async loadFiles(projectId) {
@@ -198,7 +203,12 @@ const CloudUI = {
 
     renderFileList(files) {
         const list = document.getElementById('cloud-file-list');
+        if (!list) return;
         list.innerHTML = '';
+        if (files.length === 0) {
+            list.innerHTML = '<div style="padding:10px; opacity:0.5; font-size:11px;">No files in this project</div>';
+            return;
+        }
         files.forEach(f => {
             const item = document.createElement('div');
             item.className = 'cloud-file-item' + (this.activeFileId === f.id ? ' active' : '');
@@ -207,8 +217,6 @@ const CloudUI = {
             list.appendChild(item);
         });
     },
-
-    // --- Action Handlers ---
 
     async handleCreateTeam() {
         const name = prompt('Team Name:');
@@ -242,7 +250,7 @@ const CloudUI = {
         if (!projectId) { alert('Select a project first'); return; }
         const name = prompt('File Name:');
         if (name) {
-            const code = editor ? editor.getValue() : '';
+            const code = (typeof editor !== 'undefined' && editor) ? editor.getValue() : '';
             const url = window.zideProjectUrl || '';
             const fileId = await CloudService.createFile(projectId, this.activeOrgId, name, code, url);
             this.loadFiles(projectId);
@@ -253,20 +261,20 @@ const CloudUI = {
     async selectFile(file) {
         this.activeFileId = file.id;
         document.querySelectorAll('.cloud-file-item').forEach(i => i.classList.remove('active'));
-        // Re-render or highlight
         this.loadFiles(file.projectId);
 
         if (window.confirm('Load cloud file: ' + file.name + '? This will overwrite current editor.')) {
-            if (editor) {
+            if (typeof editor !== 'undefined' && editor) {
                 editor.setValue(file.code);
                 if (file.jsonMappings) {
                     window.jsonMappings = file.jsonMappings;
                     if (typeof updateMappingsList === 'function') updateMappingsList();
                 }
-                document.getElementById('project-name-input').value = file.name;
+                const nameInput = document.getElementById('project-name-input');
+                if (nameInput) nameInput.value = file.name;
                 window.zideProjectName = file.name;
                 window.activeCloudFileId = file.id;
-                showStatus('Cloud File Loaded');
+                if (typeof showStatus === 'function') showStatus('Cloud File Loaded');
             }
         }
     },
@@ -276,7 +284,7 @@ const CloudUI = {
         try {
             const files = await CloudService.getFilesByUrl(this.activeOrgId, url);
             if (files.length > 0) {
-                showStatus(files.length + ' cloud file(s) found for this URL', 'info');
+                if (typeof showStatus === 'function') showStatus(files.length + ' cloud file(s) found for this URL', 'info');
                 this.renderFileList(files);
             }
         } catch (err) {

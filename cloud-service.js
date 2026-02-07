@@ -18,17 +18,29 @@ const CloudService = {
 
     // --- Auth Operations ---
 
+    getDomain(email) {
+        if (!email) return null;
+        const PUBLIC_DOMAINS = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com'];
+        const parts = email.split('@');
+        if (parts.length < 2) return null;
+        const domain = parts[1].toLowerCase();
+        if (PUBLIC_DOMAINS.includes(domain)) {
+            return email.toLowerCase(); // Use full email as the "domain" for personal orgs
+        }
+        return domain;
+    },
+
     async signUp(email, password) {
         const userCredential = await this.auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
-        const domain = email.split('@')[1];
+        const domain = this.getDomain(email);
 
         // Check if organization for this domain exists
         let orgId = null;
         try {
             orgId = await this.findOrgByDomain(domain);
         } catch (e) {
-            console.warn('[ZohoIDE] findOrgByDomain failed (expected for new domains):', e);
+            console.warn('[ZohoIDE] findOrgByDomain failed:', e);
         }
 
         if (!orgId) {
@@ -64,6 +76,7 @@ const CloudService = {
     // --- Organization & Teams ---
 
     async findOrgByDomain(domain) {
+        if (!domain) return null;
         const snapshot = await this.db.collection('organizations')
             .where('domain', '==', domain)
             .limit(1)
@@ -76,16 +89,21 @@ const CloudService = {
     },
 
     async createOrganization(domain, ownerId) {
+        let name = domain.split('.')[0].toUpperCase();
+        if (domain.includes('@')) {
+            name = domain.split('@')[0] + "'s Personal Space";
+        }
         const docRef = await this.db.collection('organizations').add({
             domain: domain,
             ownerId: ownerId,
-            name: domain.split('.')[0].toUpperCase(),
+            name: name,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         return docRef.id;
     },
 
     async getTeams(orgId) {
+        if (!orgId) return [];
         const snapshot = await this.db.collection('teams')
             .where('orgId', '==', orgId)
             .get();
@@ -105,11 +123,11 @@ const CloudService = {
     // --- Workspaces & Projects ---
 
     async getWorkspaces(orgId, teamId = null) {
+        if (!orgId) return [];
         let query = this.db.collection('workspaces').where('orgId', '==', orgId);
         if (teamId) {
             query = query.where('teamId', '==', teamId);
         } else {
-            // Standalone workspaces for the user
             query = query.where('ownerId', '==', this.auth.currentUser.uid).where('type', '==', 'standalone');
         }
         const snapshot = await query.get();
@@ -131,6 +149,7 @@ const CloudService = {
     },
 
     async getProjects(workspaceId) {
+        if (!workspaceId) return [];
         const snapshot = await this.db.collection('projects')
             .where('workspaceId', '==', workspaceId)
             .get();
@@ -141,7 +160,7 @@ const CloudService = {
         const docRef = await this.db.collection('projects').add({
             workspaceId: workspaceId,
             name: name,
-            url: url, // Optional base URL
+            url: url,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         return docRef.id;
@@ -150,6 +169,7 @@ const CloudService = {
     // --- Files ---
 
     async getFilesByProject(projectId) {
+        if (!projectId) return [];
         const snapshot = await this.db.collection('files')
             .where('projectId', '==', projectId)
             .get();
@@ -157,8 +177,7 @@ const CloudService = {
     },
 
     async getFilesByUrl(orgId, url) {
-        // Find files across all projects in the org that match this URL
-        // In a real SaaS, we might limit this to workspaces the user has access to
+        if (!orgId || !url) return [];
         const snapshot = await this.db.collectionGroup('files')
             .where('orgId', '==', orgId)
             .where('url', '==', url)
@@ -191,7 +210,6 @@ const CloudService = {
     }
 };
 
-// Initialize on load
 if (typeof firebase !== 'undefined') {
     CloudService.init();
 }

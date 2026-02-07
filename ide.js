@@ -68,6 +68,7 @@ function initEditor() {
             glyphMargin: true
         });
         window.editor = editor;
+        window.addEventListener('resize', () => { if (editor) editor.layout(); });
     // Ensure editor layouts correctly after initialization
     setTimeout(() => { if (editor) editor.layout(); }, 500);
     setTimeout(() => { if (editor) editor.layout(); }, 2000);
