@@ -11,7 +11,7 @@ window.activeCloudFileId = null;
 
 var editor;
 var isConnected = false;
-var jsonMappings = {};
+var interfaceMappings = {};
 
 function initEditor() {
     if (editor) return;
@@ -89,7 +89,7 @@ function initEditor() {
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.get(['saved_deluge_code', 'theme', 'json_mappings', 'left_panel_width'], (result) => {
+            chrome.storage.local.get(['saved_deluge_code', 'theme', 'json_mappings', 'left_panel_width', 'right_sidebar_width'], (result) => {
                 if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
                 if (result.theme) monaco.editor.setTheme(result.theme);
                                 if (result.left_panel_width) {
@@ -97,13 +97,17 @@ function initEditor() {
                     if (leftPanel) {
                         leftPanel.style.width = result.left_panel_width;
                         leftPanel.style.setProperty('--left-sidebar-width', result.left_panel_width);
-                        setTimeout(() => { if (editor) editor.layout(); }, 100);
                     }
                 }
+                if (result.right_sidebar_width) {
+                    const rightSidebar = document.getElementById("right-sidebar");
+                    if (rightSidebar) rightSidebar.style.width = result.right_sidebar_width;
+                }
+                setTimeout(() => { if (editor) editor.layout(); }, 200);
                 if (result.json_mappings) {
-                    jsonMappings = result.json_mappings;
-                    window.jsonMappings = jsonMappings;
-                    updateMappingsList();
+                    interfaceMappings = result.json_mappings;
+                    window.interfaceMappings = interfaceMappings;
+                    updateInterfaceMappingsList();
                 }
             });
         }
@@ -200,8 +204,8 @@ function loadProjectData() {
         }
 
         const projectMappings = result.project_mappings || {};
-        jsonMappings = projectMappings[zideProjectUrl] || {};
-        updateMappingsList();
+        interfaceMappings = projectMappings[zideProjectUrl] || {};
+        updateInterfaceMappingsList();
     });
 }
 
@@ -288,40 +292,44 @@ function setupEventHandlers() {
         });
     });
 
-    bind('json-btn', 'click', () => {
+    bind('interface-btn', 'click', () => {
         document.getElementById('modal-title').innerText = 'Convert JSON to Deluge Map';
         document.getElementById('modal-var-container').style.display = 'block';
         document.getElementById('modal-convert').style.display = 'block';
         document.getElementById('modal-map-only').style.display = 'none';
-        document.getElementById('json-modal').style.display = 'flex';
+        document.getElementById('interface-modal').style.display = 'flex';
     });
 
-    bind('add-json-btn', 'click', () => {
+    bind('add-interface-btn', 'click', () => {
         document.getElementById('modal-title').innerText = 'Add JSON Mapping for Autocomplete';
         document.getElementById('modal-var-container').style.display = 'block';
         document.getElementById('modal-convert').style.display = 'none';
         document.getElementById('modal-map-only').style.display = 'block';
-        document.getElementById('json-modal').style.display = 'flex';
+        document.getElementById('interface-modal').style.display = 'flex';
     });
 
-    bind('modal-cancel', 'click', () => { document.getElementById('json-modal').style.display = 'none'; });
+    bind('modal-cancel', 'click', () => { document.getElementById('interface-modal').style.display = 'none'; });
 
-    bind('modal-convert', 'click', () => {
-        const varName = document.getElementById('json-var-name').value || 'payload';
-        const jsonStr = document.getElementById('json-input').value;
+        bind('modal-convert', 'click', () => {
+        const varName = document.getElementById('interface-var-name').value || 'payload';
+        const jsonStr = document.getElementById('interface-input').value;
+        const style = document.getElementById('gen-style').value;
+        const update = document.getElementById('gen-update').checked;
         try {
-            const code = convertJsonToDeluge(varName, jsonStr);
+            const code = convertInterfaceToDeluge(varName, jsonStr, { style, update });
             editor.executeEdits('json-convert', [{ range: editor.getSelection(), text: code }]);
-            document.getElementById('json-modal').style.display = 'none';
+            document.getElementById('interface-modal').style.display = 'none';
         } catch (e) {
-        console.error("[ZohoIDE] initEditor Error:", e); alert('Invalid JSON: ' + e.message); }
+            console.error("[ZohoIDE] modal-convert Error:", e);
+            alert('Invalid JSON: ' + e.message);
+        }
     });
 
     bind('modal-map-only', 'click', () => {
-        const name = document.getElementById('json-var-name').value || 'mapping';
-        const jsonStr = document.getElementById('json-input').value;
-        saveMapping(name, jsonStr);
-        document.getElementById('json-modal').style.display = 'none';
+        const name = document.getElementById('interface-var-name').value || 'mapping';
+        const jsonStr = document.getElementById('interface-input').value;
+        saveInterfaceMapping(name, jsonStr);
+        document.getElementById('interface-modal').style.display = 'none';
     });
 
     bind('clear-console', 'click', () => { document.getElementById('console-output').innerHTML = ''; });
@@ -382,32 +390,57 @@ function setupEventHandlers() {
 
 }
 
-function convertJsonToDeluge(varName, jsonStr) {
-    const obj = JSON.parse(jsonStr);
+function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
+    const obj = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+    const style = options.style || 'step'; // 'step' or 'inline'
+    const isUpdate = options.update || false;
     let code = "";
     let varCounter = 0;
 
+    if (style === 'inline') {
+        function toInline(val) {
+            if (Array.isArray(val)) {
+                return "{" + val.map(item => toInline(item)).join(", ") + "}";
+            } else if (typeof val === "object" && val !== null) {
+                let parts = [];
+                for (const key in val) {
+                    parts.push(`"${key}": \${toInline(val[key])}`);
+                }
+                return "{" + parts.join(", ") + "}";
+            } else {
+                if (typeof val === "string") return `"\${val.replace(/"/g, '\"')}"`;
+                return val;
+            }
+        }
+        return `\${varName} = \${toInline(obj)};`;
+    }
+
+    // Step-by-step logic (improved)
     function processValue(val, name) {
         if (Array.isArray(val)) {
-            const listVar = name || `list_${++varCounter}`;
-            code += `${listVar} = List();\n`;
+            const listVar = name || \`list_\${\+\+varCounter}\`;
+            code += \`\${listVar} = List();
+\`;
             val.forEach(item => {
-                const itemVar = processValue(item);
-                code += `${listVar}.add(${itemVar});\n`;
+                const itemVal = processValue(item);
+                code += \`\${listVar}.add(\${itemVal});
+\`;
             });
             return listVar;
         } else if (typeof val === "object" && val !== null) {
-            const mapVar = name || `map_${++varCounter}`;
-            code += `${mapVar} = Map();\n`;
+            const mapVar = name || \`map_\${\+\+varCounter}\`;
+            if (!isUpdate || name !== varName) {
+                code += \`\${mapVar} = Map();
+\`;
+            }
             for (const key in val) {
-                const memberVar = processValue(val[key]);
-                code += `${mapVar}.put("${key}", ${memberVar});\n`;
+                const memberVal = processValue(val[key]);
+                code += \`\${mapVar}.put("\${key}", \${memberVal});
+\`;
             }
             return mapVar;
         } else {
-            if (typeof val === "string") {
-                return `"${val.replace(/"/g, '\\"')}"`;
-            }
+            if (typeof val === "string") return \`"\${val.replace(/"/g, '\"')}"\`;
             return val;
         }
     }
@@ -416,91 +449,187 @@ function convertJsonToDeluge(varName, jsonStr) {
     return code;
 }
 
-function saveMapping(name, jsonStr) {
+function saveInterfaceMapping(name, jsonStr) {
     try {
         const obj = JSON.parse(jsonStr);
-        jsonMappings[name] = obj;
-        if (typeof chrome !== "undefined" && chrome.storage) {
-            if (zideProjectUrl) {
-                chrome.storage.local.get(['project_mappings'], (result) => {
-                    const projectMappings = result.project_mappings || {};
-                    projectMappings[zideProjectUrl] = jsonMappings;
-                    chrome.storage.local.set({ 'project_mappings': projectMappings });
-                });
-            } else {
-                chrome.storage.local.set({ 'json_mappings': jsonMappings });
-            }
-        }
-        updateMappingsList();
+        interfaceMappings[name] = obj;
+        saveCurrentMappings();
+        updateInterfaceMappingsList();
     } catch (e) {
-        console.error("[ZohoIDE] initEditor Error:", e); alert('Invalid JSON: ' + e.message); }
+        console.error("[ZohoIDE] saveInterfaceMapping Error:", e);
+        alert('Invalid JSON: ' + e.message);
+    }
 }
 
-function updateMappingsList() {
-    const list = document.getElementById('json-mappings-list');
+function saveCurrentMappings() {
+    if (typeof chrome !== "undefined" && chrome.storage) {
+        if (zideProjectUrl) {
+            chrome.storage.local.get(['project_mappings'], (result) => {
+                const projectMappings = result.project_mappings || {};
+                projectMappings[zideProjectUrl] = interfaceMappings;
+                chrome.storage.local.set({ 'project_mappings': projectMappings });
+            });
+        } else {
+            chrome.storage.local.set({ 'json_mappings': interfaceMappings });
+        }
+    }
+}
+
+function updateInterfaceMappingsList() {
+    const list = document.getElementById('interface-mappings-list');
     if (!list) return;
     list.innerHTML = '';
-    Object.keys(jsonMappings).forEach(name => {
+    Object.keys(interfaceMappings).forEach(name => {
         const item = document.createElement('div');
         item.className = 'mapping-item';
-        item.innerHTML = `<span>${name}</span><span class="delete-mapping" data-name="${name}">×</span>`;
-        item.onclick = (e) => {
-            if (e.target.classList.contains('delete-mapping')) {
-                delete jsonMappings[name];
-                if (typeof chrome !== "undefined" && chrome.storage) {
-                    if (zideProjectUrl) {
-                        chrome.storage.local.get(['project_mappings'], (result) => {
-                            const projectMappings = result.project_mappings || {};
-                            projectMappings[zideProjectUrl] = jsonMappings;
-                            chrome.storage.local.set({ 'project_mappings': projectMappings });
-                        });
-                    } else {
-                        chrome.storage.local.set({ 'json_mappings': jsonMappings });
-                    }
-                }
-                updateMappingsList();
-                return;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.innerText = name;
+        nameSpan.style.flex = '1';
+
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '8px';
+
+        const copyAllBtn = document.createElement('span');
+        copyAllBtn.innerHTML = '📋';
+        copyAllBtn.title = 'Copy as Deluge Map';
+        copyAllBtn.style.cursor = 'pointer';
+        copyAllBtn.onclick = (e) => {
+            e.stopPropagation();
+            const code = convertInterfaceToDeluge(name, JSON.stringify(interfaceMappings[name]));
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(code);
+                showStatus('Map code copied to clipboard', 'success');
             }
+        };
+
+        const deleteBtn = document.createElement('span');
+        deleteBtn.className = 'delete-mapping';
+        deleteBtn.innerHTML = '×';
+        deleteBtn.style.opacity = '1';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete mapping "${name}"?`)) {
+                delete interfaceMappings[name];
+                saveCurrentMappings();
+                updateInterfaceMappingsList();
+            }
+        };
+
+        actions.appendChild(copyAllBtn);
+        actions.appendChild(deleteBtn);
+
+        item.appendChild(nameSpan);
+        item.appendChild(actions);
+
+        item.onclick = () => {
             document.querySelectorAll('.mapping-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
-            renderJsonTree(name, jsonMappings[name]);
+            renderInterfaceTree(name, interfaceMappings[name]);
         };
         list.appendChild(item);
     });
 }
 
-function renderJsonTree(mappingName, obj) {
-    const tree = document.getElementById('json-tree-view');
+function renderInterfaceTree(mappingName, obj) {
+    const tree = document.getElementById('interface-tree-view');
+    if (!tree) return;
     tree.innerHTML = '';
-    function buildTree(data, container, path = "") {
+
+    function buildTree(data, container, path = "", depth = 0) {
         if (typeof data === 'object' && data !== null) {
-            Object.keys(data).forEach(key => {
+            const keys = Object.keys(data);
+            keys.forEach(key => {
                 const val = data[key];
+                const isObject = typeof val === 'object' && val !== null;
+                const isArray = Array.isArray(val);
+                const currentPath = isArray ? `.get(${key})` : (Array.isArray(data) ? `.get(${key})` : `.get("${key}")`);
+                const fullPath = mappingName + path + currentPath;
+
                 const node = document.createElement('div');
                 node.className = 'tree-node';
                 node.setAttribute('data-key', key.toLowerCase());
+
                 const label = document.createElement('div');
                 label.className = 'tree-label';
-                const currentPath = Array.isArray(data) ? `.get(${key})` : `.get("${key}")`;
-                if (typeof val === 'object' && val !== null) {
-                    label.innerHTML = `<span class="tree-key">${key}</span>: ${Array.isArray(val) ? '[' : '{'}`;
-                    node.appendChild(label);
+
+                let iconHtml = '';
+                if (isObject) {
+                    iconHtml = '<span class="toggle-icon">▼</span><span class="node-icon">📁</span>';
+                } else {
+                    iconHtml = '<span class="toggle-icon" style="visibility:hidden">▼</span><span class="node-icon">📄</span>';
+                }
+
+                const keyHtml = `<span class="tree-key">${key}</span>`;
+                let valHtml = '';
+                let typeHtml = `<span class="tree-type">${isArray ? 'List' : (isObject ? 'Map' : typeof val)}</span>`;
+
+                if (!isObject) {
+                    valHtml = `: <span class="tree-val">${JSON.stringify(val)}</span>`;
+                } else {
+                    valHtml = `: ${isArray ? '[' : '{'}`;
+                }
+
+                label.innerHTML = `${iconHtml} ${keyHtml}${valHtml} ${typeHtml}`;
+
+                // Actions container
+                const actions = document.createElement('div');
+                actions.className = 'tree-actions';
+
+                const copyPathBtn = document.createElement('button');
+                copyPathBtn.className = 'tree-action-btn';
+                copyPathBtn.innerText = 'Path';
+                copyPathBtn.title = 'Insert Path';
+                copyPathBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    editor.executeEdits("tree-insert", [{ range: editor.getSelection(), text: fullPath }]);
+                };
+
+                const copyMapBtn = document.createElement('button');
+                copyMapBtn.className = 'tree-action-btn';
+                copyMapBtn.innerText = 'Map';
+                copyMapBtn.title = 'Generate Map for this node';
+                copyMapBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    const varName = prompt('Variable name for this map:', key);
+                    if (varName) {
+                        const style = confirm('Use inline nested style? (Cancel for step-by-step)') ? 'inline' : 'step';
+                        const code = convertInterfaceToDeluge(varName, val, { style });
+                        editor.executeEdits("tree-insert-map", [{ range: editor.getSelection(), text: code }]);
+                    }
+                };
+
+                actions.appendChild(copyPathBtn);
+                if (isObject) actions.appendChild(copyMapBtn);
+                label.appendChild(actions);
+
+                node.appendChild(label);
+
+                if (isObject) {
                     const subContainer = document.createElement('div');
                     subContainer.className = 'tree-sub';
-                    buildTree(val, subContainer, path + currentPath);
+                    buildTree(val, subContainer, path + currentPath, depth + 1);
                     node.appendChild(subContainer);
+
                     const footer = document.createElement('div');
-                    footer.innerText = Array.isArray(val) ? ']' : '}';
+                    footer.className = 'tree-footer';
+                    footer.style.marginLeft = '20px';
+                    footer.style.opacity = '0.5';
+                    footer.innerText = isArray ? ']' : '}';
                     node.appendChild(footer);
-                } else {
-                    label.innerHTML = `<span class="tree-key">${key}</span>: <span class="tree-val">${JSON.stringify(val)}</span>`;
-                    label.title = "Click to insert path";
+
                     label.onclick = () => {
-                        const fullPath = mappingName + path + currentPath;
+                        subContainer.classList.toggle('collapsed');
+                        label.querySelector('.toggle-icon').classList.toggle('collapsed');
+                        footer.style.display = subContainer.classList.contains('collapsed') ? 'none' : 'block';
+                    };
+                } else {
+                    label.onclick = () => {
                         editor.executeEdits("tree-insert", [{ range: editor.getSelection(), text: fullPath }]);
                     };
-                    node.appendChild(label);
                 }
+
                 container.appendChild(node);
             });
         }
@@ -582,7 +711,7 @@ function saveLocally() {
     if (window.activeCloudFileId && typeof CloudService !== 'undefined') {
         CloudService.saveFile(window.activeCloudFileId, {
             code: code,
-            jsonMappings: window.jsonMappings || {},
+            interfaceMappings: window.interfaceMappings || {},
             url: zideProjectUrl
         }).then(() => {
             showStatus('Synced to Cloud', 'success');
@@ -792,22 +921,28 @@ window.addEventListener('mouseup', () => {
             chrome.storage.local.set({ 'left_panel_width': leftPanel.style.width });
         }
     }
+    if (isResizingRight) {
+        const rightSidebar = document.getElementById('right-sidebar');
+        if (rightSidebar && typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ 'right_sidebar_width': rightSidebar.style.width });
+        }
+    }
     isResizingRight = false;
     isResizingLeft = false;
     document.body.style.userSelect = 'auto';
     document.body.classList.remove('resizing');
 });
 
-// JSON Search
-document.getElementById('json-search')?.addEventListener('input', (e) => {
+// Interface Search
+document.getElementById('interface-search')?.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
-    const nodes = document.querySelectorAll('#json-tree-view .tree-node');
+    const nodes = document.querySelectorAll('#interface-tree-view .tree-node');
     nodes.forEach(node => {
         const key = node.getAttribute('data-key');
         if (key && key.includes(term)) {
             node.classList.remove('hidden');
             let p = node.parentElement;
-            while (p && p.id !== 'json-tree-view') {
+            while (p && p.id !== 'interface-tree-view') {
                 if (p.classList.contains('tree-node')) p.classList.remove('hidden');
                 p = p.parentElement;
             }
@@ -819,8 +954,7 @@ document.getElementById('json-search')?.addEventListener('input', (e) => {
     });
 });
 
-
     // Expose internal functions to window for Cloud UI
-    window.updateMappingsList = updateMappingsList;
+    window.updateInterfaceMappingsList = updateInterfaceMappingsList;
     window.showStatus = showStatus;
 })();

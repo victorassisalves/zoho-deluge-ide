@@ -155,27 +155,54 @@ function registerDelugeLanguage() {
                 ],
                 zoho: [
                     { label: 'zoho.crm.getRecordById(module, id)', insertText: 'zoho.crm.getRecordById("${1:Leads}", ${2:id})' },
-                    { label: 'zoho.crm.updateRecord(module, id, map)', insertText: 'zoho.crm.updateRecord("${1:Leads}", ${2:id}, ${3:dataMap})' }
+                    { label: 'zoho.crm.updateRecord(module, id, map)', insertText: 'zoho.crm.updateRecord("${1:Leads}", ${2:id}, ${3:dataMap})' },
+                    { label: 'zoho.crm.createRecord(module, map)', insertText: 'zoho.crm.createRecord("${1:Leads}", ${2:dataMap})' },
+                    { label: 'zoho.crm.searchRecords(module, criteria)', insertText: 'zoho.crm.searchRecords("${1:Leads}", "(${2:Email} == '${3:test@example.com}')")' },
+                    { label: 'zoho.books.getRecords(module, orgId)', insertText: 'zoho.books.getRecords("${1:Invoices}", "${2:organization_id}")' },
+                    { label: 'zoho.books.createRecord(module, orgId, map)', insertText: 'zoho.books.createRecord("${1:Invoices}", "${2:organization_id}", ${3:dataMap})' },
+                    { label: 'zoho.recruit.getRecordById(module, id)', insertText: 'zoho.recruit.getRecordById("${1:Candidates}", ${2:id})' },
+                    { label: 'zoho.recruit.updateRecord(module, id, map)', insertText: 'zoho.recruit.updateRecord("${1:Candidates}", ${2:id}, ${3:dataMap})' }
                 ]
             };
 
             // 1. JSON Autocomplete (if inside .get("") or .getJSON(""))
-            const jsonGetMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.get(JSON)?\("$/);
-            if (jsonGetMatch) {
-                const varName = jsonGetMatch[1];
-                const mappings = window.jsonMappings || {};
+            const interfaceGetMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.get(JSON)?\("$/);
+            const interfaceDotMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.$/);
+
+            if (interfaceGetMatch || interfaceDotMatch) {
+                const varName = (interfaceGetMatch || interfaceDotMatch)[1];
+                const mappings = window.interfaceMappings || {};
                 if (mappings[varName]) {
                     const obj = mappings[varName];
                     const keys = Object.keys(obj);
-                    return {
-                        suggestions: keys.map(key => ({
+                    const suggestions = keys.map(key => {
+                        const val = obj[key];
+                        const isObject = typeof val === 'object' && val !== null;
+                        const kind = isObject ? monaco.languages.CompletionItemKind.Module : monaco.languages.CompletionItemKind.Property;
+
+                        return {
                             label: key,
-                            kind: monaco.languages.CompletionItemKind.Property,
-                            detail: `Key from ${varName}`,
-                            insertText: key,
+                            kind: kind,
+                            detail: `Key from ${varName} (${typeof val})`,
+                            insertText: interfaceDotMatch ? `get("${key}")` : key,
                             range: range
-                        }))
-                    };
+                        };
+                    });
+
+                    if (interfaceDotMatch) {
+                        const type = inferVarType(varName, code) || 'Map';
+                        const methods = typeMethods[type.toLowerCase()] || typeMethods.map;
+                        methods.forEach(m => {
+                            suggestions.push({
+                                ...m,
+                                kind: monaco.languages.CompletionItemKind.Method,
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                range: range
+                            });
+                        });
+                    }
+
+                    return { suggestions };
                 }
             }
 
@@ -241,6 +268,8 @@ function registerDelugeLanguage() {
     function extractVariables(code) {
         const vars = [];
         const seen = new Set();
+
+        // Assignments: var = ...
         const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
         let match;
         while ((match = assignmentRegex.exec(code)) !== null) {
@@ -250,6 +279,30 @@ function registerDelugeLanguage() {
                 seen.add(name);
             }
         }
+
+        // For each loops: for each var in ...
+        const forEachRegex = /for each\s+([a-zA-Z0-9_]+)\s+in/g;
+        while ((match = forEachRegex.exec(code)) !== null) {
+            const name = match[1];
+            if (!seen.has(name)) {
+                vars.push({ name, type: 'Map' }); // Usually a record/map
+                seen.add(name);
+            }
+        }
+
+        // Functions: functionName(arg1, arg2)
+        const funcRegex = /([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
+        while ((match = funcRegex.exec(code)) !== null) {
+            const args = match[2].split(',');
+            args.forEach(arg => {
+                const trimmed = arg.trim();
+                if (trimmed && !seen.has(trimmed)) {
+                    vars.push({ name: trimmed, type: null });
+                    seen.add(trimmed);
+                }
+            });
+        }
+
         return vars;
     }
 

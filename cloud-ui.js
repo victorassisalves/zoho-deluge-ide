@@ -268,7 +268,7 @@ const CloudUI = {
                 editor.setValue(file.code);
                 if (file.jsonMappings) {
                     window.jsonMappings = file.jsonMappings;
-                    if (typeof updateMappingsList === 'function') updateMappingsList();
+                    if (typeof updateInterfaceMappingsList === 'function') updateInterfaceMappingsList();
                 }
                 const nameInput = document.getElementById('project-name-input');
                 if (nameInput) nameInput.value = file.name;

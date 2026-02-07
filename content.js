@@ -79,7 +79,7 @@ function injectSidePanel() {
         return;
     }
 
-    console.log('[ZohoIDE] Injecting side panel into top frame');
+    console.log('[ZohoIDE] Injecting Integrated Mode into top frame');
 
     const container = document.createElement('div');
     container.id = 'zoho-ide-panel-container';
