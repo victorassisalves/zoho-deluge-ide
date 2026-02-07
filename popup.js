@@ -8,7 +8,7 @@ document.getElementById('open-ide').addEventListener('click', () => {
     });
 });
 
-document.getElementById('open-sidepanel').addEventListener('click', () => {
+document.getElementById('open-integrated-mode').addEventListener('click', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const activeTab = tabs[0];
         if (!activeTab || !isZohoUrl(activeTab.url)) {

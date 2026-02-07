@@ -8,7 +8,7 @@ chrome.commands.onCommand.addListener((command) => {
             const activeTab = activeTabs[0];
 
             if (activeTab && isZohoUrl(activeTab.url)) {
-                // If on Zoho tab, try to inject/toggle side panel
+                // If on Zoho tab, try to inject/toggle Integrated Mode
                 chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' }, (response) => {
                     if (chrome.runtime.lastError) {
                         // Content script not loaded yet, inject it
@@ -186,6 +186,6 @@ function findZohoTab(callback) {
 
 function isZohoUrl(url) {
     if (!url) return false;
-    const domains = ['zoho.com', 'zoho.eu', 'zoho.in', 'zoho.com.au', 'zoho.jp', 'zoho.ca', 'zoho.uk'];
-    return domains.some(d => url.includes(d));
+    const domains = ["zoho.com", "zoho.eu", "zoho.in", "zoho.com.au", "zoho.jp", "zoho.ca", "zoho.uk", "zoho.com.cn"];
+    return domains.some(d => url.includes(d)) || url.includes("zoho.");
 }

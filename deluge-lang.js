@@ -88,7 +88,7 @@ function registerDelugeLanguage() {
                 [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }]
             ],
             string_single: [
-                [/[^\\']+/, 'string'],
+                [/[^\']+/, 'string'],
                 [/\\./, 'string.escape.invalid'],
                 [/'/, { token: 'string.quote', bracket: '@close', next: '@pop' }]
             ],
@@ -155,27 +155,54 @@ function registerDelugeLanguage() {
                 ],
                 zoho: [
                     { label: 'zoho.crm.getRecordById(module, id)', insertText: 'zoho.crm.getRecordById("${1:Leads}", ${2:id})' },
-                    { label: 'zoho.crm.updateRecord(module, id, map)', insertText: 'zoho.crm.updateRecord("${1:Leads}", ${2:id}, ${3:dataMap})' }
+                    { label: 'zoho.crm.updateRecord(module, id, map)', insertText: 'zoho.crm.updateRecord("${1:Leads}", ${2:id}, ${3:dataMap})' },
+                    { label: 'zoho.crm.createRecord(module, map)', insertText: 'zoho.crm.createRecord("${1:Leads}", ${2:dataMap})' },
+                    { label: 'zoho.crm.searchRecords(module, criteria)', insertText: 'zoho.crm.searchRecords("${1:Leads}", "(${2:Email} == \'${3:test@example.com}\')")' },
+                    { label: 'zoho.books.getRecords(module, orgId)', insertText: 'zoho.books.getRecords("${1:Invoices}", "${2:organization_id}")' },
+                    { label: 'zoho.books.createRecord(module, orgId, map)', insertText: 'zoho.books.createRecord("${1:Invoices}", "${2:organization_id}", ${3:dataMap})' },
+                    { label: 'zoho.recruit.getRecordById(module, id)', insertText: 'zoho.recruit.getRecordById("${1:Candidates}", ${2:id})' },
+                    { label: 'zoho.recruit.updateRecord(module, id, map)', insertText: 'zoho.recruit.updateRecord("${1:Candidates}", ${2:id}, ${3:dataMap})' }
                 ]
             };
 
             // 1. JSON Autocomplete (if inside .get("") or .getJSON(""))
-            const jsonGetMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.get(JSON)?\("$/);
-            if (jsonGetMatch) {
-                const varName = jsonGetMatch[1];
-                const mappings = window.jsonMappings || {};
+            const interfaceGetMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.get(JSON)?\("$/);
+            const interfaceDotMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.$/);
+
+            if (interfaceGetMatch || interfaceDotMatch) {
+                const varName = (interfaceGetMatch || interfaceDotMatch)[1];
+                const mappings = window.interfaceMappings || {};
                 if (mappings[varName]) {
                     const obj = mappings[varName];
                     const keys = Object.keys(obj);
-                    return {
-                        suggestions: keys.map(key => ({
+                    const suggestions = keys.map(key => {
+                        const val = obj[key];
+                        const isObject = typeof val === 'object' && val !== null;
+                        const kind = isObject ? monaco.languages.CompletionItemKind.Module : monaco.languages.CompletionItemKind.Property;
+
+                        return {
                             label: key,
-                            kind: monaco.languages.CompletionItemKind.Property,
-                            detail: `Key from ${varName}`,
-                            insertText: key,
+                            kind: kind,
+                            detail: `Key from ${varName} (${typeof val})`,
+                            insertText: interfaceDotMatch ? `get("${key}")` : key,
                             range: range
-                        }))
-                    };
+                        };
+                    });
+
+                    if (interfaceDotMatch) {
+                        const type = inferVarType(varName, code) || 'Map';
+                        const methods = typeMethods[type.toLowerCase()] || typeMethods.map;
+                        methods.forEach(m => {
+                            suggestions.push({
+                                ...m,
+                                kind: monaco.languages.CompletionItemKind.Method,
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                range: range
+                            });
+                        });
+                    }
+
+                    return { suggestions };
                 }
             }
 
@@ -238,30 +265,72 @@ function registerDelugeLanguage() {
         }
     });
 
+
+    const typeCache = new Map();
+    let lastCodeForCache = "";
+
+    function getVarTypes(code) {
+        if (code === lastCodeForCache && typeCache.size > 0) return typeCache;
+
+        typeCache.clear();
+        lastCodeForCache = code;
+
+        const mapAssign = /([a-zA-Z0-9_]+)\s*=\s*Map\(\)/gi;
+        const listAssign = /([a-zA-Z0-9_]+)\s*=\s*List\(\)/gi;
+        const stringAssign = /([a-zA-Z0-9_]+)\s*=\s*["']/gi;
+
+        let m;
+        while ((m = mapAssign.exec(code)) !== null) typeCache.set(m[1], 'Map');
+        while ((m = listAssign.exec(code)) !== null) typeCache.set(m[1], 'List');
+        while ((m = stringAssign.exec(code)) !== null) typeCache.set(m[1], 'String');
+
+        return typeCache;
+    }
+
+    function inferVarType(varName, code) {
+        const types = getVarTypes(code);
+        if (types.has(varName)) return types.get(varName);
+        if (varName.toLowerCase().includes('response')) return 'Map';
+        return null;
+    }
+
     function extractVariables(code) {
         const vars = [];
         const seen = new Set();
+        const types = getVarTypes(code);
+
         const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
         let match;
         while ((match = assignmentRegex.exec(code)) !== null) {
             const name = match[1];
             if (!seen.has(name) && !['if', 'for', 'else', 'return', 'try', 'catch', 'while'].includes(name)) {
-                vars.push({ name, type: inferVarType(name, code) });
+                vars.push({ name, type: types.get(name) || null });
                 seen.add(name);
             }
         }
-        return vars;
-    }
 
-    function inferVarType(varName, code) {
-        const mapRegex = new RegExp(`${varName}\\s*=\\s*Map\\(\\)`, 'i');
-        const listRegex = new RegExp(`${varName}\\s*=\\s*List\\(\\)`, 'i');
-        const stringRegex = new RegExp(`${varName}\\s*=\\s*["']`, 'i');
-        if (mapRegex.test(code)) return 'Map';
-        if (listRegex.test(code)) return 'List';
-        if (stringRegex.test(code)) return 'String';
-        if (varName.toLowerCase().includes('response')) return 'Map';
-        return null;
+        const forEachRegex = /for each\s+([a-zA-Z0-9_]+)\s+in/g;
+        while ((match = forEachRegex.exec(code)) !== null) {
+            const name = match[1];
+            if (!seen.has(name)) {
+                vars.push({ name, type: 'Map' });
+                seen.add(name);
+            }
+        }
+
+        const funcRegex = /([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
+        while ((match = funcRegex.exec(code)) !== null) {
+            const args = match[2].split(',');
+            args.forEach(arg => {
+                const trimmed = arg.trim();
+                if (trimmed && !seen.has(trimmed)) {
+                    vars.push({ name: trimmed, type: null });
+                    seen.add(trimmed);
+                }
+            });
+        }
+
+        return vars;
     }
 
     monaco.editor.onDidCreateModel((model) => {

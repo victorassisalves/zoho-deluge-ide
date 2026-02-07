@@ -203,7 +203,7 @@ body, html {
 
 /* Sidepanel Mode Overrides */
 html.sidepanel-mode #sidebar {
-    width: 40px !important;
+
 }
 
 html.sidepanel-mode .logo {
@@ -229,7 +229,7 @@ html.sidepanel-mode .actions button {
 }
 
 html.sidepanel-mode #bottom-panel {
-    height: 120px !important;
+
 }
 
 html.sidepanel-mode #status-bar {
@@ -243,17 +243,17 @@ html.sidepanel-mode .status-right {
 }
 
 /* Modal Styles */
-#json-modal button {
+#interface-modal button {
     border-radius: 4px;
     font-weight: 500;
     transition: filter 0.2s;
 }
 
-#json-modal button:hover {
+#interface-modal button:hover {
     filter: brightness(1.2);
 }
 
-#json-modal textarea:focus {
+#interface-modal textarea:focus {
     outline: 1px solid var(--accent-color);
 }
 
@@ -298,15 +298,7 @@ html.sidepanel-mode .status-right {
     flex-shrink: 0;
 }
 
-.right-sidebar-header {
-    padding: 8px 10px;
-    background-color: #333;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    font-weight: bold;
-}
+
 
 #add-json-btn {
     background: var(--accent-color);
@@ -317,7 +309,7 @@ html.sidepanel-mode .status-right {
     padding: 2px 6px;
 }
 
-#json-mappings-list {
+#interface-mappings-list {
     flex: 0 0 auto;
     max-height: 200px;
     overflow-y: auto;
@@ -346,7 +338,7 @@ html.sidepanel-mode .status-right {
     opacity: 1;
 }
 
-#json-tree-view {
+#interface-tree-view {
     flex: 1;
     overflow-y: auto;
     padding: 10px;
@@ -480,7 +472,6 @@ html.sidepanel-mode .status-right {
 html.sidepanel-mode .sidebar-panel,
 html.sidepanel-mode #right-sidebar {
     display: flex !important;
-    width: 180px !important;
 }
 
 .resource-section h5 {
@@ -540,40 +531,24 @@ html.sidepanel-mode #right-sidebar {
     padding: 4px 0;
 }
 
-/* JSON Manager Enhancements */
+/* Interface Manager Enhancements */
 .resizer {
-    width: 4px;
+    width: 6px;
     cursor: ew-resize;
     background: #333;
     transition: background 0.2s;
-    z-index: 100;
+    z-index: 1000;
 }
 .resizer:hover {
     background: #007acc;
 }
-.right-sidebar-header {
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
-    background: #252526;
-    border-bottom: 1px solid #333;
-}
-.header-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-}
-.header-title {
-    font-size: 12px;
-    font-weight: bold;
-    text-transform: uppercase;
-    color: #aaa;
-}
+
+
+
 .search-container {
     padding: 0 5px;
 }
-#json-search {
+#interface-search {
     width: 100%;
     background: #1e1e1e;
     border: 1px solid #444;
@@ -582,7 +557,7 @@ html.sidepanel-mode #right-sidebar {
     font-size: 11px;
     border-radius: 3px;
 }
-#json-search:focus {
+#interface-search:focus {
     border-color: #007acc;
     outline: none;
 }
@@ -614,15 +589,12 @@ html.sidepanel-mode #right-sidebar {
 
 #right-sidebar.collapsed .right-sidebar-header .header-title,
 #right-sidebar.collapsed .right-sidebar-header .search-container,
-#right-sidebar.collapsed #json-mappings-list,
-#right-sidebar.collapsed #json-tree-view {
+#right-sidebar.collapsed #interface-mappings-list,
+#right-sidebar.collapsed #interface-tree-view {
     display: none !important;
 }
 
-#right-sidebar.collapsed .right-sidebar-header {
-    padding: 10px 0;
-    align-items: center;
-}
+#right-sidebar.collapsed
 
 #right-sidebar.collapsed #toggle-right-sidebar {
     margin: 0 auto;
@@ -778,4 +750,230 @@ body.resizing { cursor: ew-resize !important; }
 .hierarchy-level .cloud-input {
     width: 100%;
     margin-top: 2px;
+}
+/* Revamped Interface Manager Tree View */
+.tree-node {
+    position: relative;
+    padding-left: 12px;
+    margin-top: 2px;
+}
+
+.tree-sub {
+    border-left: 1px dashed #444;
+    margin-left: 5px;
+    padding-left: 10px;
+    display: block; /* Visible by default */
+}
+
+.tree-sub.collapsed {
+    display: none;
+}
+
+.tree-label {
+    display: flex;
+    align-items: center;
+    padding: 2px 5px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.tree-label:hover {
+    background: #2a2d2e;
+}
+
+.toggle-icon {
+    width: 12px;
+    height: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4px;
+    color: #888;
+    transition: transform 0.2s;
+}
+
+.toggle-icon.collapsed {
+    transform: rotate(-90deg);
+}
+
+.node-icon {
+    margin-right: 6px;
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.tree-actions {
+    display: none;
+    margin-left: auto;
+    gap: 4px;
+}
+
+.tree-label:hover .tree-actions {
+    display: flex;
+}
+
+.tree-action-btn {
+    background: #3c3c3c;
+    color: #ccc;
+    border: none;
+    padding: 2px 4px;
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 2px;
+}
+
+.tree-action-btn:hover {
+    background: #505050;
+    color: white;
+}
+
+.tree-key {
+    color: #9cdcfe;
+    font-weight: 500;
+}
+
+.tree-val {
+    color: #ce9178;
+    margin-left: 4px;
+}
+
+.tree-type {
+    color: #666;
+    font-size: 9px;
+    font-style: italic;
+    margin-left: 6px;
+}
+/* Interface Modal Enhancements */
+#interface-modal input, #interface-modal textarea {
+    transition: border-color 0.2s;
+}
+#interface-modal input:focus, #interface-modal textarea:focus {
+    border-color: #007acc !important;
+    outline: none;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.right-sidebar-header {
+    padding: 12px 10px;
+    background-color: #252526;
+    border-bottom: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.header-top {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+}
+
+.header-title {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #aaa;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+
+#add-interface-btn {
+    background: #3a3d41;
+    color: #ccc;
+    border: 1px solid #45494e;
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 2px 8px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    height: 24px;
+    width: 28px;
+    flex-shrink: 0;
+}
+
+#add-interface-btn:hover {
+    background: #45494e;
+    color: white;
+    border-color: #007acc;
+}
+
+#toggle-right-sidebar {
+    color: #888;
+    transition: color 0.2s;
+    font-size: 12px;
+}
+
+#toggle-right-sidebar:hover {
+    color: white;
+}
+html.sidepanel-mode .resizer {
+    background: #444;
+}
+.search-container {
+    padding: 0;
+}
+
+#interface-search {
+    width: 100%;
+    background: #1e1e1e;
+    border: 1px solid #3c3c3c;
+    color: #ccc;
+    padding: 5px 8px;
+    font-size: 11px;
+    border-radius: 3px;
+    transition: border-color 0.2s;
+}
+
+#interface-search:focus {
+    border-color: #007acc;
+    outline: none;
+}
+.mapping-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid #2d2d2d;
+    cursor: pointer;
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #bbb;
+}
+
+.mapping-item.active {
+    background-color: #37373d;
+    color: #eee;
+    box-shadow: inset 2px 0 0 #007acc;
+}
+
+.mapping-item:hover:not(.active) {
+    background-color: #2a2d2e;
+}
+
+#interface-tree-view:empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+}
+
+#interface-tree-view:empty::after {
+    content: "Select a mapping to explore its structure";
+    color: #666;
+    font-size: 11px;
+    text-align: center;
+    padding: 20px;
 }
