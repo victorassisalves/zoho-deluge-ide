@@ -122,7 +122,7 @@ function registerDelugeLanguage() {
                 startColumn: word.startColumn,
                 endColumn: word.endColumn
             };
-            const staticSuggestions = [
+                        const staticSuggestions = [
                 { label: 'Map()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'Map()' },
                 { label: 'List()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'List()' },
                 { label: 'info', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'info $0', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
@@ -134,7 +134,8 @@ function registerDelugeLanguage() {
                 { label: 'void function', kind: monaco.languages.CompletionItemKind.Function, insertText: 'void ${1:name}($2) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
                 { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Function, insertText: 'invokeurl\n[\n\turl: "$1"\n\ttype: ${2|GET,POST,PUT,DELETE|}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }
             ];
-            ];
+
+            const typeMethods = {
                 string: [
                     { label: 'length()', insertText: 'length()' },
                     { label: 'subString(start, end)', insertText: 'subString(${1:start}, ${2:end})' },
@@ -170,46 +171,49 @@ function registerDelugeLanguage() {
             };
 
                         // 1. JSON Autocomplete (if inside .get("") or .getJSON(""))
-            const interfaceGetMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)(?:\.get(?:JSON)?\(.*?\))*\.get(?:JSON)?\("([^"]*)$/);
+            const interfaceGetMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)((?:\.get(?:JSON)?\(.*?\))*)\.get(?:JSON)?\("([^"]*)$/);
             const interfaceDotMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.$/);
 
             if (interfaceGetMatch || interfaceDotMatch) {
                 const varName = (interfaceGetMatch || interfaceDotMatch)[1];
+                const path = interfaceGetMatch ? interfaceGetMatch[2] : "";
                 const mappings = window.interfaceMappings || {};
                 if (mappings[varName]) {
-                    const obj = mappings[varName];
-                    const keys = Object.keys(obj);
-                    const suggestions = keys.map(key => {
-                        const val = obj[key];
-                        const isObject = typeof val === 'object' && val !== null;
-                        const kind = isObject ? monaco.languages.CompletionItemKind.Module : monaco.languages.CompletionItemKind.Property;
+                    const rootObj = mappings[varName];
+                    const obj = getNestedObject(rootObj, path);
+                    if (obj && typeof obj === 'object') {
+                        const keys = Object.keys(obj);
+                        const suggestions = keys.map(key => {
+                            const val = obj[key];
+                            const isObject = typeof val === 'object' && val !== null;
+                            const kind = isObject ? monaco.languages.CompletionItemKind.Module : monaco.languages.CompletionItemKind.Property;
 
-                        return {
-                            label: key,
-                            kind: kind,
-                            detail: `Key from ${varName} (${typeof val})`,
-                            insertText: interfaceDotMatch ? `get("${key}")` : key,
-                            range: range,
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                        };
-                    });
-
-                    if (interfaceDotMatch) {
-                        const type = inferVarType(varName, code) || 'Map';
-                        const methods = typeMethods[type.toLowerCase()] || typeMethods.map;
-                        methods.forEach(m => {
-                            suggestions.push({
-                                ...m,
-                                kind: monaco.languages.CompletionItemKind.Method,
-                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                range: range
-                            });
+                            return {
+                                label: key,
+                                kind: kind,
+                                detail: `Key from ${varName} (${typeof val})`,
+                                insertText: interfaceDotMatch ? `get("${key}")` : key,
+                                range: range,
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                            };
                         });
-                    }
 
-                    return { suggestions };
+                        if (interfaceDotMatch) {
+                            const type = inferVarType(varName, code) || 'Map';
+                            const methods = typeMethods[type.toLowerCase()] || typeMethods.map;
+                            methods.forEach(m => {
+                                suggestions.push({
+                                    ...m,
+                                    kind: monaco.languages.CompletionItemKind.Method,
+                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                    range: range
+                                });
+                            });
+                        }
+
+                        return { suggestions };
+                    }
                 }
-            }
             }
 
             const match = lineUntilPos.match(/([a-zA-Z0-9_]+)\.$/);
@@ -299,6 +303,30 @@ function registerDelugeLanguage() {
         return null;
     }
 
+
+        function getNestedObject(root, path) {
+        if (!path) return root;
+        const parts = path.match(/\.get(?:JSON)?\(([^)]+)\)/g);
+        if (!parts) return root;
+        let current = root;
+        for (const part of parts) {
+            const keyMatch = part.match(/\(([^)]+)\)/);
+            if (keyMatch) {
+                let key = keyMatch[1].trim();
+                if (key.startsWith('"') || key.startsWith("'")) {
+                    key = key.substring(1, key.length - 1);
+                } else if (!isNaN(key)) {
+                    key = parseInt(key);
+                }
+                if (current && typeof current === 'object') {
+                    current = current[key];
+                } else {
+                    return null;
+                }
+            }
+        }
+        return current;
+    }
 
     function extractVariables(code) {
         const vars = [];
