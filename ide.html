@@ -25,8 +25,9 @@
         <main id="main-content">
             <aside id="sidebar">
                 <div class="sidebar-item active" data-view="explorer" title="Explorer">📁</div>
+                <div class="sidebar-item" data-view="cloud" title="Workspaces">☁️</div>
                 <div class="sidebar-item" data-view="ai-agent" title="AI Agent">🤖</div>
-                <div class="sidebar-item" data-view="zoho-apis" title="Zoho APIs">☁️</div>
+                <div class="sidebar-item" data-view="zoho-apis" title="Zoho APIs">📖</div>
                 <div class="sidebar-item" data-view="snippets" title="Snippets">📋</div>
                 <div class="sidebar-item" data-view="settings" title="Settings">⚙️</div>
             </aside>
@@ -103,6 +104,58 @@
                         <div class="resource-section"><h5>String Methods</h5><ul><li>length()</li><li>subString(start, end)</li><li>indexOf(str)</li><li>startsWith(prefix)</li><li>toLowerCase()</li><li>toUpperCase()</li><li>trim()</li><li>toList(delim)</li></ul></div><div class="resource-section"><h5>List Methods</h5><ul><li>add(val)</li><li>addAll(list)</li><li>get(index)</li><li>size()</li><li>isEmpty()</li><li>remove(index)</li><li>contains(val)</li></ul></div><div class="resource-section"><h5>Map Methods</h5><ul><li>put(key, val)</li><li>get(key)</li><li>getJSON(key)</li><li>keys()</li><li>remove(key)</li><li>clear()</li></ul></div>
                     </div>
                 </div>
+
+                <div id="view-cloud" class="view-content">
+                    <h4>Cloud Workspaces</h4>
+
+                    <div id="cloud-auth-section">
+                        <div id="auth-logged-out">
+                            <input type="email" id="auth-email" placeholder="Email" class="cloud-input">
+                            <input type="password" id="auth-password" placeholder="Password" class="cloud-input">
+                            <div style="display:flex; gap:5px; margin-top:5px;">
+                                <button id="auth-login-btn" class="cloud-btn">Login</button>
+                                <button id="auth-signup-btn" class="cloud-btn">Sign Up</button>
+                            </div>
+                        </div>
+                        <div id="auth-logged-in" style="display:none;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span id="user-display" style="font-size:11px; opacity:0.8;"></span>
+                                <button id="auth-logout-btn" style="background:transparent; border:none; color:#ff79c6; cursor:pointer; font-size:10px;">Logout</button>
+                            </div>
+                            <div id="org-display" style="font-size:12px; font-weight:bold; margin-top:5px; color:#50fa7b;"></div>
+                        </div>
+                    </div>
+
+                    <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
+
+                    <div id="cloud-hierarchy-section" style="display:none;">
+                        <div class="hierarchy-level">
+                            <label>Team</label>
+                            <select id="team-selector" class="cloud-select"></select>
+                            <button id="create-team-btn" class="mini-btn">+</button>
+                        </div>
+                        <div class="hierarchy-level">
+                            <label>Workspace</label>
+                            <select id="workspace-selector" class="cloud-select"></select>
+                            <button id="create-workspace-btn" class="mini-btn">+</button>
+                        </div>
+                        <div class="hierarchy-level">
+                            <label>Project</label>
+                            <select id="project-selector" class="cloud-select"></select>
+                            <button id="create-project-btn" class="mini-btn">+</button>
+                        </div>
+                        <div class="hierarchy-level" style="flex-direction:column; align-items:flex-start;">
+                            <label style="width:100%;">Files</label>
+                            <div id="cloud-file-list" class="cloud-list"></div>
+                            <button id="create-file-btn" class="cloud-btn" style="width:100%; margin-top:5px;">+ New Cloud File</button>
+                        </div>
+                    </div>
+
+                    <div id="cloud-idle-msg" style="text-align:center; opacity:0.5; margin-top:20px; font-size:12px;">
+                        Login to access cloud workspaces
+                    </div>
+                </div>
+</div>
                 <!-- Settings View -->
                 <div id="view-settings" class="view-content">
                     <h4>Settings</h4>

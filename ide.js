@@ -1,6 +1,9 @@
 (function() {
 var zideProjectUrl = null;
+window.zideProjectUrl = null;
 var zideProjectName = "Untitled Project";
+window.zideProjectName = zideProjectName;
+window.activeCloudFileId = null;
 
 /**
  * Zoho Deluge Advanced IDE v1.2.3
@@ -51,6 +54,7 @@ function initEditor() {
         });
 
         editor = monaco.editor.create(container, {
+        window.editor = editor;
             value: '// Start coding in Zoho Deluge...\n\n',
             language: 'deluge',
             theme: 'dracula',
@@ -84,6 +88,7 @@ function initEditor() {
                 if (result.theme) monaco.editor.setTheme(result.theme);
                 if (result.json_mappings) {
                     jsonMappings = result.json_mappings;
+                    window.jsonMappings = jsonMappings;
                     updateMappingsList();
                 }
             });
@@ -141,8 +146,14 @@ function checkConnection() {
                 if (zideProjectUrl && editor && editor.getValue().trim() !== "" && !editor.getValue().startsWith("// Start coding")) {
                     saveLocally();
                 }
-                zideProjectUrl = nextProjectUrl;
+                                zideProjectUrl = nextProjectUrl;
+                window.zideProjectUrl = zideProjectUrl;
                 loadProjectData();
+
+                // Cloud Auto-Detection
+                if (typeof CloudUI !== 'undefined' && CloudUI.activeOrgId && zideProjectUrl !== 'global') {
+                    CloudUI.checkForCloudFiles(zideProjectUrl);
+                }
             }
         });
     }
@@ -157,6 +168,7 @@ function loadProjectData() {
 
         const projectNames = result.project_names || {};
         zideProjectName = projectNames[zideProjectUrl] || "Untitled Project";
+        window.zideProjectName = zideProjectName;
         const nameInput = document.getElementById("project-name-input");
         if (nameInput) nameInput.value = zideProjectName;
 
@@ -542,6 +554,20 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 }
 
 function saveLocally() {
+
+    // Cloud Sync
+    if (window.activeCloudFileId && typeof CloudService !== 'undefined') {
+        CloudService.saveFile(window.activeCloudFileId, {
+            code: code,
+            jsonMappings: window.jsonMappings || {},
+            url: zideProjectUrl
+        }).then(() => {
+            showStatus('Synced to Cloud', 'success');
+        }).catch(err => {
+            console.error('Cloud Sync failed:', err);
+        });
+    }
+
     const code = editor.getValue();
     const timestamp = new Date().toLocaleString();
     const title = 'Script ' + new Date().toLocaleTimeString();
@@ -748,4 +774,8 @@ document.getElementById('json-search')?.addEventListener('input', (e) => {
     });
 });
 
+
+    // Expose internal functions to window for Cloud UI
+    window.updateMappingsList = updateMappingsList;
+    window.showStatus = showStatus;
 })();

@@ -14,7 +14,6 @@ window.MonacoEnvironment = {
         const workerPath = 'assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
         const workerUrl = chrome.runtime.getURL(workerPath);
 
-        // Using a Blob URL is generally more reliable than a data URL in extensions
         const blob = new Blob([
             `self.MonacoEnvironment = { baseUrl: '${chrome.runtime.getURL('assets/monaco-editor/min/vs/')}' };
              importScripts('${workerUrl}');`
@@ -28,27 +27,42 @@ require.config({
     paths: { 'vs': 'assets/monaco-editor/min/vs' }
 });
 
-require(['vs/editor/editor.main'], function() {
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        var script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.body.appendChild(script);
+    });
+}
+
+require(['vs/editor/editor.main'], async function() {
     console.log('[ZohoIDE] Monaco Core loaded.');
 
-    // Load language definition
-    var script = document.createElement('script');
-    script.src = 'deluge-lang.js';
-    script.onload = function() {
+    try {
+        // Load Firebase
+        await loadScript('assets/firebase-app-compat.js');
+        await loadScript('assets/firebase-auth-compat.js');
+        await loadScript('assets/firebase-firestore-compat.js');
+        await loadScript('firebase-config.js');
+        await loadScript('cloud-service.js');
+        await loadScript('cloud-ui.js');
+        console.log('[ZohoIDE] Firebase SDKs loaded.');
+
+        // Load Deluge Language
+        await loadScript('deluge-lang.js');
         console.log('[ZohoIDE] deluge-lang.js loaded.');
 
-        // Register language immediately if possible
         if (typeof registerDelugeLanguage === 'function') {
             registerDelugeLanguage();
         }
 
         // Load main IDE logic
-        var ideScript = document.createElement('script');
-        ideScript.src = 'ide.js';
-        document.body.appendChild(ideScript);
-    };
-    script.onerror = function() {
-        console.error('[ZohoIDE] Failed to load deluge-lang.js');
-    };
-    document.body.appendChild(script);
+        await loadScript('ide.js');
+        console.log('[ZohoIDE] ide.js loaded.');
+
+    } catch (err) {
+        console.error('[ZohoIDE] Error loading scripts:', err);
+    }
 });

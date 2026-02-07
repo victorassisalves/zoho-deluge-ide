@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper to check if user belongs to an organization
+    function belongsToOrg(orgId) {
+      return request.auth != null &&
+             (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId == orgId);
+    }
+
+    // Organizations
+    match /organizations/{orgId} {
+      allow read: if belongsToOrg(orgId);
+      allow create: if request.auth != null;
+      allow update, delete: if belongsToOrg(orgId) && resource.data.ownerId == request.auth.uid;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || belongsToOrg(resource.data.orgId));
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Teams
+    match /teams/{teamId} {
+      allow read: if belongsToOrg(resource.data.orgId);
+      allow create: if belongsToOrg(request.resource.data.orgId);
+      allow update, delete: if belongsToOrg(resource.data.orgId);
+    }
+
+    // Workspaces
+    match /workspaces/{workspaceId} {
+      allow read: if belongsToOrg(resource.data.orgId);
+      allow create: if belongsToOrg(request.resource.data.orgId);
+      allow update, delete: if belongsToOrg(resource.data.orgId);
+    }
+
+    // Projects
+    match /projects/{projectId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Files
+    match /files/{fileId} {
+      allow read: if belongsToOrg(resource.data.orgId);
+      allow create: if belongsToOrg(request.resource.data.orgId);
+      allow update, delete: if belongsToOrg(resource.data.orgId);
+    }
+
+    // Collection Group for file search
+    match /{path=**}/files/{fileId} {
+      allow read: if request.auth != null;
+    }
+  }
+}

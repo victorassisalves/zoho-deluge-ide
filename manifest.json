@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Zoho Deluge Advanced IDE",
-  "version": "1.2.3",
-  "description": "A full-featured IDE for Zoho Deluge with real-time sync and autocomplete.",
+  "version": "1.3.0",
+  "description": "A full-featured IDE for Zoho Deluge with Workspaces and Online Sync.",
   "permissions": [
     "tabs",
     "scripting",
     "activeTab",
-    "storage"
+    "storage",
+    "identity"
   ],
   "host_permissions": [
     "https://*.zoho.com/*",
@@ -15,7 +16,10 @@
     "https://*.zoho.in/*",
     "https://*.zoho.com.au/*",
     "https://*.zoho.jp/*",
-    "https://generativelanguage.googleapis.com/*"
+    "https://generativelanguage.googleapis.com/*",
+    "https://*.firebaseio.com/*",
+    "https://*.googleapis.com/*",
+    "https://*.firebaseapp.com/*"
   ],
   "action": {
     "default_popup": "popup.html"
@@ -48,7 +52,14 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["ide.html", "assets/*", "bridge.js"],
+      "resources": [
+        "ide.html",
+        "assets/*",
+        "bridge.js",
+        "firebase-config.js",
+        "deluge-lang.js",
+        "ide.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]
