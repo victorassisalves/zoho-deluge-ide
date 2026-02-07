@@ -1,13 +1,14 @@
-let currentProjectUrl = null;
-let lastProjectUrl = null;
+(function() {
+var zideProjectUrl = null;
+var zideProjectName = "Untitled Project";
 
 /**
- * Zoho Deluge Advanced IDE v1.2
+ * Zoho Deluge Advanced IDE v1.2.3
  */
 
-let editor;
-let isConnected = false;
-let jsonMappings = {};
+var editor;
+var isConnected = false;
+var jsonMappings = {};
 
 function initEditor() {
     if (editor) return;
@@ -88,6 +89,28 @@ function initEditor() {
             });
         }
 
+        // Global Fallback for Shortcuts (Incognito support)
+        window.addEventListener("keydown", (e) => {
+            const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+            const ctrlCmd = isMac ? e.metaKey : e.ctrlKey;
+            if (ctrlCmd && e.shiftKey) {
+                const code = e.code;
+                if (code === "KeyS") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    pushToZoho(true);
+                } else if (code === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    pushToZoho(true, true);
+                } else if (code === "KeyP") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    pullFromZoho();
+                }
+            }
+        }, true);
+
         setupEventHandlers();
         checkConnection();
         setInterval(checkConnection, 5000);
@@ -100,44 +123,58 @@ function initEditor() {
 function checkConnection() {
     if (typeof chrome !== "undefined" && chrome.runtime) {
         chrome.runtime.sendMessage({ action: "CHECK_CONNECTION" }, (response) => {
-            const statusEl = document.getElementById("status-indicator");
-            if (statusEl) {
-                if (response && response.connected) {
-                    isConnected = true;
-                    statusEl.innerText = (response.isStandalone ? "Target: " : "Local: ") + (response.tabTitle || "Zoho Tab");
-                    statusEl.style.color = "#4ec9b0";
-                    window.currentTargetTab = response;
-                    currentProjectUrl = response.url;
-                } else {
-                    isConnected = false;
-                    statusEl.innerText = "Disconnected";
-                    statusEl.style.color = "#888";
-                    currentProjectUrl = "global";
+            let nextProjectUrl = "global";
+            if (response && response.connected) {
+                isConnected = true;
+                const msg = (response.isStandalone ? "Connected to Target: " : "Connected Local: ") + (response.tabTitle || "Zoho Tab");
+                showStatus(msg, "success");
+                window.currentTargetTab = response;
+                nextProjectUrl = response.url;
+            } else {
+                isConnected = false;
+                showStatus("Disconnected from Zoho", "info");
+                nextProjectUrl = "global";
+            }
+
+            if (nextProjectUrl !== zideProjectUrl) {
+                // Context switch detected
+                if (zideProjectUrl && editor && editor.getValue().trim() !== "" && !editor.getValue().startsWith("// Start coding")) {
+                    saveLocally();
                 }
-                if (currentProjectUrl !== lastProjectUrl) {
-                    lastProjectUrl = currentProjectUrl;
-                    loadProjectData();
-                }
+                zideProjectUrl = nextProjectUrl;
+                loadProjectData();
             }
         });
     }
 }
 
 function loadProjectData() {
-    if (!currentProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
-    chrome.storage.local.get(["saved_files", "project_notes", "last_project_code"], (result) => {
+    if (!zideProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
+    chrome.storage.local.get(["saved_files", "project_notes", "last_project_code", "project_names", "project_mappings"], (result) => {
         const allFiles = result.saved_files || [];
-        const projectFiles = allFiles.filter(f => f.projectUrl === currentProjectUrl || (!f.projectUrl && currentProjectUrl === "global"));
+        const projectFiles = allFiles.filter(f => f.projectUrl === zideProjectUrl || (!f.projectUrl && zideProjectUrl === "global"));
         updateSavedFilesList(projectFiles);
+
+        const projectNames = result.project_names || {};
+        zideProjectName = projectNames[zideProjectUrl] || "Untitled Project";
+        const nameInput = document.getElementById("project-name-input");
+        if (nameInput) nameInput.value = zideProjectName;
 
         const notes = result.project_notes || {};
         const notesEl = document.getElementById("project-notes");
-        if (notesEl) notesEl.value = notes[currentProjectUrl] || "";
+        if (notesEl) notesEl.value = notes[zideProjectUrl] || "";
 
-        const lastCodes = result.last_project_code || {};
-        if (lastCodes[currentProjectUrl] && !editor.getValue().trim()) {
-            editor.setValue(lastCodes[currentProjectUrl]);
+        if (editor) {
+            const lastCodes = result.last_project_code || {};
+            const currentVal = editor.getValue();
+            if (lastCodes[zideProjectUrl] && (!currentVal || currentVal.trim() === "" || currentVal.startsWith("// Start coding"))) {
+                editor.setValue(lastCodes[zideProjectUrl]);
+            }
         }
+
+        const projectMappings = result.project_mappings || {};
+        jsonMappings = projectMappings[zideProjectUrl] || {};
+        updateMappingsList();
     });
 }
 
@@ -155,7 +192,19 @@ function setupEventHandlers() {
 
     bind('pull-btn', 'click', pullFromZoho);
     bind('push-btn', 'click', () => pushToZoho(true));
+    bind('execute-btn', 'click', () => pushToZoho(true, true));
     bind('save-btn', 'click', saveLocally);
+
+    bind('project-name-input', 'input', (e) => {
+        zideProjectName = e.target.value;
+        if (zideProjectUrl) {
+            chrome.storage.local.get(['project_names'], (result) => {
+                const names = result.project_names || {};
+                names[zideProjectUrl] = zideProjectName;
+                chrome.storage.local.set({ 'project_names': names });
+            });
+        }
+    });
 
     document.querySelectorAll('.sidebar-item').forEach(item => {
         item.addEventListener('click', () => {
@@ -203,11 +252,11 @@ function setupEventHandlers() {
     });
 
     bind('project-notes', 'input', (e) => {
-        if (!currentProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
+        if (!zideProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
         const notesValue = e.target.value;
         chrome.storage.local.get(['project_notes'], (result) => {
             const notes = result.project_notes || {};
-            notes[currentProjectUrl] = notesValue;
+            notes[zideProjectUrl] = notesValue;
             chrome.storage.local.set({ 'project_notes': notes });
         });
     });
@@ -259,6 +308,50 @@ function setupEventHandlers() {
     });
 
     initResources();
+
+    function insertSnippet(type) {
+        if (!editor) return;
+        let snippet = "";
+        switch (type) {
+            case 'if': snippet = "if (  ) \n{\n\t\n}"; break;
+            case 'else if': snippet = "else if (  ) \n{\n\t\n}"; break;
+            case 'else': snippet = "else \n{\n\t\n}"; break;
+            case 'conditional if': snippet = "if( , , )"; break;
+            case 'insert': snippet = "insert into <Form>\n[\n\t<Field> : <Value>\n];"; break;
+            case 'fetch': snippet = "<var> = <Form> [ <Criteria> ];"; break;
+            case 'aggregate': snippet = "<var> = <Form> [ <Criteria> ].count();"; break;
+            case 'update': snippet = "<Form> [ <Criteria> ]\n{\n\t<Field> : <Value>\n};"; break;
+            case 'for each': snippet = "for each <var> in <Form> [ <Criteria> ]\n{\n\t\n}"; break;
+            case 'delete': snippet = "delete from <Form> [ <Criteria> ];"; break;
+            case 'list': snippet = "<var> = List();"; break;
+            case 'add': snippet = "<var>.add();"; break;
+            case 'remove': snippet = "<var>.remove();"; break;
+            case 'clear': snippet = "<var>.clear();"; break;
+            case 'sort': snippet = "<var>.sort();"; break;
+            case 'map': snippet = "<var> = Map();"; break;
+            case 'put': snippet = "<var>.put(\"\", \"\");"; break;
+            case 'remove_key': snippet = "<var>.remove(\"\");"; break;
+            case 'clear_map': snippet = "<var>.clear();"; break;
+            case 'variable': snippet = "<var> = ;"; break;
+            case 'function': snippet = "thisapp.<function_name>();"; break;
+            case 'mail': snippet = "sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: \"\"\n\tsubject: \"\"\n\tmessage: \"\"\n];"; break;
+            case 'info': snippet = "info ;"; break;
+        }
+        if (snippet) {
+            const selection = editor.getSelection();
+            const range = new monaco.Range(selection.startLineNumber, selection.startColumn, selection.endLineNumber, selection.endColumn);
+            editor.executeEdits("snippet-insert", [{ range: range, text: snippet, forceMoveMarkers: true }]);
+            editor.focus();
+        }
+    }
+
+    document.querySelectorAll('.snippet-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const type = btn.getAttribute('data-snippet');
+            insertSnippet(type);
+        });
+    });
+
 }
 
 function convertJsonToDeluge(varName, jsonStr) {
@@ -300,7 +393,15 @@ function saveMapping(name, jsonStr) {
         const obj = JSON.parse(jsonStr);
         jsonMappings[name] = obj;
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.set({ 'json_mappings': jsonMappings });
+            if (zideProjectUrl) {
+                chrome.storage.local.get(['project_mappings'], (result) => {
+                    const projectMappings = result.project_mappings || {};
+                    projectMappings[zideProjectUrl] = jsonMappings;
+                    chrome.storage.local.set({ 'project_mappings': projectMappings });
+                });
+            } else {
+                chrome.storage.local.set({ 'json_mappings': jsonMappings });
+            }
         }
         updateMappingsList();
     } catch (e) { alert('Invalid JSON: ' + e.message); }
@@ -318,7 +419,15 @@ function updateMappingsList() {
             if (e.target.classList.contains('delete-mapping')) {
                 delete jsonMappings[name];
                 if (typeof chrome !== "undefined" && chrome.storage) {
-                    chrome.storage.local.set({ 'json_mappings': jsonMappings });
+                    if (zideProjectUrl) {
+                        chrome.storage.local.get(['project_mappings'], (result) => {
+                            const projectMappings = result.project_mappings || {};
+                            projectMappings[zideProjectUrl] = jsonMappings;
+                            chrome.storage.local.set({ 'project_mappings': projectMappings });
+                        });
+                    } else {
+                        chrome.storage.local.set({ 'json_mappings': jsonMappings });
+                    }
                 }
                 updateMappingsList();
                 return;
@@ -370,6 +479,16 @@ function renderJsonTree(mappingName, obj) {
     buildTree(obj, tree);
 }
 
+
+function showStatus(message, type = 'info') {
+    const statusEl = document.getElementById("status-indicator");
+    if (statusEl) {
+        statusEl.innerText = message;
+        statusEl.style.color = type === 'success' ? '#4ec9b0' : (type === 'error' ? '#f44747' : '#888');
+    }
+    log(type, message);
+}
+
 function log(type, message) {
     const consoleOutput = document.getElementById('console-output');
     if (!consoleOutput) return;
@@ -381,6 +500,10 @@ function log(type, message) {
 }
 
 function pullFromZoho() {
+    if (!isConnected) {
+        log('Error', 'No Zoho tab connected. Please open a Zoho Deluge editor tab first.');
+        return;
+    }
     log('System', 'Pulling code...');
     if (typeof chrome !== "undefined" && chrome.runtime) {
         chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, (response) => {
@@ -393,6 +516,10 @@ function pullFromZoho() {
 }
 
 function pushToZoho(triggerSave = false, triggerExecute = false) {
+    if (!isConnected) {
+        log('Error', 'No Zoho tab connected. Sync/Execute failed.');
+        return;
+    }
     const code = editor.getValue();
     log('System', 'Pushing code...');
     if (typeof chrome !== "undefined" && chrome.runtime) {
@@ -420,7 +547,7 @@ function saveLocally() {
     const title = 'Script ' + new Date().toLocaleTimeString();
     const source = window.currentTargetTab?.tabTitle || 'Local Editor';
     const vars = extractVarsFromCode(code);
-    const projectUrl = currentProjectUrl || 'global';
+    const projectUrl = zideProjectUrl || 'global';
 
     if (typeof chrome !== "undefined" && chrome.storage) {
         chrome.storage.local.get(['saved_files', 'last_project_code'], (result) => {
@@ -509,7 +636,7 @@ async function askGemini(customPrompt = null) {
             aiMsg.innerText = "Error: Please set your Gemini API Key in Settings.";
             return;
         }
-        const model = document.getElementById("ai-model-selector")?.value || result.gemini_model || "gemini-1.5-flash";
+        const model = document.getElementById("ai-model-selector")?.value || result.gemini_model || "gemini-3-flash-preview";
         try {
             const codeContext = editor.getValue();
             const prompt = customPrompt ? question : `You are a Zoho Deluge expert. Code context:\n\`\`\`deluge\n${codeContext}\n\`\`\`\n\nQuestion: ${question}`;
@@ -620,3 +747,5 @@ document.getElementById('json-search')?.addEventListener('input', (e) => {
         }
     });
 });
+
+})();
