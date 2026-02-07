@@ -1,6 +1,9 @@
 (function() {
 var zideProjectUrl = null;
+window.zideProjectUrl = null;
 var zideProjectName = "Untitled Project";
+window.zideProjectName = zideProjectName;
+window.activeCloudFileId = null;
 
 /**
  * Zoho Deluge Advanced IDE v1.2.3
@@ -64,6 +67,13 @@ function initEditor() {
             cursorStyle: 'line',
             glyphMargin: true
         });
+        window.editor = editor;
+        window.addEventListener('resize', () => { if (editor) editor.layout(); });
+    // Ensure editor layouts correctly after initialization
+    setTimeout(() => { if (editor) editor.layout(); }, 500);
+    setTimeout(() => { if (editor) editor.layout(); }, 2000);
+
+
 
         // Keyboard Shortcuts
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => { saveLocally(); });
@@ -79,11 +89,20 @@ function initEditor() {
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.get(['saved_deluge_code', 'theme', 'json_mappings'], (result) => {
+            chrome.storage.local.get(['saved_deluge_code', 'theme', 'json_mappings', 'left_panel_width'], (result) => {
                 if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
                 if (result.theme) monaco.editor.setTheme(result.theme);
+                                if (result.left_panel_width) {
+                    const leftPanel = document.getElementById('left-panel-content');
+                    if (leftPanel) {
+                        leftPanel.style.width = result.left_panel_width;
+                        leftPanel.style.setProperty('--left-sidebar-width', result.left_panel_width);
+                        setTimeout(() => { if (editor) editor.layout(); }, 100);
+                    }
+                }
                 if (result.json_mappings) {
                     jsonMappings = result.json_mappings;
+                    window.jsonMappings = jsonMappings;
                     updateMappingsList();
                 }
             });
@@ -116,6 +135,7 @@ function initEditor() {
         setInterval(checkConnection, 5000);
 
     } catch (e) {
+        console.error("[ZohoIDE] initEditor Error:", e);
         console.error('[ZohoIDE] Monaco Load Error:', e);
     }
 }
@@ -141,8 +161,14 @@ function checkConnection() {
                 if (zideProjectUrl && editor && editor.getValue().trim() !== "" && !editor.getValue().startsWith("// Start coding")) {
                     saveLocally();
                 }
-                zideProjectUrl = nextProjectUrl;
+                                zideProjectUrl = nextProjectUrl;
+                window.zideProjectUrl = zideProjectUrl;
                 loadProjectData();
+
+                // Cloud Auto-Detection
+                if (typeof CloudUI !== 'undefined' && CloudUI.activeOrgId && zideProjectUrl !== 'global') {
+                    CloudUI.checkForCloudFiles(zideProjectUrl);
+                }
             }
         });
     }
@@ -157,6 +183,7 @@ function loadProjectData() {
 
         const projectNames = result.project_names || {};
         zideProjectName = projectNames[zideProjectUrl] || "Untitled Project";
+        window.zideProjectName = zideProjectName;
         const nameInput = document.getElementById("project-name-input");
         if (nameInput) nameInput.value = zideProjectName;
 
@@ -286,7 +313,8 @@ function setupEventHandlers() {
             const code = convertJsonToDeluge(varName, jsonStr);
             editor.executeEdits('json-convert', [{ range: editor.getSelection(), text: code }]);
             document.getElementById('json-modal').style.display = 'none';
-        } catch (e) { alert('Invalid JSON: ' + e.message); }
+        } catch (e) {
+        console.error("[ZohoIDE] initEditor Error:", e); alert('Invalid JSON: ' + e.message); }
     });
 
     bind('modal-map-only', 'click', () => {
@@ -404,7 +432,8 @@ function saveMapping(name, jsonStr) {
             }
         }
         updateMappingsList();
-    } catch (e) { alert('Invalid JSON: ' + e.message); }
+    } catch (e) {
+        console.error("[ZohoIDE] initEditor Error:", e); alert('Invalid JSON: ' + e.message); }
 }
 
 function updateMappingsList() {
@@ -542,12 +571,26 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 }
 
 function saveLocally() {
+
     const code = editor.getValue();
     const timestamp = new Date().toLocaleString();
     const title = 'Script ' + new Date().toLocaleTimeString();
     const source = window.currentTargetTab?.tabTitle || 'Local Editor';
     const vars = extractVarsFromCode(code);
     const projectUrl = zideProjectUrl || 'global';
+    // Cloud Sync
+    if (window.activeCloudFileId && typeof CloudService !== 'undefined') {
+        CloudService.saveFile(window.activeCloudFileId, {
+            code: code,
+            jsonMappings: window.jsonMappings || {},
+            url: zideProjectUrl
+        }).then(() => {
+            showStatus('Synced to Cloud', 'success');
+        }).catch(err => {
+            console.error('Cloud Sync failed:', err);
+        });
+    }
+
 
     if (typeof chrome !== "undefined" && chrome.storage) {
         chrome.storage.local.get(['saved_files', 'last_project_code'], (result) => {
@@ -648,7 +691,8 @@ async function askGemini(customPrompt = null) {
             const data = await response.json();
             const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "Error: " + (data.error?.message || "Unknown");
             aiMsg.innerHTML = textResponse.replace(/\n/g, "<br>").replace(/\`\`\`deluge/g, "<pre>").replace(/\`\`\`/g, "</pre>");
-        } catch (e) { aiMsg.innerText = "Error: " + e.message; }
+        } catch (e) {
+        console.error("[ZohoIDE] initEditor Error:", e); aiMsg.innerText = "Error: " + e.message; }
     } else {
         aiMsg.innerText = "Error: Extension context unavailable.";
     }
@@ -700,31 +744,58 @@ if (document.getElementById('docs-search')) {
     });
 }
 
-// Resizing Right Sidebar
+// Resizing Sidebars
 let isResizingRight = false;
+let isResizingLeft = false;
+
+document.getElementById('left-resizer')?.addEventListener('mousedown', (e) => {
+    isResizingLeft = true;
+    document.body.style.userSelect = 'none';
+    document.body.classList.add('resizing');
+});
+
 document.getElementById('right-sidebar-resizer')?.addEventListener('mousedown', (e) => {
     isResizingRight = true;
     document.body.style.userSelect = 'none';
+    document.body.classList.add('resizing');
 });
 
 window.addEventListener('mousemove', (e) => {
-    if (!isResizingRight) return;
-    const sidebar = document.getElementById('right-sidebar');
-    if (!sidebar) return;
-
-    const width = window.innerWidth - e.clientX;
-    if (width > 50 && width < 600) {
-        sidebar.classList.remove('collapsed');
-        const icon = document.getElementById('toggle-right-sidebar');
-        if (icon) icon.innerText = '▶';
-        sidebar.style.width = width + 'px';
-        if (editor) editor.layout();
+    if (isResizingRight) {
+        const sidebar = document.getElementById('right-sidebar');
+        if (!sidebar) return;
+        const width = window.innerWidth - e.clientX;
+        if (width > 50 && width < 600) {
+            sidebar.classList.remove('collapsed');
+            const icon = document.getElementById('toggle-right-sidebar');
+            if (icon) icon.innerText = '▶';
+            sidebar.style.width = width + 'px';
+            if (editor) editor.layout();
+        }
+    } else if (isResizingLeft) {
+        const leftPanel = document.getElementById('left-panel-content');
+        if (!leftPanel) return;
+        const sidebarWidth = document.getElementById('sidebar')?.offsetWidth || 48;
+        const width = e.clientX - sidebarWidth;
+        if (width > 150 && width < 600) {
+            leftPanel.style.width = width + 'px';
+            leftPanel.style.setProperty('--left-sidebar-width', width + 'px');
+            if (editor) editor.layout();
+        }
     }
 });
 
 window.addEventListener('mouseup', () => {
+    if (isResizingLeft) {
+        const leftPanel = document.getElementById('left-panel-content');
+        if (leftPanel && typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ 'left_panel_width': leftPanel.style.width });
+        }
+    }
     isResizingRight = false;
+    isResizingLeft = false;
     document.body.style.userSelect = 'auto';
+    document.body.classList.remove('resizing');
 });
 
 // JSON Search
@@ -748,4 +819,8 @@ document.getElementById('json-search')?.addEventListener('input', (e) => {
     });
 });
 
+
+    // Expose internal functions to window for Cloud UI
+    window.updateMappingsList = updateMappingsList;
+    window.showStatus = showStatus;
 })();

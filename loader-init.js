@@ -14,7 +14,6 @@ window.MonacoEnvironment = {
         const workerPath = 'assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
         const workerUrl = chrome.runtime.getURL(workerPath);
 
-        // Using a Blob URL is generally more reliable than a data URL in extensions
         const blob = new Blob([
             `self.MonacoEnvironment = { baseUrl: '${chrome.runtime.getURL('assets/monaco-editor/min/vs/')}' };
              importScripts('${workerUrl}');`
@@ -28,27 +27,58 @@ require.config({
     paths: { 'vs': 'assets/monaco-editor/min/vs' }
 });
 
-require(['vs/editor/editor.main'], function() {
-    console.log('[ZohoIDE] Monaco Core loaded.');
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        console.log('[ZohoIDE] Loading script:', src);
+        var script = document.createElement('script');
+        script.src = src;
+        script.onload = () => {
+            console.log('[ZohoIDE] Loaded:', src);
+            resolve();
+        };
+        script.onerror = (e) => {
+            console.error('[ZohoIDE] Failed to load:', src, e);
+            reject(e);
+        };
+        document.body.appendChild(script);
+    });
+}
 
-    // Load language definition
-    var script = document.createElement('script');
-    script.src = 'deluge-lang.js';
-    script.onload = function() {
-        console.log('[ZohoIDE] deluge-lang.js loaded.');
+// Initializing Monaco and dependencies
+require(['vs/editor/editor.main'], async function() {
+    console.log('[ZohoIDE] Monaco Core (AMD) loaded.');
 
-        // Register language immediately if possible
+    try {
+        // Temporarily disable AMD define to avoid conflicts with Firebase SDKs (Compat versions)
+        // This forces them to attach to the 'firebase' global instead of using the AMD loader.
+        const originalDefine = window.define;
+        window.define = undefined;
+
+        // Load Firebase SDKs sequentially
+        await loadScript('assets/firebase-app-compat.js');
+        await loadScript('assets/firebase-auth-compat.js');
+        await loadScript('assets/firebase-firestore-compat.js');
+
+        // Restore define before loading our own modules that might use it
+        window.define = originalDefine;
+
+        await loadScript('firebase-config.js');
+        await loadScript('cloud-service.js');
+        await loadScript('cloud-ui.js');
+
+        console.log('[ZohoIDE] Firebase and Cloud UI initialized.');
+
+        // Load Deluge Language
+        await loadScript('deluge-lang.js');
         if (typeof registerDelugeLanguage === 'function') {
             registerDelugeLanguage();
         }
 
-        // Load main IDE logic
-        var ideScript = document.createElement('script');
-        ideScript.src = 'ide.js';
-        document.body.appendChild(ideScript);
-    };
-    script.onerror = function() {
-        console.error('[ZohoIDE] Failed to load deluge-lang.js');
-    };
-    document.body.appendChild(script);
+        // Finally load main IDE logic
+        await loadScript('ide.js');
+        console.log('[ZohoIDE] ide.js loaded.');
+
+    } catch (err) {
+        console.error('[ZohoIDE] Critical error during script initialization:', err);
+    }
 });

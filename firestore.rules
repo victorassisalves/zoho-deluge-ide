@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper to check if user belongs to an organization
+    function belongsToOrg(orgId) {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId == orgId;
+    }
+
+    // Organizations
+    match /organizations/{orgId} {
+      // Allow searching by domain/email
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      // Only owner or members can update
+      allow update: if request.auth != null && (resource.data.ownerId == request.auth.uid || belongsToOrg(orgId));
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || belongsToOrg(resource.data.orgId));
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Teams
+    match /teams/{teamId} {
+      allow read: if request.auth != null && (belongsToOrg(resource.data.orgId) || (resource.data.members != null && request.auth.uid in resource.data.members));
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (belongsToOrg(resource.data.orgId) || (resource.data.members != null && request.auth.uid in resource.data.members));
+      allow delete: if request.auth != null && (belongsToOrg(resource.data.orgId) || resource.data.ownerId == request.auth.uid);
+    }
+
+    // Workspaces
+    match /workspaces/{workspaceId} {
+      allow read: if request.auth != null && (belongsToOrg(resource.data.orgId) || resource.data.ownerId == request.auth.uid);
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (belongsToOrg(resource.data.orgId) || resource.data.ownerId == request.auth.uid);
+    }
+
+    // Projects
+    match /projects/{projectId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Files
+    match /files/{fileId} {
+      allow read: if request.auth != null && (belongsToOrg(resource.data.orgId) || resource.data.ownerId == request.auth.uid);
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (belongsToOrg(resource.data.orgId) || resource.data.ownerId == request.auth.uid);
+    }
+
+    // Collection Group for file search
+    match /{path=**}/files/{fileId} {
+      allow read: if request.auth != null && (belongsToOrg(resource.data.orgId) || resource.data.ownerId == request.auth.uid);
+    }
+  }
+}

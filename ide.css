@@ -259,7 +259,7 @@ html.sidepanel-mode .status-right {
 
 /* New Sidebar Panel Styles */
 .sidebar-panel {
-    width: 250px;
+    width: var(--left-sidebar-width, 250px);
     background-color: var(--bg-light);
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -541,13 +541,14 @@ html.sidepanel-mode #right-sidebar {
 }
 
 /* JSON Manager Enhancements */
-#right-sidebar-resizer {
+.resizer {
     width: 4px;
     cursor: ew-resize;
     background: #333;
     transition: background 0.2s;
+    z-index: 100;
 }
-#right-sidebar-resizer:hover {
+.resizer:hover {
     background: #007acc;
 }
 .right-sidebar-header {
@@ -648,4 +649,133 @@ html.sidepanel-mode #right-sidebar {
 .snippet-btn:hover {
     border-color: var(--accent-color);
     background: #2d2d30;
+}
+
+/* Cloud Panel Styles */
+.cloud-input {
+    width: 100%;
+    background: #1e1e1e;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 5px;
+    margin-top: 5px;
+    font-size: 12px;
+}
+.cloud-btn {
+    flex: 1;
+    background: #44475a;
+    color: #f8f8f2;
+    border: 1px solid #6272a4;
+    padding: 5px;
+    cursor: pointer;
+    font-size: 11px;
+}
+.cloud-btn:hover {
+    background: #6272a4;
+}
+.cloud-select {
+    flex: 1;
+    background: #1e1e1e;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 3px;
+    font-size: 11px;
+}
+.hierarchy-level {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+.hierarchy-level label {
+    width: 65px;
+    font-size: 11px;
+    color: #888;
+}
+.mini-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    border-radius: 2px;
+}
+.cloud-list {
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #333;
+    background: #1e1e1e;
+    margin-top: 5px;
+    width: 100%;
+}
+.cloud-file-item {
+    padding: 5px;
+    font-size: 11px;
+    cursor: pointer;
+    border-bottom: 1px solid #222;
+}
+.cloud-file-item:hover {
+    background: #2d2d2d;
+}
+.cloud-file-item.active {
+    background: #44475a;
+    color: #50fa7b;
+}
+
+
+/* Resizable Panels */
+}
+
+#left-panel-content {
+    min-width: 150px;
+    max-width: 600px;
+}
+
+/* Fix hierarchy labels for narrow widths */
+.hierarchy-level {
+    flex-wrap: wrap;
+    height: auto !important;
+}
+.hierarchy-level label {
+    flex: 0 0 100%;
+    margin-bottom: 2px;
+}
+.hierarchy-level .cloud-select,
+.hierarchy-level .cloud-input {
+    flex: 1;
+    min-width: 0;
+}
+
+/* AI Agent responsiveness */
+#ai-chat-container textarea {
+    min-height: 60px;
+}
+body.resizing { cursor: ew-resize !important; }
+
+/* AI Agent UI Improvements */
+#ai-chat-history {
+    padding: 5px;
+}
+.chat-msg {
+    max-width: 95%;
+    font-size: 12px;
+}
+.ai-input-area {
+    padding: 5px;
+    background: #252526;
+    border-top: 1px solid #333;
+    border-radius: 4px;
+}
+#ai-ask-btn {
+    transition: background 0.2s;
+}
+#ai-ask-btn:hover {
+    background: #1177bb;
+}
+
+.hierarchy-level .cloud-select,
+.hierarchy-level .cloud-input {
+    width: 100%;
+    margin-top: 2px;
 }
