@@ -21,6 +21,8 @@
                 response = { success: triggerZohoAction('save') };
             } else if (action === 'EXECUTE_ZOHO_CODE') {
                 response = { success: triggerZohoAction('execute') };
+            } else if (action === 'GET_CREATOR_FORMS') {
+                response = { forms: getCreatorForms() };
             }
 
             window.postMessage({ type: 'FROM_PAGE', action: action, response: response }, '*');
@@ -151,6 +153,31 @@
             }
         }
         return false;
+    }
+
+    function getCreatorForms() {
+        const forms = [];
+        try {
+            // Attempt to find form names in the sidebar of Zoho Creator Builder
+            // This varies by version, but let's try common selectors
+            const formElements = document.querySelectorAll('.zc-form-name, .form-title, [data-zc-formname]');
+            formElements.forEach(el => {
+                const name = el.getAttribute('data-zc-formname') || el.innerText.trim();
+                if (name && !forms.includes(name)) forms.push(name);
+            });
+
+            // Fallback: search for specific sidebar items
+            if (forms.length === 0) {
+                const sidebarItems = document.querySelectorAll('.zc-sidebar-item-text');
+                sidebarItems.forEach(el => {
+                    const name = el.innerText.trim();
+                    if (name && name.length > 2) forms.push(name);
+                });
+            }
+        } catch (e) {
+            console.error('[ZohoIDE] Error fetching forms:', e);
+        }
+        return forms;
     }
 
     // Console scraping

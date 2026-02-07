@@ -76,7 +76,9 @@ require(['vs/editor/editor.main'], async function() {
 
         // Finally load main IDE logic
         await loadScript('ide.js');
-        console.log('[ZohoIDE] ide.js loaded.');
+        await loadScript('snippet_logic.js');
+        await loadScript('api_data.js');
+        console.log('[ZohoIDE] ide.js, snippet_logic.js and api_data.js loaded.');
 
     } catch (err) {
         console.error('[ZohoIDE] Critical error during script initialization:', err);

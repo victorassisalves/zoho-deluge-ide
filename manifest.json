@@ -58,7 +58,12 @@
         "bridge.js",
         "firebase-config.js",
         "deluge-lang.js",
-        "ide.js"
+        "ide.js",
+        "snippet_logic.js",
+        "api_data.js",
+        "loader-init.js",
+        "cloud-service.js",
+        "cloud-ui.js"
       ],
       "matches": ["<all_urls>"]
     }

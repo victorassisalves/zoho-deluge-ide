@@ -225,6 +225,7 @@
                 <div class="tab active" data-target="console-output">Console</div>
                 <div class="tab" data-target="problems-output">Problems</div>
                 <div class="tab" data-target="docs-output">Docs</div>
+                <div class="tab" data-target="api-explorer">API Explorer</div>
                 <div class="panel-actions">
                     <button id="clear-console">Clear</button>
                 </div>
@@ -234,7 +235,9 @@
                     <div class="log-entry system">Welcome to Deluge IDE.</div>
                 </div>
                 <div id="problems-output" class="panel-content">
-                    <div class="log-entry">No problems detected.</div>
+                    <div id="problems-list">
+                        <div class="log-entry">No problems detected.</div>
+                    </div>
                 </div>
                 <div id="docs-output" class="panel-content">
                     <div class="docs-search-container"><input type="text" id="docs-search" placeholder="Search methods..."></div>
@@ -242,8 +245,40 @@
                          <div class="resource-section"><h5>String Methods</h5><ul><li>length()</li><li>subString(start, end)</li><li>indexOf(str)</li><li>startsWith(prefix)</li><li>toLowerCase()</li><li>toUpperCase()</li><li>trim()</li><li>toList(delim)</li></ul></div><div class="resource-section"><h5>List Methods</h5><ul><li>add(val)</li><li>addAll(list)</li><li>get(index)</li><li>size()</li><li>isEmpty()</li><li>remove(index)</li><li>contains(val)</li></ul></div><div class="resource-section"><h5>Map Methods</h5><ul><li>put(key, val)</li><li>get(key)</li><li>getJSON(key)</li><li>keys()</li><li>remove(key)</li><li>clear()</li></ul></div>
                     </div>
                 </div>
+                <div id="api-explorer" class="panel-content">
+                    <div class="api-explorer-header">
+                        <select id="api-product-selector" class="api-select">
+                            <option value="crm">Zoho CRM</option>
+                            <option value="books">Zoho Books</option>
+                            <option value="creator">Zoho Creator</option>
+                            <option value="recruit">Zoho Recruit</option>
+                        </select>
+                        <input type="text" id="api-search" placeholder="Search APIs (e.g. get records)..." class="api-search-input">
+                    </div>
+                    <div id="api-results-list" class="api-list">
+                        <!-- API references will be populated here -->
+                    </div>
+                </div>
             </div>
         </footer>
+    <style>
+        .api-explorer-header { display: flex; gap: 10px; padding: 10px; background: #252526; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 10; }
+        .api-select { background: #3c3c3c; color: white; border: 1px solid #555; padding: 4px; font-size: 12px; }
+        .api-search-input { flex: 1; background: #3c3c3c; color: white; border: 1px solid #555; padding: 4px 8px; font-size: 12px; }
+        .api-list { padding: 10px; }
+        .api-item { padding: 8px; border-bottom: 1px solid #333; cursor: pointer; transition: background 0.2s; }
+        .api-item:hover { background: #2a2d2e; }
+        .api-item-title { font-weight: bold; font-size: 12px; color: #50fa7b; display: block; }
+        .api-item-desc { font-size: 11px; color: #aaa; margin-top: 2px; display: block; }
+        .api-item-tag { font-size: 10px; background: #44475a; color: #f8f8f2; padding: 1px 4px; border-radius: 3px; margin-right: 5px; text-transform: uppercase; }
+
+        #problems-list .problem-item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #333; }
+        #problems-list .problem-item:hover { background: #2a2d2e; }
+        #problems-list .problem-severity-error { color: #ff5555; }
+        #problems-list .problem-severity-warning { color: #ffb86c; }
+        #problems-list .problem-loc { color: #888; font-size: 11px; margin-left: auto; }
+    </style>
+
         <div id="status-bar">
             <div class="status-left">
                 <span id="sync-status">Ready</span>

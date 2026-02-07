@@ -91,6 +91,8 @@ function initEditor() {
         if (typeof chrome !== "undefined" && chrome.storage) {
             chrome.storage.local.get(['saved_deluge_code', 'theme', 'json_mappings', 'left_panel_width', 'right_sidebar_width'], (result) => {
                 if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
+        if (typeof initApiExplorer === 'function') initApiExplorer();
+        if (typeof syncProblemsPanel === 'function') syncProblemsPanel();
                 if (result.theme) monaco.editor.setTheme(result.theme);
                                 if (result.left_panel_width) {
                     const leftPanel = document.getElementById('left-panel-content');
@@ -678,6 +680,16 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
         log('Error', 'No Zoho tab connected. Sync/Execute failed.');
         return;
     }
+
+    // Check for errors
+    const markers = monaco.editor.getModelMarkers({ resource: editor.getModel().uri });
+    const errors = markers.filter(m => m.severity === monaco.MarkerSeverity.Error);
+    if (errors.length > 0) {
+        log('Error', 'Fix syntax errors before pushing to Zoho.');
+        showStatus('Push Blocked: Errors', 'error');
+        return;
+    }
+
     const code = editor.getValue();
     log('System', 'Pushing code...');
     if (typeof chrome !== "undefined" && chrome.runtime) {
@@ -700,6 +712,13 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 }
 
 function saveLocally() {
+    // Check for errors
+    const markers = monaco.editor.getModelMarkers({ resource: editor.getModel().uri });
+    const errors = markers.filter(m => m.severity === monaco.MarkerSeverity.Error);
+    if (errors.length > 0) {
+        showStatus('Cloud Sync Paused: Errors', 'warning');
+        // We still allow local storage save but maybe skip cloud sync if it's a hard error
+    }
 
     const code = editor.getValue();
     const timestamp = new Date().toLocaleString();
@@ -957,4 +976,40 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
     // Expose internal functions to window for Cloud UI
     window.updateInterfaceMappingsList = updateInterfaceMappingsList;
     window.showStatus = showStatus;
-})();
+})();window.syncProblemsPanel = function() {
+    const list = document.getElementById('problems-list');
+    if (!list) return;
+
+    if (!editor) return;
+    const model = editor.getModel();
+    if (!model) return;
+
+    const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+    list.innerHTML = '';
+
+    if (markers.length === 0) {
+        list.innerHTML = '<div class="log-entry">No problems detected.</div>';
+        return;
+    }
+
+    markers.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'problem-item';
+        const sevClass = m.severity === monaco.MarkerSeverity.Error ? 'problem-severity-error' : 'problem-severity-warning';
+        const sevText = m.severity === monaco.MarkerSeverity.Error ? 'Error' : 'Warning';
+
+        item.innerHTML = `
+            <span class="${sevClass}">[${sevText}]</span>
+            <span class="problem-msg">${m.message}</span>
+            <span class="problem-loc">Ln ${m.startLineNumber}, Col ${m.startColumn}</span>
+        `;
+
+        item.onclick = () => {
+            editor.setPosition({ lineNumber: m.startLineNumber, column: m.startColumn });
+            editor.revealLineInCenter(m.startLineNumber);
+            editor.focus();
+        };
+
+        list.appendChild(item);
+    });
+};

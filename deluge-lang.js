@@ -385,14 +385,16 @@ function registerDelugeLanguage() {
 
         return vars;
     }
-    monaco.editor.onDidCreateModel((model) => {
+        monaco.editor.onDidCreateModel((model) => {
         if (model.getLanguageId() === 'deluge') {
             const validate = () => {
                 const markers = [];
                 const lines = model.getLinesContent();
                 const code = model.getValue();
 
-                let inBracketBlock = 0;
+                let openBraces = 0;
+                let openBrackets = 0;
+                let openParens = 0;
                 let inCommentBlock = false;
 
                 lines.forEach((line, i) => {
@@ -410,26 +412,30 @@ function registerDelugeLanguage() {
                         return;
                     }
 
-                    // Count brackets/square brackets
-                    const opens = (trimmed.match(/\[/g) || []).length;
-                    const closes = (trimmed.match(/\]/g) || []).length;
-                    const prevInBracketBlock = inBracketBlock;
-                    inBracketBlock += opens - closes;
+                    // Count brackets
+                    openBraces += (trimmed.match(/\{/g) || []).length;
+                    openBraces -= (trimmed.match(/\}/g) || []).length;
+                    openBrackets += (trimmed.match(/\[/g) || []).length;
+                    openBrackets -= (trimmed.match(/\]/g) || []).length;
+                    openParens += (trimmed.match(/\(/g) || []).length;
+                    openParens -= (trimmed.match(/\)/g) || []).length;
 
-                    const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'while'];
+                    const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'while', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list'];
                     const startsWithKeyword = skipKeywords.some(kw => trimmed.toLowerCase().startsWith(kw));
                     const endsWithSpecial = trimmed.endsWith('{') || trimmed.endsWith('}') || trimmed.endsWith(';') || trimmed.endsWith(':') || trimmed.endsWith(',');
 
-                    if (!endsWithSpecial && !startsWithKeyword && inBracketBlock === 0 && prevInBracketBlock === 0) {
-                        let nextLineTrimmed = (lines[i+1] || "").trim();
-                        if (!nextLineTrimmed.startsWith('[') && !nextLineTrimmed.startsWith('{') && !trimmed.includes('[') && !trimmed.includes('{')) {
+                    // Semicolon check
+                    if (!endsWithSpecial && !startsWithKeyword && openBrackets === 0 && openBraces === 0) {
+                         // Only warn if it looks like an assignment or function call
+                         if (trimmed.includes('=') || (trimmed.includes('(') && trimmed.includes(')'))) {
                             markers.push({
-                                message: 'Likely missing semicolon',
-                                severity: monaco.MarkerSeverity.Warning,
-                                startLineNumber: i + 1, startColumn: 1,
-                                endLineNumber: i + 1, endColumn: line.length + 1
+                                message: 'Missing semicolon',
+                                severity: monaco.MarkerSeverity.Error,
+                                startLineNumber: i + 1, startColumn: line.length + 1,
+                                endLineNumber: i + 1, endColumn: line.length + 2,
+                                code: 'missing-semicolon'
                             });
-                        }
+                         }
                     }
 
                     // Method validation (.put, .add)
@@ -458,10 +464,100 @@ function registerDelugeLanguage() {
                         }
                     }
                 });
+
+                // Global balance checks
+                if (openBraces !== 0) {
+                    markers.push({
+                        message: `Unbalanced braces: ${openBraces > 0 ? 'Missing closing }' : 'Extra closing }'}`,
+                        severity: monaco.MarkerSeverity.Error,
+                        startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1
+                    });
+                }
+                if (openBrackets !== 0) {
+                    markers.push({
+                        message: `Unbalanced square brackets: ${openBrackets > 0 ? 'Missing closing ]' : 'Extra closing ]'}`,
+                        severity: monaco.MarkerSeverity.Error,
+                        startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1
+                    });
+                }
+
                 monaco.editor.setModelMarkers(model, 'deluge', markers);
+
+                // Trigger problems panel update in IDE
+                if (window.syncProblemsPanel) window.syncProblemsPanel();
             };
             validate();
             model.onDidChangeContent(validate);
         }
     });
-}
+
+    // Quick Fixes
+    monaco.languages.registerCodeActionProvider('deluge', {
+        provideCodeActions: (model, range, context, token) => {
+            const actions = context.markers
+                .filter(m => m.code === 'missing-semicolon')
+                .map(m => ({
+                    title: "Add missing semicolon",
+                    diagnostics: [m],
+                    kind: "quickfix",
+                    edit: {
+                        edits: [{
+                            resource: model.uri,
+                            textEdit: {
+                                range: new monaco.Range(m.startLineNumber, m.startColumn, m.startLineNumber, m.startColumn),
+                                text: ";"
+                            }
+                        }]
+                    },
+                    isPreferred: true
+                }));
+            return { actions, dispose: () => {} };
+        }
+    });
+
+}    monaco.languages.registerHoverProvider('deluge', {
+        provideHover: (model, position) => {
+            const word = model.getWordAtPosition(position);
+            if (!word) return;
+
+            const docs = {
+                'Map': 'A key-value pair data structure. Use `Map()` to initialize.',
+                'List': 'A collection of items. Use `List()` to initialize.',
+                'put': 'Adds a key-value pair to a Map. Syntax: `map.put(key, value);`',
+                'add': 'Adds an element to a List. Syntax: `list.add(value);`',
+                'get': 'Retrieves an element from a List or Map.',
+                'insert': 'Inserts a record into a Zoho Creator form.',
+                'fetch': 'Queries records from a Zoho Creator form.',
+                'zoho': 'Namespace for Zoho integration tasks (CRM, Books, etc.)',
+                'crm': 'Zoho CRM integration namespace.',
+                'books': 'Zoho Books integration namespace.',
+                'info': 'Logs a message to the console for debugging.',
+                'invokeurl': 'Performs an HTTP request (GET, POST, etc.) to an external API.'
+            };
+
+            const content = docs[word.word];
+            if (content) {
+                return {
+                    range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
+                    contents: [
+                        { value: `**${word.word}**` },
+                        { value: content }
+                    ]
+                };
+            }
+
+            // Try to infer variable type
+            const type = inferVarType(word.word, model.getValue());
+            if (type) {
+                return {
+                    range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
+                    contents: [
+                        { value: `Variable: **${word.word}**` },
+                        { value: `Type: ${type}` }
+                    ]
+                };
+            }
+
+            return null;
+        }
+    });
