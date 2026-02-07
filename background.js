@@ -24,12 +24,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'CHECK_CONNECTION') {
         if (targetTabId) {
             chrome.tabs.get(targetTabId, (tab) => {
-                sendResponse({ connected: true, tabTitle: tab.title });
+                sendResponse({ connected: true, tabTitle: tab.title, url: tab.url });
             });
         } else {
             findZohoTab((tab) => {
                 if (tab) {
-                    sendResponse({ connected: true, tabTitle: tab.title, isStandalone: true });
+                    sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone: true });
                 } else {
                     sendResponse({ connected: false });
                 }

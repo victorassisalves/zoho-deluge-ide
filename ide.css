@@ -289,6 +289,7 @@ html.sidepanel-mode .status-right {
 
 /* Right Sidebar Styles */
 #right-sidebar {
+    overflow: hidden;
     width: 250px;
     background-color: var(--bg-light);
     border-left: 1px solid var(--border-color);
@@ -478,6 +479,7 @@ html.sidepanel-mode .status-right {
 /* Hide sidebars in sidepanel mode if needed */
 html.sidepanel-mode .sidebar-panel,
 html.sidepanel-mode #right-sidebar {
+    overflow: hidden;
     display: none !important;
 }
 
@@ -514,6 +516,7 @@ html.sidepanel-mode #right-sidebar {
 }
 
 #right-sidebar {
+    overflow: hidden;
     transition: width 0.2s;
 }
 
@@ -601,4 +604,25 @@ html.sidepanel-mode #right-sidebar {
 }
 .tree-node.hidden {
     display: none;
+}
+
+/* Robust Right Sidebar Toggle */
+#right-sidebar.collapsed {
+    width: 40px !important;
+}
+
+#right-sidebar.collapsed .right-sidebar-header .header-title,
+#right-sidebar.collapsed .right-sidebar-header .search-container,
+#right-sidebar.collapsed #json-mappings-list,
+#right-sidebar.collapsed #json-tree-view {
+    display: none !important;
+}
+
+#right-sidebar.collapsed .right-sidebar-header {
+    padding: 10px 0;
+    align-items: center;
+}
+
+#right-sidebar.collapsed #toggle-right-sidebar {
+    margin: 0 auto;
 }

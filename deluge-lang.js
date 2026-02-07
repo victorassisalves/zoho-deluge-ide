@@ -10,6 +10,32 @@ function registerDelugeLanguage() {
 
     monaco.languages.register({ id: 'deluge' });
 
+    monaco.languages.setLanguageConfiguration("deluge", {
+        comments: {
+            lineComment: "//",
+            blockComment: ["/*", "*/"]
+        },
+        brackets: [
+            ["{", "}"],
+            ["[", "]"],
+            ["(", ")"]
+        ],
+        autoClosingPairs: [
+            { open: "{", close: "}" },
+            { open: "[", close: "]" },
+            { open: "(", close: ")" },
+            { open: "\"", close: "\"" },
+            { open: "'", close: "'" }
+        ],
+        surroundingPairs: [
+            { open: "{", close: "}" },
+            { open: "[", close: "]" },
+            { open: "(", close: ")" },
+            { open: "\"", close: "\"" },
+            { open: "'", close: "'" }
+        ]
+    });
+
     monaco.languages.setMonarchTokensProvider('deluge', {
         defaultToken: '',
         tokenPostfix: '.deluge',
@@ -39,9 +65,9 @@ function registerDelugeLanguage() {
                         '@default': 'variable'
                     }
                 }],
-
                 { include: '@whitespace' },
                 [/[{}()\[\]]/, '@brackets'],
+                [/[<>](?!@symbols)/, '@brackets'],
                 [/@symbols/, {
                     cases: {
                         '@operators': 'operator',
@@ -49,104 +75,95 @@ function registerDelugeLanguage() {
                     }
                 }],
                 [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
+                [/0[xX][0-9a-fA-F]+/, 'number.hex'],
                 [/\d+/, 'number'],
                 [/[;,.]/, 'delimiter'],
                 [/"([^"\\]|\\.)*$/, 'string.invalid'],
                 [/"/, { token: 'string.quote', bracket: '@open', next: '@string' }],
-                [/'[^\\']'/, 'string'],
-                [/'/, 'string.invalid']
+                [/'/, { token: 'string.quote', bracket: '@open', next: '@string_single' }]
             ],
             string: [
                 [/[^\\"]+/, 'string'],
                 [/\\./, 'string.escape.invalid'],
                 [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }]
             ],
+            string_single: [
+                [/[^\\']+/, 'string'],
+                [/\\./, 'string.escape.invalid'],
+                [/'/, { token: 'string.quote', bracket: '@close', next: '@pop' }]
+            ],
             whitespace: [
                 [/[ \t\r\n]+/, 'white'],
                 [/\/\*/, 'comment', '@comment'],
-                [/\/\/.*$/, 'comment'],
+                [/\/\/.*$/, 'comment']
             ],
             comment: [
                 [/[^\/*]+/, 'comment'],
                 [/\/\*/, 'comment', '@push'],
-                ["\\*/", 'comment', '@pop'],
+                [/\*\/ /, 'comment', '@pop'],
                 [/[\/*]/, 'comment']
-            ],
-        },
+            ]
+        }
     });
 
-    const staticSuggestions = [
-        { label: 'info', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'info ${1:message};', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'if', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'if (${1:condition}) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'for each', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'for each ${1:var} in ${2:list} {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'response = invokeurl\n[\n\turl: "${1:https://}"\n\ttype: ${2:GET}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-        { label: 'Map()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'Map();' },
-        { label: 'List()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'List();' }
-    ];
-
-    const typeMethods = {
-        'map': [
-            { label: 'put', detail: 'Map: Add/Update key', insertText: 'put("${1:key}", ${2:value})' },
-            { label: 'get', detail: 'Map: Get value by key', insertText: 'get("${1:key}")' },
-            { label: 'getJSON', detail: 'Map: Get value by key (JSON)', insertText: 'getJSON("${1:key}")' },
-            { label: 'keys', detail: 'Map: Get all keys', insertText: 'keys()' },
-            { label: 'remove', detail: 'Map: Remove key', insertText: 'remove("${1:key}")' },
-            { label: 'clear', detail: 'Map: Clear', insertText: 'clear()' }
-        ],
-        'list': [
-            { label: 'add', detail: 'List: Add element', insertText: 'add(${1:value})' },
-            { label: 'addAll', detail: 'List: Add all elements', insertText: 'addAll(${1:list})' },
-            { label: 'get', detail: 'List: Get element by index', insertText: 'get(${1:index})' },
-            { label: 'size', detail: 'List: Size', insertText: 'size()' },
-            { label: 'isEmpty', detail: 'List: Is empty?', insertText: 'isEmpty()' },
-            { label: 'remove', detail: 'List: Remove by index', insertText: 'remove(${1:index})' },
-            { label: 'contains', detail: 'List: Contains value?', insertText: 'contains(${1:value})' }
-        ],
-        'string': [
-            { label: 'length', insertText: 'length()' },
-            { label: 'subString', insertText: 'subString(${1:start}, ${2:end})' },
-            { label: 'indexOf', insertText: 'indexOf(${1:substring})' },
-            { label: 'startsWith', insertText: 'startsWith(${1:prefix})' },
-            { label: 'toLowerCase', insertText: 'toLowerCase()' },
-            { label: 'toUpperCase', insertText: 'toUpperCase()' },
-            { label: 'trim', insertText: 'trim()' },
-            { label: 'toList', insertText: 'toList(${1:delimiter})' }
-        ],
-        'date': [
-            { label: 'addDay', insertText: 'addDay(${1:number})' },
-            { label: 'addMonth', insertText: 'addMonth(${1:number})' },
-            { label: 'addYear', insertText: 'addYear(${1:number})' },
-            { label: 'toString', insertText: 'toString("${1:dd-MMM-yyyy}")' }
-        ],
-        'zoho': [
-             { label: 'zoho.crm.getRecordById', insertText: 'zoho.crm.getRecordById("${1:Module}", ${2:ID})' },
-             { label: 'zoho.crm.updateRecord', insertText: 'zoho.crm.updateRecord("${1:Module}", ${2:ID}, ${3:Map})' },
-             { label: 'zoho.creator.getRecords', insertText: 'zoho.creator.getRecords("${1:Owner}", "${2:App}", "${3:View}", ${4:Criteria})' },
-             { label: 'zoho.currentdate', insertText: 'zoho.currentdate' },
-             { label: 'zoho.currenttime', insertText: 'zoho.currenttime' }
-        ]
-    };
-
+    // 1. Completion Provider
     monaco.languages.registerCompletionItemProvider('deluge', {
-        triggerCharacters: ['.', ' ', '=', '(', '"', "'"],
-        provideCompletionItems: async (model, position) => {
+        triggerCharacters: ['.', '(', '"'],
+        provideCompletionItems: (model, position) => {
+            const lineUntilPos = model.getValueInRange({
+                startLineNumber: position.lineNumber, startColumn: 1,
+                endLineNumber: position.lineNumber, endColumn: position.column
+            });
             const code = model.getValue();
-            const line = model.getLineContent(position.lineNumber);
-            const word = model.getWordUntilPosition(position);
             const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: word.startColumn,
-                endColumn: word.endColumn
+                startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
+                startColumn: position.column, endColumn: position.column
             };
-            const lineUntilPos = line.substring(0, position.column - 1);
 
-            // 1. JSON Mapping Autocomplete
-            const getMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.(get|getJSON)\(["']$/);
-            if (getMatch && typeof chrome !== 'undefined' && chrome.storage) {
-                const varName = getMatch[1];
-                const result = await new Promise(resolve => chrome.storage.local.get(['json_mappings'], resolve));
-                const mappings = result.json_mappings || {};
+            const staticSuggestions = [
+                { label: 'Map()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'Map()' },
+                { label: 'List()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'List()' },
+                { label: 'info', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'info ' },
+                { label: 'return', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'return ' },
+                { label: 'if', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'if (${1:condition}) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+                { label: 'for each', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'for each ${1:var} in ${2:list} {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+                { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Function, insertText: 'invokeurl\n[\n\turl: "$1"\n\ttype: ${2|GET,POST,PUT,DELETE|}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }
+            ];
+
+            const typeMethods = {
+                string: [
+                    { label: 'length()', insertText: 'length()' },
+                    { label: 'subString(start, end)', insertText: 'subString(${1:start}, ${2:end})' },
+                    { label: 'toLowerCase()', insertText: 'toLowerCase()' },
+                    { label: 'toUpperCase()', insertText: 'toUpperCase()' },
+                    { label: 'trim()', insertText: 'trim()' },
+                    { label: 'toList(sep)', insertText: 'toList("${1:,}")' }
+                ],
+                list: [
+                    { label: 'add(val)', insertText: 'add(${1:val})' },
+                    { label: 'get(index)', insertText: 'get(${1:index})' },
+                    { label: 'size()', insertText: 'size()' },
+                    { label: 'contains(val)', insertText: 'contains(${1:val})' },
+                    { label: 'isEmpty()', insertText: 'isEmpty()' }
+                ],
+                map: [
+                    { label: 'put(key, val)', insertText: 'put("${1:key}", ${2:val})' },
+                    { label: 'get(key)', insertText: 'get("${1:key}")' },
+                    { label: 'getJSON(key)', insertText: 'getJSON("${1:key}")' },
+                    { label: 'keys()', insertText: 'keys()' },
+                    { label: 'remove(key)', insertText: 'remove("${1:key}")' }
+                ],
+                zoho: [
+                    { label: 'zoho.crm.getRecordById(module, id)', insertText: 'zoho.crm.getRecordById("${1:Leads}", ${2:id})' },
+                    { label: 'zoho.crm.updateRecord(module, id, map)', insertText: 'zoho.crm.updateRecord("${1:Leads}", ${2:id}, ${3:dataMap})' }
+                ]
+            };
+
+            // 1. JSON Autocomplete (if inside .get("") or .getJSON(""))
+            const jsonGetMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.get(JSON)?\("$/);
+            if (jsonGetMatch) {
+                const varName = jsonGetMatch[1];
+                const mappings = window.jsonMappings || {};
                 if (mappings[varName]) {
                     const obj = mappings[varName];
                     const keys = Object.keys(obj);
@@ -327,44 +344,3 @@ function registerDelugeLanguage() {
         }
     });
 }
-
-function jsonToDeluge(jsonStr, varName = 'dataMap') {
-    try {
-        const obj = JSON.parse(jsonStr);
-        let code = '';
-        function process(current, name) {
-            if (Array.isArray(current)) {
-                code += `${name} = List();\n`;
-                current.forEach((item, index) => {
-                    if (typeof item === 'object' && item !== null) {
-                        const subName = `${name}_item_${index}`;
-                        process(item, subName);
-                        code += `${name}.add(${subName});\n`;
-                    } else {
-                        const val = typeof item === 'string' ? `"${item}"` : item;
-                        code += `${name}.add(${val});\n`;
-                    }
-                });
-            } else if (typeof current === 'object' && current !== null) {
-                code += `${name} = Map();\n`;
-                for (let key in current) {
-                    const val = current[key];
-                    const safeKey = key.replace(/[^a-zA-Z0-9_]/g, '_');
-                    if (typeof val === 'object' && val !== null) {
-                        const subName = `${name}_${safeKey}`;
-                        process(val, subName);
-                        code += `${name}.put("${key}", ${subName});\n`;
-                    } else {
-                        const v = typeof val === 'string' ? `"${val}"` : val;
-                        code += `${name}.put("${key}", ${v});\n`;
-                    }
-                }
-            }
-        }
-        process(obj, varName);
-        return code;
-    } catch (e) {
-        return `// Error parsing JSON: ${e.message}`;
-    }
-}
-window.jsonToDeluge = jsonToDeluge;
