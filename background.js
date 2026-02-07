@@ -38,14 +38,8 @@ function openIDESidePanel() {
 }
 
 function broadcastToIDE(message) {
-    const ideUrl = chrome.runtime.getURL("ide.html");
-    chrome.tabs.query({}, (tabs) => {
-        tabs.forEach(tab => {
-            if (tab.url && tab.url.startsWith(ideUrl)) {
-                chrome.tabs.sendMessage(tab.id, message);
-            }
-        });
-    });
+    // Send to extension pages (IDE tab or side panel iframe)
+    chrome.runtime.sendMessage(message);
 }
 
 chrome.commands.onCommand.addListener((command) => {

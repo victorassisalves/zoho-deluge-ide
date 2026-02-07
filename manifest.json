@@ -19,7 +19,15 @@
     "https://generativelanguage.googleapis.com/*",
     "https://*.firebaseio.com/*",
     "https://*.googleapis.com/*",
-    "https://*.firebaseapp.com/*"
+    "https://*.firebaseapp.com/*",
+    "https://deluge.zoho.com/*",
+    "https://deluge.zoho.eu/*",
+    "https://deluge.zoho.in/*",
+    "https://deluge.zoho.com.au/*",
+    "https://deluge.zoho.jp/*",
+    "https://deluge.zoho.ca/*",
+    "https://deluge.zoho.uk/*",
+    "https://deluge.zoho.com.cn/*"
   ],
   "action": {
     "default_popup": "popup.html"
@@ -34,7 +42,15 @@
         "https://*.zoho.eu/*",
         "https://*.zoho.in/*",
         "https://*.zoho.com.au/*",
-        "https://*.zoho.jp/*"
+        "https://*.zoho.jp/*",
+        "https://deluge.zoho.com/*",
+        "https://deluge.zoho.eu/*",
+        "https://deluge.zoho.in/*",
+        "https://deluge.zoho.com.au/*",
+        "https://deluge.zoho.jp/*",
+        "https://deluge.zoho.ca/*",
+        "https://deluge.zoho.uk/*",
+        "https://deluge.zoho.com.cn/*"
       ],
       "js": [
         "content.js"
