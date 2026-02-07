@@ -88,18 +88,24 @@
                     </div>
                 </div>
 
+
                 <!-- Zoho APIs View -->
                 <div id="view-zoho-apis" class="view-content">
-                    <h4>Zoho Resources</h4>
-                    <div id="zoho-resources-list" style="font-size:12px;">
-                        <div style="opacity:0.6; padding:10px;">Quick reference for common methods. Use the Docs tab below for search.</div>
-                        <div class="resource-section"><h5>String</h5><ul><li>length()</li><li>subString()</li><li>indexOf()</li></ul></div>
-                        <div class="resource-section"><h5>List</h5><ul><li>add()</li><li>get()</li><li>size()</li></ul></div>
-                        <div class="resource-section"><h5>Map</h5><ul><li>put()</li><li>get()</li><li>keys()</li></ul></div>
+                    <h4>Zoho API Reference</h4>
+                    <div class="api-explorer-header">
+                        <select id="sidebar-api-product-selector" class="api-select">
+                            <option value="crm">Zoho CRM (V8)</option>
+                            <option value="books">Zoho Books (V3)</option>
+                            <option value="creator">Zoho Creator (V2.1)</option>
+                            <option value="recruit">Zoho Recruit (V2)</option>
+                        </select>
+                        <input type="text" id="sidebar-api-search" placeholder="Search APIs..." class="api-search-input">
+                    </div>
+                    <div id="sidebar-api-results-list" class="api-list">
+                        <!-- API references will be populated here -->
                     </div>
                 </div>
-
-                <!-- Snippets View -->
+<!-- Snippets View -->
                 <div id="view-snippets" class="view-content">
                     <h4>Deluge Snippets</h4>
                     <div class="snippets-container" style="font-size:12px;">
@@ -188,7 +194,31 @@
                             <div class="snippet-btn" data-snippet="return">return</div>
                             <div class="snippet-btn" data-snippet="info">info (debug)</div>
                         </div>
-                    </div>
+
+                        <div class="snippet-group">
+                            <h5>Date Manipulation</h5>
+                            <div class="snippet-btn" data-snippet="today">today</div>
+                            <div class="snippet-btn" data-snippet="now">now</div>
+                            <div class="snippet-btn" data-snippet="current_date">current date</div>
+                            <div class="snippet-btn" data-snippet="add_day">add day</div>
+                            <div class="snippet-btn" data-snippet="add_month">add month</div>
+                            <div class="snippet-btn" data-snippet="date_format">format date</div>
+                            <div class="snippet-btn" data-snippet="date_diff">date diff</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Loops & Flow</h5>
+                            <div class="snippet-btn" data-snippet="for_each_element">for each (list)</div>
+                            <div class="snippet-btn" data-snippet="for each">for each (form)</div>
+                            <div class="snippet-btn" data-snippet="while">while loop</div>
+                            <div class="snippet-btn" data-snippet="info">info</div>
+                            <div class="snippet-btn" data-snippet="info_var">info with var</div>
+                        </div>
+                        <div class="snippet-group">
+                            <h5>Advanced Integrations</h5>
+                            <div class="snippet-btn" data-snippet="coql">CRM COQL Query</div>
+                            <div class="snippet-btn" data-snippet="invoke_url">invokeurl (base)</div>
+                        </div>
+</div>
                 </div>
 
                 <!-- Extensions View -->
@@ -293,7 +323,7 @@
                 <div class="tab active" data-target="console-output">Console</div>
                 <div class="tab" data-target="problems-output">Problems</div>
                 <div class="tab" data-target="docs-output">Docs</div>
-                <div class="tab" data-target="api-explorer">API Explorer</div>
+
                 <div class="panel-actions">
                     <button id="clear-console">Clear</button>
                 </div>
@@ -313,39 +343,8 @@
                          <div class="resource-section"><h5>String Methods</h5><ul><li>length()</li><li>subString(start, end)</li><li>indexOf(str)</li><li>startsWith(prefix)</li><li>toLowerCase()</li><li>toUpperCase()</li><li>trim()</li><li>toList(delim)</li></ul></div><div class="resource-section"><h5>List Methods</h5><ul><li>add(val)</li><li>addAll(list)</li><li>get(index)</li><li>size()</li><li>isEmpty()</li><li>remove(index)</li><li>contains(val)</li></ul></div><div class="resource-section"><h5>Map Methods</h5><ul><li>put(key, val)</li><li>get(key)</li><li>getJSON(key)</li><li>keys()</li><li>remove(key)</li><li>clear()</li></ul></div>
                     </div>
                 </div>
-                <div id="api-explorer" class="panel-content">
-                    <div class="api-explorer-header">
-                        <select id="api-product-selector" class="api-select">
-                            <option value="crm">Zoho CRM</option>
-                            <option value="books">Zoho Books</option>
-                            <option value="creator">Zoho Creator</option>
-                            <option value="recruit">Zoho Recruit</option>
-                        </select>
-                        <input type="text" id="api-search" placeholder="Search APIs (e.g. get records)..." class="api-search-input">
-                    </div>
-                    <div id="api-results-list" class="api-list">
-                        <!-- API references will be populated here -->
-                    </div>
                 </div>
-            </div>
         </footer>
-    <style>
-        .api-explorer-header { display: flex; gap: 10px; padding: 10px; background: #252526; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 10; }
-        .api-select { background: #3c3c3c; color: white; border: 1px solid #555; padding: 4px; font-size: 12px; }
-        .api-search-input { flex: 1; background: #3c3c3c; color: white; border: 1px solid #555; padding: 4px 8px; font-size: 12px; }
-        .api-list { padding: 10px; }
-        .api-item { padding: 8px; border-bottom: 1px solid #333; cursor: pointer; transition: background 0.2s; }
-        .api-item:hover { background: #2a2d2e; }
-        .api-item-title { font-weight: bold; font-size: 12px; color: #50fa7b; display: block; }
-        .api-item-desc { font-size: 11px; color: #aaa; margin-top: 2px; display: block; }
-        .api-item-tag { font-size: 10px; background: #44475a; color: #f8f8f2; padding: 1px 4px; border-radius: 3px; margin-right: 5px; text-transform: uppercase; }
-
-        #problems-list .problem-item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #333; }
-        #problems-list .problem-item:hover { background: #2a2d2e; }
-        #problems-list .problem-severity-error { color: #ff5555; }
-        #problems-list .problem-severity-warning { color: #ffb86c; }
-        #problems-list .problem-loc { color: #888; font-size: 11px; margin-left: auto; }
-    </style>
 
         <div id="status-bar">
             <div class="status-left">

@@ -71,6 +71,25 @@
             case 'xpath': snippet = "${1:xml_var}.executeXPath(\"${2:xpath_expression}\")"; break; // No semicolon
 
             // Miscellaneous
+
+            // Date manipulation
+            case 'today': snippet = "today"; break;
+            case 'now': snippet = "zoho.currenttime"; break;
+            case 'current_date': snippet = "zoho.currentdate"; break;
+            case 'add_day': snippet = "${1:date_var}.addDay(${2:1})"; break;
+            case 'add_month': snippet = "${1:date_var}.addMonth(${2:1})"; break;
+            case 'add_year': snippet = "${1:date_var}.addYear(${2:1})"; break;
+            case 'date_format': snippet = "${1:date_var}.toString(\"${2:dd-MMM-yyyy}\")"; break;
+            case 'date_diff': snippet = "daysBetween(${1:start_date}, ${2:end_date})"; break;
+
+            // Info
+            case 'info_var': snippet = "info \"${1:Label}: \" + ${2:var};"; break;
+
+            // Loops
+            case 'while': snippet = "while(${1:condition})\n{\n\t$0\n}"; break;
+
+            // COQL
+            case 'coql': snippet = "query_map = Map();\nquery_map.put(\"select_query\", \"select ${1:Field1}, ${2:Field2} from ${3:Module} where ${4:Criteria}\");\nresponse = invokeurl\n[\n\turl: \"https://www.zohoapis.com/crm/v2/coql\"\n\ttype: POST\n\tparameters: query_map.toString()\n\tconnection: \"${5:crm_connection}\"\n];"; break;
             case 'variable': snippet = "${1:var} = ${2:value};"; break;
             case 'function': snippet = "thisapp.${1:function_name}($0);"; break;
             case 'mail': snippet = "sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: \"${1:recipient}\"\n\tsubject: \"${2:subject}\"\n\tmessage: \"${3:message}\"\n];"; break;

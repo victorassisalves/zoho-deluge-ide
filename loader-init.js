@@ -72,9 +72,10 @@ require(['vs/editor/editor.main'], async function() {
         await loadScript('deluge-lang.js');
 
         // Finally load main IDE logic
-        await loadScript('ide.js');
+
         await loadScript('snippet_logic.js');
         await loadScript('api_data.js');
+        await loadScript('ide.js');
         console.log('[ZohoIDE] ide.js, snippet_logic.js and api_data.js loaded.');
 
     } catch (err) {
