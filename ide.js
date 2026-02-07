@@ -89,9 +89,17 @@ function initEditor() {
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.get(['saved_deluge_code', 'theme', 'json_mappings'], (result) => {
+            chrome.storage.local.get(['saved_deluge_code', 'theme', 'json_mappings', 'left_panel_width'], (result) => {
                 if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
                 if (result.theme) monaco.editor.setTheme(result.theme);
+                                if (result.left_panel_width) {
+                    const leftPanel = document.getElementById('left-panel-content');
+                    if (leftPanel) {
+                        leftPanel.style.width = result.left_panel_width;
+                        leftPanel.style.setProperty('--left-sidebar-width', result.left_panel_width);
+                        setTimeout(() => { if (editor) editor.layout(); }, 100);
+                    }
+                }
                 if (result.json_mappings) {
                     jsonMappings = result.json_mappings;
                     window.jsonMappings = jsonMappings;
@@ -736,31 +744,58 @@ if (document.getElementById('docs-search')) {
     });
 }
 
-// Resizing Right Sidebar
+// Resizing Sidebars
 let isResizingRight = false;
+let isResizingLeft = false;
+
+document.getElementById('left-resizer')?.addEventListener('mousedown', (e) => {
+    isResizingLeft = true;
+    document.body.style.userSelect = 'none';
+    document.body.classList.add('resizing');
+});
+
 document.getElementById('right-sidebar-resizer')?.addEventListener('mousedown', (e) => {
     isResizingRight = true;
     document.body.style.userSelect = 'none';
+    document.body.classList.add('resizing');
 });
 
 window.addEventListener('mousemove', (e) => {
-    if (!isResizingRight) return;
-    const sidebar = document.getElementById('right-sidebar');
-    if (!sidebar) return;
-
-    const width = window.innerWidth - e.clientX;
-    if (width > 50 && width < 600) {
-        sidebar.classList.remove('collapsed');
-        const icon = document.getElementById('toggle-right-sidebar');
-        if (icon) icon.innerText = '▶';
-        sidebar.style.width = width + 'px';
-        if (editor) editor.layout();
+    if (isResizingRight) {
+        const sidebar = document.getElementById('right-sidebar');
+        if (!sidebar) return;
+        const width = window.innerWidth - e.clientX;
+        if (width > 50 && width < 600) {
+            sidebar.classList.remove('collapsed');
+            const icon = document.getElementById('toggle-right-sidebar');
+            if (icon) icon.innerText = '▶';
+            sidebar.style.width = width + 'px';
+            if (editor) editor.layout();
+        }
+    } else if (isResizingLeft) {
+        const leftPanel = document.getElementById('left-panel-content');
+        if (!leftPanel) return;
+        const sidebarWidth = document.getElementById('sidebar')?.offsetWidth || 48;
+        const width = e.clientX - sidebarWidth;
+        if (width > 150 && width < 600) {
+            leftPanel.style.width = width + 'px';
+            leftPanel.style.setProperty('--left-sidebar-width', width + 'px');
+            if (editor) editor.layout();
+        }
     }
 });
 
 window.addEventListener('mouseup', () => {
+    if (isResizingLeft) {
+        const leftPanel = document.getElementById('left-panel-content');
+        if (leftPanel && typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ 'left_panel_width': leftPanel.style.width });
+        }
+    }
     isResizingRight = false;
+    isResizingLeft = false;
     document.body.style.userSelect = 'auto';
+    document.body.classList.remove('resizing');
 });
 
 // JSON Search
