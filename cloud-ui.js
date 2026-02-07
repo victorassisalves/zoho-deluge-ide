@@ -53,7 +53,7 @@ const CloudUI = {
                     const orgDoc = await CloudService.db.collection('organizations').doc(this.activeOrgId).get();
                     document.getElementById('org-display').innerText = orgDoc.data().name;
 
-                                        this.loadTeams();
+                    this.loadTeams();
 
                     // Offer migration if no files exist
                     const files = await CloudService.getFilesByUrl(this.activeOrgId, window.zideProjectUrl || 'global');
@@ -70,9 +70,6 @@ const CloudUI = {
             }
         });
     },
-
-    // --- Auth Handlers ---
-
 
     async migrateLocalToCloud() {
         if (!editor) return;
@@ -95,19 +92,13 @@ const CloudUI = {
                 this.activeFileId = fileId;
                 window.activeCloudFileId = fileId;
 
-                await                     this.loadTeams();
-
-                    // Offer migration if no files exist
-                    const files = await CloudService.getFilesByUrl(this.activeOrgId, window.zideProjectUrl || 'global');
-                    if (files.length === 0) {
-                        this.migrateLocalToCloud();
-                    } // Refresh UI
+                await this.loadTeams(); // Refresh UI
                 showStatus('Migration complete!', 'success');
             } catch (err) {
                 alert('Migration failed: ' + err.message);
             }
         }
-    }
+    },
 
     async handleLogin() {
         const email = document.getElementById('auth-email').value;
@@ -205,13 +196,7 @@ const CloudUI = {
         const name = prompt('Team Name:');
         if (name) {
             await CloudService.createTeam(this.activeOrgId, name);
-                                this.loadTeams();
-
-                    // Offer migration if no files exist
-                    const files = await CloudService.getFilesByUrl(this.activeOrgId, window.zideProjectUrl || 'global');
-                    if (files.length === 0) {
-                        this.migrateLocalToCloud();
-                    }
+            this.loadTeams();
         }
     },
 
@@ -266,23 +251,21 @@ const CloudUI = {
                 showStatus('Cloud File Loaded');
             }
         }
+    },
+
+    async checkForCloudFiles(url) {
+        if (!this.activeOrgId || url === 'global') return;
+        try {
+            const files = await CloudService.getFilesByUrl(this.activeOrgId, url);
+            if (files.length > 0) {
+                showStatus(files.length + ' cloud file(s) found for this URL', 'info');
+                this.renderFileList(files);
+            }
+        } catch (err) {
+            console.error('Error checking cloud files:', err);
+        }
     }
 };
 
 // Initialize
 CloudUI.init();
-
-CloudUI.checkForCloudFiles = async function(url) {
-    if (!this.activeOrgId || url === 'global') return;
-    try {
-        const files = await CloudService.getFilesByUrl(this.activeOrgId, url);
-        if (files.length > 0) {
-            showStatus(files.length + ' cloud file(s) found for this URL', 'info');
-            this.renderFileList(files);
-            // Switch to Cloud panel to show the user?
-            // document.querySelector('[data-view="cloud"]').click();
-        }
-    } catch (err) {
-        console.error('Error checking cloud files:', err);
-    }
-};

@@ -54,7 +54,6 @@ function initEditor() {
         });
 
         editor = monaco.editor.create(container, {
-        window.editor = editor;
             value: '// Start coding in Zoho Deluge...\n\n',
             language: 'deluge',
             theme: 'dracula',
@@ -68,6 +67,8 @@ function initEditor() {
             cursorStyle: 'line',
             glyphMargin: true
         });
+        window.editor = editor;
+
 
         // Keyboard Shortcuts
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => { saveLocally(); });
@@ -555,6 +556,12 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 
 function saveLocally() {
 
+    const code = editor.getValue();
+    const timestamp = new Date().toLocaleString();
+    const title = 'Script ' + new Date().toLocaleTimeString();
+    const source = window.currentTargetTab?.tabTitle || 'Local Editor';
+    const vars = extractVarsFromCode(code);
+    const projectUrl = zideProjectUrl || 'global';
     // Cloud Sync
     if (window.activeCloudFileId && typeof CloudService !== 'undefined') {
         CloudService.saveFile(window.activeCloudFileId, {
@@ -568,12 +575,6 @@ function saveLocally() {
         });
     }
 
-    const code = editor.getValue();
-    const timestamp = new Date().toLocaleString();
-    const title = 'Script ' + new Date().toLocaleTimeString();
-    const source = window.currentTargetTab?.tabTitle || 'Local Editor';
-    const vars = extractVarsFromCode(code);
-    const projectUrl = zideProjectUrl || 'global';
 
     if (typeof chrome !== "undefined" && chrome.storage) {
         chrome.storage.local.get(['saved_files', 'last_project_code'], (result) => {

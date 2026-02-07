@@ -1,11 +1,12 @@
-// Firebase Configuration - Replace with your own config
+// Firebase Configuration
 var firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAw7uHwBNip9AMCV0StlxdBs6iVsU7hgJo",
+  authDomain: "draken-productivity-hub.firebaseapp.com",
+  projectId: "draken-productivity-hub",
+  storageBucket: "draken-productivity-hub.firebasestorage.app",
+  messagingSenderId: "82588074929",
+  appId: "1:82588074929:web:d66178d668f2df6b3e3390",
+  measurementId: "G-RPCJN8Y1K9"
 };
 
 // Initialize Firebase

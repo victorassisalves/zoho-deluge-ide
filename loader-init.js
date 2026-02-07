@@ -41,6 +41,10 @@ require(['vs/editor/editor.main'], async function() {
     console.log('[ZohoIDE] Monaco Core loaded.');
 
     try {
+        // Temporarily disable AMD define to avoid conflicts with Firebase SDKs
+        const originalDefine = window.define;
+        window.define = undefined;
+
         // Load Firebase
         await loadScript('assets/firebase-app-compat.js');
         await loadScript('assets/firebase-auth-compat.js');
@@ -48,7 +52,10 @@ require(['vs/editor/editor.main'], async function() {
         await loadScript('firebase-config.js');
         await loadScript('cloud-service.js');
         await loadScript('cloud-ui.js');
-        console.log('[ZohoIDE] Firebase SDKs loaded.');
+
+        // Restore define
+        window.define = originalDefine;
+        console.log('[ZohoIDE] Firebase SDKs and Cloud UI loaded.');
 
         // Load Deluge Language
         await loadScript('deluge-lang.js');
