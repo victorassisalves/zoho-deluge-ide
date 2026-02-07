@@ -1,6 +1,42 @@
 // Background script for Zoho Deluge IDE
 
 let lastZohoTabId = null;
+
+function openIDETab() {
+    const ideUrl = chrome.runtime.getURL('ide.html');
+    chrome.tabs.query({}, (tabs) => {
+        const existingTab = tabs.find(t => t.url && t.url.startsWith(ideUrl));
+        if (existingTab) {
+            chrome.tabs.update(existingTab.id, { active: true });
+            chrome.windows.update(existingTab.windowId, { focused: true });
+        } else {
+            chrome.tabs.create({ url: ideUrl });
+        }
+    });
+}
+
+function openIDESidePanel() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (activeTabs) => {
+        const activeTab = activeTabs[0];
+        if (activeTab && isZohoUrl(activeTab.url)) {
+            chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    chrome.scripting.executeScript({
+                        target: { tabId: activeTab.id },
+                        files: ['content.js']
+                    }).then(() => {
+                        setTimeout(() => {
+                            chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' });
+                        }, 500);
+                    });
+                }
+            });
+        } else {
+            openIDETab();
+        }
+    });
+}
+
 function broadcastToIDE(message) {
     const ideUrl = chrome.runtime.getURL("ide.html");
     chrome.tabs.query({}, (tabs) => {
@@ -19,31 +55,20 @@ chrome.commands.onCommand.addListener((command) => {
         broadcastToIDE({ action: "CMD_SYNC_SAVE_EXECUTE" });
     } else if (command === "pull-code") {
         broadcastToIDE({ action: "CMD_PULL_CODE" });
-    } else if (command === "open-ide") {
-        const ideUrl = chrome.runtime.getURL('ide.html');
-        chrome.tabs.query({}, (tabs) => {
-            const existingTab = tabs.find(t => t.url && t.url.startsWith(ideUrl));
-            if (existingTab) {
-                chrome.tabs.update(existingTab.id, { active: true });
-                chrome.windows.update(existingTab.windowId, { focused: true });
-            } else {
-                chrome.tabs.create({ url: ideUrl });
-            }
-        });
-    } else if (command === "open-integrated") {
-        chrome.tabs.query({ active: true, currentWindow: true }, (activeTabs) => {
-            const activeTab = activeTabs[0];
-            if (activeTab && isZohoUrl(activeTab.url)) {
-                chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' }, (response) => {
-                    if (chrome.runtime.lastError) {
-                        chrome.scripting.executeScript({
-                            target: { tabId: activeTab.id },
-                            files: ['content.js']
-                        }).then(() => {
-                            setTimeout(() => {
-                                chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' });
-                            }, 500);
-                        });
+    } else if (command === "activate-ide") {
+        chrome.storage.local.get(['activation_behavior'], (result) => {
+            const behavior = result.activation_behavior || 'new-tab';
+            if (behavior === 'new-tab') {
+                openIDETab();
+            } else if (behavior === 'side-panel') {
+                openIDESidePanel();
+            } else if (behavior === 'smart') {
+                chrome.tabs.query({ active: true, currentWindow: true }, (activeTabs) => {
+                    const activeTab = activeTabs[0];
+                    if (activeTab && isZohoUrl(activeTab.url)) {
+                        openIDESidePanel();
+                    } else {
+                        openIDETab();
                     }
                 });
             }
@@ -75,7 +100,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'OPEN_ZOHO_EDITOR') {
         const handleOpen = (tabId) => {
             chrome.tabs.update(tabId, { active: true });
-            chrome.windows.update(sender.tab ? sender.tab.windowId : tabId, { focused: true }); // focused true if possible
+            chrome.windows.update(sender.tab ? sender.tab.windowId : tabId, { focused: true });
             chrome.scripting.executeScript({
                 target: { tabId: tabId },
                 func: () => {
@@ -172,7 +197,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 function findZohoTab(callback) {
-    // Note: To find incognito tabs, extension must have "allow in incognito" enabled.
     chrome.tabs.query({}, (allTabs) => {
         const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url));
         if (zohoTabs.length === 0) {
