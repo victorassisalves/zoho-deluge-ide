@@ -115,22 +115,26 @@ function registerDelugeLanguage() {
                 endLineNumber: position.lineNumber, endColumn: position.column
             });
             const code = model.getValue();
+            const word = model.getWordUntilPosition(position);
             const range = {
-                startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
-                startColumn: position.column, endColumn: position.column
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
             };
-
             const staticSuggestions = [
                 { label: 'Map()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'Map()' },
                 { label: 'List()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'List()' },
-                { label: 'info', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'info ' },
+                { label: 'info', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'info $0', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
                 { label: 'return', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'return ' },
                 { label: 'if', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'if (${1:condition}) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+                { label: 'if else', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'if (${1:condition}) {\n\t$2\n} else {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
                 { label: 'for each', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'for each ${1:var} in ${2:list} {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+                { label: 'try catch', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'try {\n\t$1\n} catch (${2:err}) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+                { label: 'void function', kind: monaco.languages.CompletionItemKind.Function, insertText: 'void ${1:name}($2) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
                 { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Function, insertText: 'invokeurl\n[\n\turl: "$1"\n\ttype: ${2|GET,POST,PUT,DELETE|}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }
             ];
-
-            const typeMethods = {
+            ];
                 string: [
                     { label: 'length()', insertText: 'length()' },
                     { label: 'subString(start, end)', insertText: 'subString(${1:start}, ${2:end})' },
@@ -165,8 +169,8 @@ function registerDelugeLanguage() {
                 ]
             };
 
-            // 1. JSON Autocomplete (if inside .get("") or .getJSON(""))
-            const interfaceGetMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.get(JSON)?\("$/);
+                        // 1. JSON Autocomplete (if inside .get("") or .getJSON(""))
+            const interfaceGetMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)(?:\.get(?:JSON)?\(.*?\))*\.get(?:JSON)?\("([^"]*)$/);
             const interfaceDotMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.$/);
 
             if (interfaceGetMatch || interfaceDotMatch) {
@@ -185,7 +189,8 @@ function registerDelugeLanguage() {
                             kind: kind,
                             detail: `Key from ${varName} (${typeof val})`,
                             insertText: interfaceDotMatch ? `get("${key}")` : key,
-                            range: range
+                            range: range,
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
                         };
                     });
 
@@ -205,8 +210,8 @@ function registerDelugeLanguage() {
                     return { suggestions };
                 }
             }
+            }
 
-            // 2. Method Autocomplete
             const match = lineUntilPos.match(/([a-zA-Z0-9_]+)\.$/);
             if (match) {
                 const varName = match[1];
@@ -294,21 +299,34 @@ function registerDelugeLanguage() {
         return null;
     }
 
+
     function extractVariables(code) {
         const vars = [];
-        const seen = new Set();
+        const seen = new Set(['if', 'for', 'else', 'return', 'try', 'catch', 'while', 'void', 'int', 'string', 'map', 'list', 'boolean', 'decimal', 'date', 'datetime']);
         const types = getVarTypes(code);
 
+        // 1. Assignments: var = ...
         const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
         let match;
         while ((match = assignmentRegex.exec(code)) !== null) {
             const name = match[1];
-            if (!seen.has(name) && !['if', 'for', 'else', 'return', 'try', 'catch', 'while'].includes(name)) {
+            if (!seen.has(name)) {
                 vars.push({ name, type: types.get(name) || null });
                 seen.add(name);
             }
         }
 
+        // 2. Catch blocks: catch(err)
+        const catchRegex = /catch\s*\(\s*([a-zA-Z0-9_]+)\s*\)/g;
+        while ((match = catchRegex.exec(code)) !== null) {
+            const name = match[1];
+            if (!seen.has(name)) {
+                vars.push({ name, type: 'Map' });
+                seen.add(name);
+            }
+        }
+
+        // 3. For each: for each var in ...
         const forEachRegex = /for each\s+([a-zA-Z0-9_]+)\s+in/g;
         while ((match = forEachRegex.exec(code)) !== null) {
             const name = match[1];
@@ -318,21 +336,27 @@ function registerDelugeLanguage() {
             }
         }
 
+        // 4. Function parameters: void test(int rec_id)
         const funcRegex = /([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
         while ((match = funcRegex.exec(code)) !== null) {
-            const args = match[2].split(',');
-            args.forEach(arg => {
-                const trimmed = arg.trim();
-                if (trimmed && !seen.has(trimmed)) {
-                    vars.push({ name: trimmed, type: null });
-                    seen.add(trimmed);
-                }
-            });
+            const argsText = match[2];
+            if (argsText) {
+                const args = argsText.split(',');
+                args.forEach(arg => {
+                    const trimmed = arg.trim();
+                    if (!trimmed) return;
+                    const parts = trimmed.split(/\s+/);
+                    const name = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+                    if (name && !seen.has(name)) {
+                        vars.push({ name: name, type: parts.length > 1 ? parts[0] : null });
+                        seen.add(name);
+                    }
+                });
+            }
         }
 
         return vars;
     }
-
     monaco.editor.onDidCreateModel((model) => {
         if (model.getLanguageId() === 'deluge') {
             const validate = () => {

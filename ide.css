@@ -865,14 +865,19 @@ body.resizing { cursor: ew-resize !important; }
     border-bottom: 1px solid #333;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
-.header-top {
+.header-row {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+}
+
+.icons-row {
     justify-content: flex-start;
     gap: 8px;
+    padding-top: 2px;
 }
 
 .header-title {
@@ -887,14 +892,13 @@ body.resizing { cursor: ew-resize !important; }
     flex-grow: 1;
 }
 
-#add-interface-btn {
+.sidebar-btn {
     background: #3a3d41;
     color: #ccc;
     border: 1px solid #45494e;
     border-radius: 3px;
     cursor: pointer;
-    padding: 2px 8px;
-    font-size: 14px;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -904,20 +908,22 @@ body.resizing { cursor: ew-resize !important; }
     flex-shrink: 0;
 }
 
-#add-interface-btn:hover {
+.sidebar-btn:hover {
     background: #45494e;
     color: white;
     border-color: #007acc;
 }
 
-#toggle-right-sidebar {
-    color: #888;
-    transition: color 0.2s;
-    font-size: 12px;
+.sidebar-btn svg {
+    transition: transform 0.2s;
 }
 
-#toggle-right-sidebar:hover {
-    color: white;
+#right-sidebar.collapsed #toggle-right-sidebar svg {
+    transform: rotate(180deg);
+}
+
+#add-interface-btn {
+    font-size: 14px;
 }
 html.sidepanel-mode .resizer {
     background: #444;
