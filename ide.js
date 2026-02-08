@@ -327,9 +327,12 @@ function setupEventHandlers() {
             const codeContext = editor.getValue();
             const prompt = `Task for Deep Research: ${goal}\n\nCurrent Code Context:\n` + "```deluge\n" + codeContext + "\n```\n" + `Please research the best approach to solve this task, considering Zoho environment limitations and best practices. Provide a detailed architecture and scope.`;
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions?key=${result.gemini_api_key}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": result.gemini_api_key
+                },
                 body: JSON.stringify({
                     input: prompt,
                     agent: "deep-research-pro-preview-12-2025",
@@ -356,7 +359,9 @@ function setupEventHandlers() {
 
         researchPollingInterval = setInterval(async () => {
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions/${id}?key=${apiKey}`);
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions/${id}`, {
+                    headers: { "x-goog-api-key": apiKey }
+                });
                 const data = await response.json();
 
                 if (progress < 90) {
@@ -424,7 +429,7 @@ function setupEventHandlers() {
 
     bind('save-settings-btn', 'click', () => {
         const key = document.getElementById('gemini-api-key').value;
-        const model = document.getElementById('ai-model-selector').value;
+        const model = document.getElementById('gemini-model').value;
         if (typeof chrome !== "undefined" && chrome.storage) {
             chrome.storage.local.set({ 'gemini_api_key': key, 'gemini_model': model, 'activation_behavior': document.getElementById('activation-behavior').value }, () => {
                 log('Success', 'Settings saved.');
@@ -946,7 +951,7 @@ async function askGemini(customPrompt = null) {
             aiMsg.innerText = "Error: Please set your Gemini API Key in Settings.";
             return;
         }
-        const model = document.getElementById("ai-model-selector")?.value || result.gemini_model || "gemini-3-flash-preview";
+        const model = document.getElementById("gemini-model")?.value || result.gemini_model || "gemini-3-flash-preview";
         try {
             const codeContext = editor.getValue();
             let prompt = `You are a Zoho expert specializing in Deluge and Client Scripts.
