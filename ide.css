@@ -1077,3 +1077,109 @@ html.sidepanel-mode .resizer {
 #problems-list .problem-severity-error { color: #ff5555; }
 #problems-list .problem-severity-warning { color: #ffb86c; }
 #problems-list .problem-loc { color: #888; font-size: 11px; margin-left: auto; }
+
+/* AI Agent Tabs */
+.ai-agent-tabs {
+    display: flex;
+    border-bottom: 1px solid #333;
+    margin-bottom: 10px;
+}
+.ai-tab {
+    flex: 1;
+    padding: 8px;
+    text-align: center;
+    font-size: 12px;
+    cursor: pointer;
+    color: #888;
+    transition: all 0.2s;
+}
+.ai-tab:hover {
+    background: #2a2d2e;
+    color: #ccc;
+}
+.ai-tab.active {
+    color: #50fa7b;
+    border-bottom: 2px solid #50fa7b;
+    background: #252526;
+}
+
+.agent-view {
+    display: none;
+    flex-direction: column;
+    height: calc(100% - 40px);
+}
+.agent-view.active {
+    display: flex;
+}
+
+/* Progress Bar */
+.progress-bar-bg {
+    width: 100%;
+    height: 8px;
+    background: #333;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.progress-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: #50fa7b;
+    transition: width 0.3s ease;
+}
+.progress-label {
+    font-size: 11px;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Report Editor */
+.report-editor {
+    width: 100%;
+    height: 250px;
+    background: #1e1e1e;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 10px;
+    font-size: 12px;
+    font-family: inherit;
+    margin-top: 5px;
+    resize: vertical;
+}
+
+.handoff-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+.primary-btn {
+    flex: 1;
+    background: #007acc;
+    color: white;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.secondary-btn {
+    flex: 1;
+    background: #444;
+    color: white;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.plan-summary-box {
+    background: #2a2d2e;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    margin-bottom: 10px;
+    border-left: 3px solid #50fa7b;
+    max-height: 80px;
+    overflow-y: auto;
+}
