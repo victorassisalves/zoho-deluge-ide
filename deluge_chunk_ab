@@ -1,0 +1,100 @@
+            while ((pMatch = funcParamRegex.exec(code)) !== null) {
+                const params = pMatch[1].split(',');
+                params.forEach(p => {
+                    const parts = p.trim().split(/\s+/);
+                    if (parts.length > 0) {
+                        const paramName = parts[parts.length - 1].trim();
+                        if (paramName) definedVars.add(paramName);
+                    }
+                });
+            }
+
+            // Extract variables from catch blocks
+            const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
+            while ((pMatch = catchRegex.exec(code)) !== null) {
+                definedVars.add(pMatch[1]);
+            }
+            const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
+            let match;
+            while ((match = assignmentRegex.exec(code)) !== null) {
+                definedVars.add(match[1]);
+            }
+            const forEachRegex = /for\s+each\s+([a-zA-Z0-9_]+)\s+in/gi;
+            while ((match = forEachRegex.exec(code)) !== null) {
+                definedVars.add(match[1]);
+            }
+            const forRegex = /for\s+([a-zA-Z0-9_]+)\s+in/gi;
+            while ((match = forRegex.exec(code)) !== null) {
+                definedVars.add(match[1]);
+            }
+
+            const mandatoryParams = {
+                'zoho.crm.getRecordById': 2,
+                'zoho.crm.createRecord': 2,
+                'zoho.crm.updateRecord': 3,
+                'zoho.crm.searchRecords': 2,
+                'zoho.books.getRecords': 2,
+                'zoho.books.createRecord': 3,
+                'zoho.recruit.getRecordById': 2,
+                'zoho.creator.getRecords': 4,
+                'zoho.creator.createRecord': 4
+            };
+
+            lines.forEach((line, i) => {
+                const trimmed = line.trim();
+                if (trimmed.length === 0) return;
+
+                // Comment handling
+                if (trimmed.startsWith('//')) return;
+                if (trimmed.startsWith('/*')) {
+                    if (!trimmed.includes('*/')) inCommentBlock = true;
+                    return;
+                }
+                if (inCommentBlock) {
+                    if (trimmed.includes('*/')) inCommentBlock = false;
+                    return;
+                }
+
+                // Count brackets for current line and global balance
+                openBraces += (trimmed.match(/\{/g) || []).length;
+                openBraces -= (trimmed.match(/\}/g) || []).length;
+                openBrackets += (trimmed.match(/\[/g) || []).length;
+                openBrackets -= (trimmed.match(/\]/g) || []).length;
+                openParens += (trimmed.match(/\(/g) || []).length;
+                openParens -= (trimmed.match(/\)/g) || []).length;
+
+                const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'break', 'continue', 'return', 'info', 'invokeurl'];
+                const startsWithKeyword = skipKeywords.some(kw => {
+                    const regex = new RegExp('^' + kw + '(\\s|\\(|$)', 'i');
+                    return regex.test(trimmed);
+                });
+                const endsWithSpecial = trimmed.endsWith('{') || trimmed.endsWith('}') || trimmed.endsWith(';') || trimmed.endsWith(':') || trimmed.endsWith(',') || trimmed.endsWith('(') || trimmed.endsWith('[');
+
+                // Semicolon check
+                if (!endsWithSpecial && !startsWithKeyword && openBrackets === 0 && openBraces === 0 && openParens === 0) {
+                    markers.push({
+                        message: 'Missing semicolon',
+                        severity: monaco.MarkerSeverity.Error,
+                        startLineNumber: i + 1, startColumn: line.length + 1,
+                        endLineNumber: i + 1, endColumn: line.length + 2,
+                        code: 'missing-semicolon'
+                    });
+                }
+
+                // Undefined variable check (Simple heuristic)
+                const words = trimmed.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
+                words.forEach(word => {
+                    if (skipKeywords.includes(word)) return;
+                    if (definedVars.has(word)) return;
+
+                    // Check if it's followed by ( or . (might be a function/namespace)
+                    const index = line.indexOf(word);
+                    const restOfLine = line.substring(index + word.length).trim();
+                    if (restOfLine.startsWith('(') || restOfLine.startsWith('.') || restOfLine.startsWith(':')) return;
+
+                    // Check if it's part of a string
+                    // (Simplified check: if it's between quotes on same line)
+                    const before = line.substring(0, index);
+                    const after = line.substring(index + word.length);
+                    if ((before.match(/"/g) || []).length % 2 === 1 && (after.match(/"/g) || []).length % 2 === 1) return;
+                    if ((before.match(/'/g) || []).length % 2 === 1 && (after.match(/'/g) || []).length % 2 === 1) return;

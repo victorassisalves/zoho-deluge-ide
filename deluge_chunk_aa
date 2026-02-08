@@ -1,0 +1,100 @@
+(function() {
+    function registerDeluge() {
+        if (window.delugeRegistered) return;
+        window.delugeRegistered = true;
+
+        monaco.languages.register({ id: 'deluge' });
+
+        monaco.languages.setLanguageConfiguration('deluge', {
+            comments: {
+                lineComment: '//',
+                blockComment: ['/*', '*/'],
+            },
+            brackets: [
+                ['{', '}'],
+                ['[', ']'],
+                ['(', ')'],
+            ],
+            autoClosingPairs: [
+                { open: '{', close: '}' },
+                { open: '[', close: ']' },
+                { open: '(', close: ')' },
+                { open: '"', close: '"' },
+                { open: "'", close: "'" },
+            ],
+            surroundingPairs: [
+                { open: '{', close: '}' },
+                { open: '[', close: ']' },
+                { open: '(', close: ')' },
+                { open: '"', close: '"' },
+                { open: "'", close: "'" },
+            ],
+        });
+
+
+        monaco.languages.setMonarchTokensProvider('deluge', {
+            tokenizer: {
+                root: [
+                    // Functions
+                    [/[a-zA-Z_][\w]*\s*(?=\()/, 'function'],
+
+                    // Map Keys
+                    [/[a-zA-Z_]\w*(?=\s*:)/, 'key'],
+
+                    // Constants (UPPERCASE)
+                    [/[A-Z][A-Z_0-9]*/, 'identifier'],
+
+                    // Identifiers and Keywords
+                    [/[a-z_$][\w$]*/, {
+                        cases: {
+                            'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|void|string|int|decimal|boolean|map|list': 'keyword',
+                            'zoho|thisapp|standalone|input': 'type', 'invokeurl': 'identifier', '@default': 'variable'
+                        }
+                    }],
+
+                    [/[{}()\[\]]/, '@brackets'],
+                    [/[<>!=]=?/, 'operator'],
+                    [/[+\-*\/%]/, 'operator'],
+                    [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
+                    [/\d+/, 'number'],
+                    [/[;,.]/, 'delimiter'],
+                    [/"([^"\\]|\\.)*"/, 'string'],
+                    [/'([^'\\]|\\.)*'/, 'string'],
+                    [/\/\/.*$/, 'comment'],
+                    [/\/\*/, 'comment', '@comment'],
+                ],
+                comment: [
+                    [/[^\/*]+/, 'comment'],
+                    [/\*\//, 'comment', '@pop'],
+                    [/[\/*]/, 'comment']
+                ],
+            },
+        });
+
+        // Validation logic
+        function inferVarType(varName, code) {
+            const mapRegex = new RegExp(varName + "\\s*=\\s*Map\\(\\)", "i");
+            if (mapRegex.test(code)) return "Map";
+            const listRegex = new RegExp(varName + "\\s*=\\s*List\\(\\)", "i");
+            if (listRegex.test(code)) return "List";
+            return null;
+        }
+
+
+        function validateModel(model) {
+            if (!model || model.getLanguageId() !== 'deluge') return;
+            const markers = [];
+            const lines = model.getLinesContent();
+            const code = model.getValue();
+
+            let openBraces = 0;
+            let openBrackets = 0;
+            let openParens = 0;
+            let inCommentBlock = false;
+
+            // 1. Collect defined variables
+            const definedVars = new Set(['input', 'zoho', 'thisapp', 'standalone', 'today', 'now', 'invokeurl']);
+
+            // Extract parameters from function signatures
+            const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
+            let pMatch;

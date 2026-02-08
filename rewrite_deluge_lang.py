@@ -1,4 +1,6 @@
-(function() {
+import sys
+
+content = r"""(function() {
     function registerDeluge() {
         if (window.delugeRegistered) return;
         window.delugeRegistered = true;
@@ -481,3 +483,7 @@
         window.addEventListener('monacoReady', registerDeluge);
     }
 })();
+"""
+
+with open('deluge-lang.js', 'w') as f:
+    f.write(content)
