@@ -32,9 +32,14 @@
         });
 
 
-        monaco.languages.setMonarchTokensProvider('deluge', {
+                monaco.languages.setMonarchTokensProvider('deluge', {
+            ignoreCase: true,
             tokenizer: {
                 root: [
+                    // Comments
+                    [/\/\*/, 'comment', '@comment'],
+                    [/\/\//, 'comment', '@lineComment'],
+
                     // Functions
                     [/[a-zA-Z_][\w]*\s*(?=\()/, 'function'],
 
@@ -47,8 +52,8 @@
                     // Identifiers and Keywords
                     [/[a-z_$][\w$]*/, {
                         cases: {
-                            'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|void|string|int|decimal|boolean|map|list': 'keyword',
-                            'zoho|thisapp|standalone|input': 'type', 'invokeurl': 'identifier', '@default': 'variable'
+                            'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|null|true|false': 'keyword',
+                            'void|string|int|decimal|boolean|map|list|zoho|thisapp|standalone|input|post|get|put|delete|patch': 'type', 'invokeurl': 'identifier', '@default': 'variable'
                         }
                     }],
 
@@ -60,14 +65,19 @@
                     [/[;,.]/, 'delimiter'],
                     [/"([^"\\]|\\.)*"/, 'string'],
                     [/'([^'\\]|\\.)*'/, 'string'],
-                    [/\/\/.*$/, 'comment'],
-                    [/\/\*/, 'comment', '@comment'],
                 ],
                 comment: [
-                    [/[^\/*]+/, 'comment'],
+                    [/@\w+/, 'annotation'],
+                    [/[^\/*@]+/, 'comment'],
                     [/\*\//, 'comment', '@pop'],
-                    [/[\/*]/, 'comment']
+                    [/[\/*@]/, 'comment']
                 ],
+                lineComment: [
+                    [/@\w+/, 'annotation'],
+                    [/[^@\n]+/, 'comment'],
+                    [/$/, '@pop'],
+                    [/@/, 'comment']
+                ]
             },
         });
 
@@ -93,10 +103,10 @@
             let inCommentBlock = false;
 
             // 1. Collect defined variables
-            const definedVars = new Set(['input', 'zoho', 'thisapp', 'standalone', 'today', 'now', 'invokeurl']);
+            const definedVars = new Set(['input', 'zoho', 'thisapp', 'standalone', 'today', 'now', 'invokeurl', 'post', 'get', 'put', 'delete', 'patch']);
 
             // Extract parameters from function signatures
-            const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
+            const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list|collection|file)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
             let pMatch;
             while ((pMatch = funcParamRegex.exec(code)) !== null) {
                 const params = pMatch[1].split(',');
@@ -104,7 +114,7 @@
                     const parts = p.trim().split(/\s+/);
                     if (parts.length > 0) {
                         const paramName = parts[parts.length - 1].trim();
-                        if (paramName) definedVars.add(paramName);
+                        if (paramName) definedVars.add(paramName.toLowerCase());
                     }
                 });
             }
@@ -112,20 +122,20 @@
             // Extract variables from catch blocks
             const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
             while ((pMatch = catchRegex.exec(code)) !== null) {
-                definedVars.add(pMatch[1]);
+                definedVars.add(pMatch[1].toLowerCase());
             }
             const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
             let match;
             while ((match = assignmentRegex.exec(code)) !== null) {
-                definedVars.add(match[1]);
+                definedVars.add(match[1].toLowerCase());
             }
             const forEachRegex = /for\s+each\s+([a-zA-Z0-9_]+)\s+in/gi;
             while ((match = forEachRegex.exec(code)) !== null) {
-                definedVars.add(match[1]);
+                definedVars.add(match[1].toLowerCase());
             }
             const forRegex = /for\s+([a-zA-Z0-9_]+)\s+in/gi;
             while ((match = forRegex.exec(code)) !== null) {
-                definedVars.add(match[1]);
+                definedVars.add(match[1].toLowerCase());
             }
 
             const mandatoryParams = {
@@ -163,7 +173,7 @@
                 openParens += (trimmed.match(/\(/g) || []).length;
                 openParens -= (trimmed.match(/\)/g) || []).length;
 
-                const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'break', 'continue', 'return', 'info', 'invokeurl'];
+                const skipKeywords = ['if', 'for', 'each', 'in', 'else', 'try', 'catch', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'break', 'continue', 'return', 'info', 'invokeurl', 'null', 'true', 'false', 'post', 'get', 'put', 'delete', 'patch'];
                 const startsWithKeyword = skipKeywords.some(kw => {
                     const regex = new RegExp('^' + kw + '(\\s|\\(|$)', 'i');
                     return regex.test(trimmed);
@@ -183,9 +193,10 @@
 
                 // Undefined variable check (Simple heuristic)
                 const words = trimmed.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
+                const lowerSkipKeywords = skipKeywords.map(kw => kw.toLowerCase());
                 words.forEach(word => {
-                    if (skipKeywords.includes(word)) return;
-                    if (definedVars.has(word)) return;
+                    if (lowerSkipKeywords.includes(word.toLowerCase())) return;
+                    if (definedVars.has(word.toLowerCase())) return;
 
                     // Check if it's followed by ( or . (might be a function/namespace)
                     const index = line.indexOf(word);

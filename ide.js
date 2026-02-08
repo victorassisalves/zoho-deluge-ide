@@ -29,6 +29,7 @@ function initEditor() {
             inherit: true,
             rules: [
                 { token: 'comment', foreground: '6272a4' },
+                { token: 'annotation', foreground: 'ff79c6', fontStyle: 'bold' },
                 { token: 'keyword', foreground: 'ff79c6' },
                 { token: 'number', foreground: 'bd93f9' },
                 { token: 'string', foreground: 'f1fa8c' },
