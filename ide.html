@@ -75,15 +75,52 @@
                 </div>
 
                 <!-- AI Agent View -->
-                <div id="view-ai-agent" class="view-content">
-                    <h4>AI Agent (Gemini)</h4>
-                    <div id="ai-chat-container">
-                        <div id="ai-chat-history">
-                            <div class="chat-msg ai">Hello! I can help you with Deluge methods or explain your code. Make sure to add your Gemini API Key in Settings.</div>
-                        </div>
+                                <div id="view-ai-agent" class="view-content">
+                    <div class="ai-agent-tabs">
+                        <div class="ai-tab active" data-agent="planning">Planning</div>
+                        <div class="ai-tab" data-agent="architecture">Architecture</div>
+                    </div>
+
+                    <!-- Planning Agent -->
+                    <div id="agent-planning-view" class="agent-view active">
+                        <h4>Planning Agent (Deep Research)</h4>
                         <div class="ai-input-area">
-                            <textarea id="ai-question" placeholder="Ask about code or methods... (Ctrl+Enter to send)"></textarea>
-                            <button id="ai-ask-btn">Ask Gemini</button>
+                            <textarea id="ai-research-goal" placeholder="Describe the task for deep research... (Ctrl+Enter to start)"></textarea>
+                            <div class="ai-controls">
+                                <button id="ai-research-btn">Start Research</button>
+                            </div>
+                        </div>
+                        <div id="research-progress-container" style="display:none; margin-top:10px;">
+                            <div class="progress-label">Researching... <span id="research-percent">0%</span></div>
+                            <div class="progress-bar-bg">
+                                <div id="research-progress-fill" class="progress-bar-fill"></div>
+                            </div>
+                            <div id="research-status-text" style="font-size:10px; color:#aaa; margin-top:4px;">Initializing...</div>
+                        </div>
+                        <div id="research-result-container" style="display:none; margin-top:15px; flex-direction: column; flex-grow: 1;">
+                            <label style="font-size:11px; color:#888;">Research Report (Review & Edit):</label>
+                            <textarea id="research-report-edit" class="report-editor"></textarea>
+                            <div class="handoff-controls">
+                                <button id="ai-redo-plan-btn" class="secondary-btn">Redo Plan</button>
+                                <button id="ai-build-this-btn" class="primary-btn">Build This</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Architecture Agent -->
+                    <div id="agent-architecture-view" class="agent-view">
+                        <h4>Architecture Agent (Builder)</h4>
+                        <div id="arch-plan-summary" class="plan-summary-box">
+                            <span style="opacity:0.5;">No active plan. Use the Planning Agent first.</span>
+                        </div>
+                        <div id="ai-chat-container" style="flex-grow: 1; display: flex; flex-direction: column;">
+                            <div id="ai-chat-history" style="flex-grow: 1;">
+                                <div class="chat-msg ai">I'm ready to build your solution based on the plan.</div>
+                            </div>
+                            <div class="ai-input-area">
+                                <textarea id="ai-question" placeholder="Refine or ask about the code..."></textarea>
+                                <button id="ai-ask-btn">Ask Architect</button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -12,6 +12,8 @@ window.activeCloudFileId = null;
 var editor;
 var isConnected = false;
 var interfaceMappings = {};
+var currentResearchReport = "";
+var researchPollingInterval = null;
 
 function initEditor() {
     if (editor) return;
@@ -272,9 +274,164 @@ function setupEventHandlers() {
         }
     });
 
+
+    // AI Agents Logic
+
+
+
+    // Tab Switching
+    document.querySelectorAll('.ai-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.ai-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.agent-view').forEach(v => v.classList.remove('active'));
+            tab.classList.add('active');
+            const agent = tab.getAttribute('data-agent');
+            document.getElementById(`agent-${agent}-view`).classList.add('active');
+        });
+    });
+
+    bind('ai-research-btn', 'click', startDeepResearch);
+    bind('ai-research-goal', 'keydown', (e) => {
+        if (e.key === 'Enter' && e.ctrlKey) startDeepResearch();
+    });
+    bind('ai-redo-plan-btn', 'click', () => {
+        const resContainer = document.getElementById('research-result-container');
+        if (resContainer) resContainer.style.display = 'none';
+        const goalInput = document.getElementById('ai-research-goal');
+        if (goalInput) goalInput.focus();
+    });
+    bind('ai-build-this-btn', 'click', handoffToArchitecture);
+
+    async function startDeepResearch() {
+        const goalInput = document.getElementById('ai-research-goal');
+        const goal = goalInput ? goalInput.value.trim() : "";
+        if (!goal) return;
+
+        const progressContainer = document.getElementById('research-progress-container');
+        const resultContainer = document.getElementById('research-result-container');
+        const progressFill = document.getElementById('research-progress-fill');
+        const percentText = document.getElementById('research-percent');
+        const statusText = document.getElementById('research-status-text');
+
+        if (progressContainer) progressContainer.style.display = 'block';
+        if (resultContainer) resultContainer.style.display = 'none';
+        if (progressFill) progressFill.style.width = '0%';
+        if (percentText) percentText.innerText = '0%';
+        if (statusText) statusText.innerText = 'Initializing...';
+
+        const result = await chrome.storage.local.get(["gemini_api_key"]);
+        if (!result.gemini_api_key) {
+            if (statusText) statusText.innerText = "Error: Set API Key in Settings.";
+            return;
+        }
+
+        try {
+            const codeContext = editor.getValue();
+            const prompt = `Task for Deep Research: ${goal}\n\nCurrent Code Context:\n` + "```deluge\n" + codeContext + "\n```\n" + `Please research the best approach to solve this task, considering Zoho environment limitations and best practices. Provide a detailed architecture and scope.`;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": result.gemini_api_key
+                },
+                body: JSON.stringify({
+                    input: prompt,
+                    agent: "deep-research-pro-preview-12-2025",
+                    background: true
+                })
+            });
+
+            const data = await response.json();
+            if (data.error) throw new Error(data.error.message);
+
+            const interactionId = data.id;
+            pollResearch(interactionId, result.gemini_api_key);
+
+        } catch (e) {
+            if (statusText) statusText.innerText = "Error: " + e.message;
+        }
+    }
+
+    function pollResearch(id, apiKey) {
+        let progress = 5;
+        updateProgress(progress, "Planning research steps...");
+
+        if (researchPollingInterval) clearInterval(researchPollingInterval);
+
+        researchPollingInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions/${id}`, {
+                    headers: { "x-goog-api-key": apiKey }
+                });
+                const data = await response.json();
+
+                if (progress < 90) {
+                    progress += Math.random() * 3;
+                    updateProgress(progress, "Searching and analyzing documentation...");
+                }
+
+                if (data.status === 'completed') {
+                    clearInterval(researchPollingInterval);
+                    updateProgress(100, "Research Complete");
+                    const report = data.outputs?.[data.outputs.length - 1]?.text || "No output generated.";
+                    showResearchResult(report);
+                } else if (data.status === 'failed') {
+                    clearInterval(researchPollingInterval);
+                    const st = document.getElementById('research-status-text');
+                    if (st) st.innerText = "Error: Research failed.";
+                }
+            } catch (e) {
+                clearInterval(researchPollingInterval);
+                const st = document.getElementById('research-status-text');
+                if (st) st.innerText = "Polling Error: " + e.message;
+            }
+        }, 5000);
+    }
+
+    function updateProgress(percent, status) {
+        const progressFill = document.getElementById('research-progress-fill');
+        const percentText = document.getElementById('research-percent');
+        const statusText = document.getElementById('research-status-text');
+        if (progressFill) progressFill.style.width = percent + '%';
+        if (percentText) percentText.innerText = Math.round(percent) + '%';
+        if (status && statusText) statusText.innerText = status;
+    }
+
+    function showResearchResult(report) {
+        currentResearchReport = report;
+        const resContainer = document.getElementById('research-result-container');
+        const reportEdit = document.getElementById('research-report-edit');
+        if (resContainer) resContainer.style.display = 'flex';
+        if (reportEdit) reportEdit.value = report;
+    }
+
+    function handoffToArchitecture() {
+        const reportEdit = document.getElementById('research-report-edit');
+        const report = reportEdit ? reportEdit.value : "";
+        currentResearchReport = report;
+
+        const archTab = document.querySelector('.ai-tab[data-agent="architecture"]');
+        if (archTab) archTab.click();
+
+        const summary = document.getElementById('arch-plan-summary');
+        if (summary) {
+            summary.innerHTML = `<strong>Active Plan:</strong><br>` + report.substring(0, 300).replace(/\n/g, '<br>') + `...`;
+        }
+
+        const chatHistory = document.getElementById("ai-chat-history");
+        if (chatHistory) {
+            const aiMsg = document.createElement("div");
+            aiMsg.className = "chat-msg ai";
+            aiMsg.innerText = "Plan received. I am ready to build the solution in Deluge/Client Script following best practices. How can I help you implement this plan?";
+            chatHistory.appendChild(aiMsg);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+    }
+
     bind('save-settings-btn', 'click', () => {
         const key = document.getElementById('gemini-api-key').value;
-        const model = document.getElementById('ai-model-selector').value;
+        const model = document.getElementById('gemini-model').value;
         if (typeof chrome !== "undefined" && chrome.storage) {
             chrome.storage.local.set({ 'gemini_api_key': key, 'gemini_model': model, 'activation_behavior': document.getElementById('activation-behavior').value }, () => {
                 log('Success', 'Settings saved.');
@@ -766,6 +923,7 @@ function initResources() {
     });
 }
 
+
 async function askGemini(customPrompt = null) {
     const questionInput = document.getElementById("ai-question");
     const question = customPrompt || questionInput.value;
@@ -774,16 +932,20 @@ async function askGemini(customPrompt = null) {
     const chatHistory = document.getElementById("ai-chat-history");
     const userMsg = document.createElement("div");
     userMsg.className = "chat-msg user";
-    userMsg.innerText = customPrompt ? "Explain current code" : question;
-    chatHistory.appendChild(userMsg);
+    userMsg.innerText = customPrompt ? (customPrompt.length > 50 ? "Refining code..." : customPrompt) : question;
+    if (chatHistory) {
+        chatHistory.appendChild(userMsg);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
     if (!customPrompt) questionInput.value = "";
-    chatHistory.scrollTop = chatHistory.scrollHeight;
 
     const aiMsg = document.createElement("div");
     aiMsg.className = "chat-msg ai";
-    aiMsg.innerText = "Thinking...";
-    chatHistory.appendChild(aiMsg);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
+    aiMsg.innerText = "Generating code...";
+    if (chatHistory) {
+        chatHistory.appendChild(aiMsg);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
 
     if (typeof chrome !== "undefined" && chrome.storage) {
         const result = await chrome.storage.local.get(["gemini_api_key", "gemini_model"]);
@@ -791,10 +953,26 @@ async function askGemini(customPrompt = null) {
             aiMsg.innerText = "Error: Please set your Gemini API Key in Settings.";
             return;
         }
-        const model = document.getElementById("ai-model-selector")?.value || result.gemini_model || "gemini-3-flash-preview";
+        const model = document.getElementById("gemini-model")?.value || result.gemini_model || "gemini-3-flash-preview";
         try {
             const codeContext = editor.getValue();
-            const prompt = customPrompt ? question : `You are a Zoho Deluge expert. Code context:\n\`\`\`deluge\n${codeContext}\n\`\`\`\n\nQuestion: ${question}`;
+            let prompt = `You are a Zoho expert specializing in Deluge and Client Scripts.
+Focus on best practices and clean naming conventions.
+
+Current Code Context:
+` + "```deluge\n" + codeContext + "\n```\n\n";
+
+            if (currentResearchReport) {
+                prompt += `Architectural Plan to follow:
+---
+${currentResearchReport}
+---
+
+`;
+            }
+
+            prompt += `User Question/Task: ${question}`;
+
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${result.gemini_api_key}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -802,20 +980,23 @@ async function askGemini(customPrompt = null) {
             });
             const data = await response.json();
             const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "Error: " + (data.error?.message || "Unknown");
-            aiMsg.innerHTML = textResponse.replace(/\n/g, "<br>").replace(/\`\`\`deluge/g, "<pre>").replace(/\`\`\`/g, "</pre>");
+            aiMsg.innerHTML = textResponse.replace(/\n/g, "<br>").replace(/```deluge/g, "<pre>").replace(/```/g, "</pre>");
         } catch (e) {
-        console.error("[ZohoIDE] initEditor Error:", e); aiMsg.innerText = "Error: " + e.message; }
+            console.error("[ZohoIDE] askGemini Error:", e);
+            aiMsg.innerText = "Error: " + e.message;
+        }
     } else {
         aiMsg.innerText = "Error: Extension context unavailable.";
     }
-    chatHistory.scrollTop = chatHistory.scrollHeight;
+    if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
 }
 
 function explainCode() {
     const code = editor.getValue();
-    const prompt = `Please provide a detailed explanation of this Zoho Deluge code.\nInclude:\n1. A quick summary of what the code does.\n2. The main highlights and logic flow.\n3. How it works step-by-step.\n4. Any potential issues or improvements.\n\nCode:\n\`\`\`deluge\n${code}\n\`\`\``;
+    const prompt = `Please provide a detailed explanation of this Zoho Deluge code.\nInclude:\n1. A quick summary of what the code does.\n2. The main highlights and logic flow.\n3. How it works step-by-step.\n4. Any potential issues or improvements.\n\nCode:\n` + "```deluge\n" + code + "\n```";
     askGemini(prompt);
 }
+
 
 if (document.readyState === 'complete') { initEditor(); } else { window.addEventListener('load', initEditor); }
 
