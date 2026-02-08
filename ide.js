@@ -61,6 +61,7 @@ function initEditor() {
             theme: 'dracula',
             automaticLayout: true,
             fontSize: 14,
+            fontFamily: "'Fira Code', monospace",
             minimap: { enabled: true },
             lineNumbers: 'on',
             scrollBeyondLastLine: false,
@@ -105,11 +106,19 @@ function initEditor() {
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.get(['saved_deluge_code', 'theme', 'activation_behavior', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height'], (result) => {
+            chrome.storage.local.get(['saved_deluge_code', 'theme', 'font_family', 'font_size', 'activation_behavior', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height'], (result) => {
                 if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
         if (typeof initApiExplorer === 'function') initApiExplorer();
         if (typeof syncProblemsPanel === 'function') syncProblemsPanel();
-                if (result.theme) monaco.editor.setTheme(result.theme);
+                                if (result.theme) monaco.editor.setTheme(result.theme);
+                if (result.font_family) {
+                    editor.updateOptions({ fontFamily: result.font_family });
+                    document.getElementById('font-family-input').value = result.font_family;
+                }
+                if (result.font_size) {
+                    editor.updateOptions({ fontSize: parseInt(result.font_size) });
+                    document.getElementById('font-size-input').value = result.font_size;
+                }
                 if (result.activation_behavior) document.getElementById("activation-behavior").value = result.activation_behavior;
                 if (result.bottom_panel_height) {
                     const bottomPanel = document.getElementById('bottom-panel');
@@ -265,6 +274,20 @@ function setupEventHandlers() {
     });
 
     bind('activation-behavior', 'change', (e) => {        const behavior = e.target.value;        if (typeof chrome !== "undefined" && chrome.storage) {            chrome.storage.local.set({ 'activation_behavior': behavior });        }    });
+        bind('font-family-input', 'change', (e) => {
+        const font = e.target.value;
+        if (editor) editor.updateOptions({ fontFamily: font });
+        if (typeof chrome !== "undefined" && chrome.storage) {
+            chrome.storage.local.set({ 'font_family': font });
+        }
+    });
+    bind('font-size-input', 'change', (e) => {
+        const size = parseInt(e.target.value);
+        if (editor) editor.updateOptions({ fontSize: size });
+        if (typeof chrome !== "undefined" && chrome.storage) {
+            chrome.storage.local.set({ 'font_size': size });
+        }
+    });
     bind('theme-selector', 'change', (e) => {
         const theme = e.target.value;
         monaco.editor.setTheme(theme);
@@ -275,9 +298,9 @@ function setupEventHandlers() {
 
     bind('save-settings-btn', 'click', () => {
         const key = document.getElementById('gemini-api-key').value;
-        const model = document.getElementById('ai-model-selector').value;
+        const model = document.getElementById('gemini-model').value;
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.set({ 'gemini_api_key': key, 'gemini_model': model, 'activation_behavior': document.getElementById('activation-behavior').value }, () => {
+            chrome.storage.local.set({ 'gemini_api_key': key, 'gemini_model': model, 'font_family': document.getElementById('font-family-input').value, 'font_size': document.getElementById('font-size-input').value, 'activation_behavior': document.getElementById('activation-behavior').value }, () => {
                 log('Success', 'Settings saved.');
             });
         }
