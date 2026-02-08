@@ -272,6 +272,7 @@
                         <input type="password" id="gemini-api-key" placeholder="AIZA...">
                         <button id="save-settings-btn" style="margin-top:10px;">Save Configuration</button>
                     </div>
+
                     <div class="setting-item" style="margin-top:20px;">
                         <label style="font-size:12px; margin-bottom:4px;">Font Family:</label>
                         <input type="text" id="font-family-input" placeholder="'Fira Code', monospace" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
@@ -280,8 +281,17 @@
                         <label style="font-size:12px; margin-bottom:4px;">Font Size:</label>
                         <input type="number" id="font-size-input" value="14" min="8" max="30" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
                     </div>
-                        <label style="font-size:12px; margin-bottom:4px; margin-top:20px; display:block;">Editor Theme:</label>
-                    <div class="setting-item" style="margin-bottom:15px;">
+
+                    <div class="setting-item" style="margin-top:20px;">
+                        <label style="font-size:12px; margin-bottom:4px;">Editor Theme:</label>
+                        <select id="theme-selector" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
+                            <option value="vs-dark">Dark (Default)</option>
+                            <option value="dracula">Dracula</option>
+                            <option value="vs-light">Light</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-item" style="margin-top:15px; margin-bottom:15px;">
                         <label style="font-size:12px; margin-bottom:4px;">Activation Shortcut Behavior:</label>
                         <select id="activation-behavior" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
                             <option value="new-tab">Open in New Tab</option>
@@ -289,12 +299,7 @@
                             <option value="smart">Smart (Side Panel if on Zoho, else New Tab)</option>
                         </select>
                     </div>
-                        <select id="theme-selector" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
-                            <option value="vs-dark">Dark (Default)</option>
-                            <option value="dracula">Dracula</option>
-                            <option value="vs-light">Light</option>
-                        </select>
-                    </div>
+
                     <div style="margin-top:30px; font-size:11px; color:#888;">
                         <strong>Shortcuts:</strong><br>
                         Ctrl+S: Save Locally<br>

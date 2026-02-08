@@ -107,17 +107,29 @@ function initEditor() {
 
         if (typeof chrome !== "undefined" && chrome.storage) {
             chrome.storage.local.get(['saved_deluge_code', 'theme', 'font_family', 'font_size', 'activation_behavior', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height'], (result) => {
-                if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
-        if (typeof initApiExplorer === 'function') initApiExplorer();
-        if (typeof syncProblemsPanel === 'function') syncProblemsPanel();
-                                if (result.theme) monaco.editor.setTheme(result.theme);
-                if (result.font_family) {
-                    editor.updateOptions({ fontFamily: result.font_family });
-                    document.getElementById('font-family-input').value = result.font_family;
+                if (result.saved_deluge_code) {
+                    try { editor.setValue(result.saved_deluge_code); } catch(e) {}
                 }
-                if (result.font_size) {
-                    editor.updateOptions({ fontSize: parseInt(result.font_size) });
-                    document.getElementById('font-size-input').value = result.font_size;
+                if (typeof initApiExplorer === 'function') initApiExplorer();
+                if (typeof syncProblemsPanel === 'function') syncProblemsPanel();
+
+                if (result.theme) {
+                    try { monaco.editor.setTheme(result.theme); } catch(e) {}
+                }
+                if (result.font_family && editor) {
+                    try {
+                        editor.updateOptions({ fontFamily: result.font_family + ', monospace' });
+                        const fontInput = document.getElementById('font-family-input');
+                        if (fontInput) fontInput.value = result.font_family;
+                    } catch(e) {}
+                }
+                if (result.font_size && editor) {
+                    try {
+                        const fontSize = parseInt(result.font_size);
+                        editor.updateOptions({ fontSize: fontSize });
+                        const sizeInput = document.getElementById('font-size-input');
+                        if (sizeInput) sizeInput.value = fontSize;
+                    } catch(e) {}
                 }
                 if (result.activation_behavior) document.getElementById("activation-behavior").value = result.activation_behavior;
                 if (result.bottom_panel_height) {
@@ -127,7 +139,7 @@ function initEditor() {
                         document.documentElement.style.setProperty('--footer-height', result.bottom_panel_height);
                     }
                 }
-                                if (result.left_panel_width) {
+                if (result.left_panel_width) {
                     const leftPanel = document.getElementById('left-panel-content');
                     if (leftPanel) {
                         leftPanel.style.width = result.left_panel_width;
@@ -274,11 +286,22 @@ function setupEventHandlers() {
     });
 
     bind('activation-behavior', 'change', (e) => {        const behavior = e.target.value;        if (typeof chrome !== "undefined" && chrome.storage) {            chrome.storage.local.set({ 'activation_behavior': behavior });        }    });
-        bind('font-family-input', 'change', (e) => {
+            bind('font-family-input', 'change', (e) => {
         const font = e.target.value;
-        if (editor) editor.updateOptions({ fontFamily: font });
+        if (editor) {
+            try { editor.updateOptions({ fontFamily: font }); } catch(err) {}
+        }
         if (typeof chrome !== "undefined" && chrome.storage) {
             chrome.storage.local.set({ 'font_family': font });
+        }
+    });
+    bind('font-size-input', 'change', (e) => {
+        const size = parseInt(e.target.value);
+        if (editor) {
+            try { editor.updateOptions({ fontSize: size }); } catch(err) {}
+        }
+        if (typeof chrome !== "undefined" && chrome.storage) {
+            chrome.storage.local.set({ 'font_size': size });
         }
     });
     bind('font-size-input', 'change', (e) => {
