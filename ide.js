@@ -12,6 +12,8 @@ window.activeCloudFileId = null;
 var editor;
 var isConnected = false;
 var interfaceMappings = {};
+var currentResearchReport = "";
+var researchPollingInterval = null;
 
 function initEditor() {
     if (editor) return;
@@ -274,8 +276,8 @@ function setupEventHandlers() {
 
 
     // AI Agents Logic
-    let currentResearchReport = "";
-    let researchPollingInterval = null;
+
+
 
     // Tab Switching
     document.querySelectorAll('.ai-tab').forEach(tab => {
