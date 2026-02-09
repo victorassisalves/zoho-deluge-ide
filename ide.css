@@ -584,7 +584,7 @@ html.sidepanel-mode #right-sidebar {
 
 /* Robust Right Sidebar Toggle */
 #right-sidebar.collapsed {
-    width: 50px !important;
+    width: 20px !important;
 }
 
 #right-sidebar.collapsed .right-sidebar-header .header-row:first-child,
