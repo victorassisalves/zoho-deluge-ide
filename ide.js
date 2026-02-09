@@ -16,6 +16,20 @@ var currentResearchReport = "";
 var researchPollingInterval = null;
 
 function initEditor() {
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+            if (e.key === 'S' || e.key === 's') {
+                e.preventDefault();
+                pushToZoho(true);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                pushToZoho(true, true);
+            } else if (e.key === 'P' || e.key === 'p') {
+                e.preventDefault();
+                pullFromZoho();
+            }
+        }
+    });
     if (editor) return;
 
     const container = document.getElementById('editor-container');
@@ -820,11 +834,13 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
                 if (triggerSave) {
                     chrome.runtime.sendMessage({ action: 'SAVE_ZOHO_CODE' }, (res) => {
                         if (res && res.success) log('Success', 'Zoho Save triggered.');
+                        else log('Warning', 'Zoho Save trigger returned false. Try clicking manually.');
                     });
                 }
                 if (triggerExecute) {
                     chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (res) => {
                         if (res && res.success) log('Success', 'Zoho Execute triggered.');
+                        else log('Warning', 'Zoho Execute trigger returned false. Try clicking manually.');
                     });
                 }
             } else { log('Error', response?.error || 'Push failed.'); }

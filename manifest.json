@@ -89,6 +89,7 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "src/*",
         "ide.html",
         "assets/*",
         "bridge.js",
