@@ -1,13 +1,14 @@
 /**
  * Centralized Store for Zoho Deluge IDE
  * Manages application state and provides a subscription mechanism for updates.
+ * Also maintains window globals for compatibility with legacy cloud modules.
  */
 
 class Store {
     constructor() {
         this.state = {
             editor: null,
-            zideProjectUrl: null,
+            zideProjectUrl: 'global',
             zideProjectName: "Untitled Project",
             activeCloudFileId: null,
             isConnected: false,
@@ -20,31 +21,39 @@ class Store {
             currentOrg: null
         };
         this.listeners = [];
+
+        // Expose to window for legacy compatibility
+        window.zideProjectUrl = this.state.zideProjectUrl;
+        window.zideProjectName = this.state.zideProjectName;
+        window.activeCloudFileId = this.state.activeCloudFileId;
     }
 
-    // Getters
     get(key) {
         return this.state[key];
     }
 
-    // Setters with notification
     set(key, value) {
         if (this.state[key] === value) return;
 
         const oldValue = this.state[key];
         this.state[key] = value;
 
+        // Sync legacy window properties
+        if (key === 'zideProjectUrl') window.zideProjectUrl = value;
+        if (key === 'zideProjectName') window.zideProjectName = value;
+        if (key === 'activeCloudFileId') window.activeCloudFileId = value;
+        if (key === 'editor') window.editor = value;
+        if (key === 'interfaceMappings') window.interfaceMappings = value;
+
         this.notify(key, value, oldValue);
     }
 
-    // Batch update
     update(patch) {
         Object.keys(patch).forEach(key => {
             this.set(key, patch[key]);
         });
     }
 
-    // Subscriptions
     subscribe(callback) {
         this.listeners.push(callback);
         return () => {
@@ -54,20 +63,14 @@ class Store {
 
     notify(key, value, oldValue) {
         this.listeners.forEach(callback => {
-            callback(key, value, oldValue);
+            try { callback(key, value, oldValue); } catch(e) {}
         });
     }
 
-    // Specific helpers for common actions
     setEditor(editor) { this.set('editor', editor); }
     getEditor() { return this.get('editor'); }
-
-    setProjectUrl(url) { this.set('zideProjectUrl', url); }
-    getProjectUrl() { return this.get('zideProjectUrl'); }
-
-    setProjectName(name) { this.set('zideProjectName', name); }
-    getProjectName() { return this.get('zideProjectName'); }
 }
 
 const store = new Store();
+window.Store = store;
 export default store;

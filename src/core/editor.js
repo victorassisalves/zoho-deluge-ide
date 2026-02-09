@@ -28,15 +28,13 @@ export const initEditor = (monaco) => {
     store.setEditor(editor);
     logger.info('Monaco Editor initialized');
 
-    // Basic event listeners
-    editor.onDidChangeModelContent(() => {
-        // Validation will be handled by the linter feature
-    });
-
     editor.onDidChangeCursorPosition(e => {
-        const pos = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+        const ln = e.position.lineNumber;
+        const col = e.position.column;
         const statusBarPos = document.getElementById('cursor-pos');
-        if (statusBarPos) statusBarPos.innerText = pos;
+        if (statusBarPos) {
+            statusBarPos.innerText = 'Ln ' + ln + ', Col ' + col;
+        }
     });
 
     window.addEventListener('resize', () => {
