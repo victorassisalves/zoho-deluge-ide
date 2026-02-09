@@ -1062,7 +1062,7 @@ function toggleRightSidebar() {
 
     if (sidebar.classList.contains('collapsed')) {
         sidebar.dataset.oldWidth = sidebar.style.width || '250px';
-        sidebar.style.width = '0';
+        sidebar.style.width = '';
     } else {
         sidebar.style.width = sidebar.dataset.oldWidth || '250px';
     }

@@ -584,14 +584,19 @@ html.sidepanel-mode #right-sidebar {
 
 /* Robust Right Sidebar Toggle */
 #right-sidebar.collapsed {
-    width: 0 !important;
-    border-left: none !important;
+    width: 50px !important;
 }
 
-#right-sidebar.collapsed .right-sidebar-header,
+#right-sidebar.collapsed .right-sidebar-header .header-row:first-child,
+#right-sidebar.collapsed .right-sidebar-header .search-container,
 #right-sidebar.collapsed #interface-mappings-list,
-#right-sidebar.collapsed #interface-tree-view {
+#right-sidebar.collapsed #interface-tree-view,
+#right-sidebar.collapsed #add-interface-btn {
     display: none !important;
+}
+
+#right-sidebar.collapsed .icons-row {
+    justify-content: center !important;
 }
 
 #right-sidebar-resizer.collapsed {
