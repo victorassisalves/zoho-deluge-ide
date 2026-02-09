@@ -6,13 +6,7 @@ console.log('[ZohoIDE] Loader starting...');
 
 window.MonacoEnvironment = {
     getWorkerUrl: function (workerId, label) {
-        const workerPath = 'assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
-        const workerUrl = chrome.runtime.getURL(workerPath);
-        const blob = new Blob([
-            'self.MonacoEnvironment = { baseUrl: \'' + chrome.runtime.getURL('assets/monaco-editor/min/vs/') + '\' };' +
-            'importScripts(\'' + workerUrl + '\');'
-        ], { type: 'application/javascript' });
-        return URL.createObjectURL(blob);
+        return chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
     }
 };
 
@@ -51,7 +45,6 @@ require(['vs/editor/editor.main'], async function() {
 
         console.log('[ZohoIDE] Firebase initialized.');
 
-        // Load Modular Framework alongside Monolithic scripts
         await loadScript('src/main.js', true);
 
         await loadScript('deluge-lang.js');

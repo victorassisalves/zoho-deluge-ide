@@ -5,35 +5,42 @@ console.log('[ZohoIDE] Content script loaded');
 if (!document.getElementById('zoho-deluge-bridge-modular')) {
     const s = document.createElement('script');
     s.id = 'zoho-deluge-bridge-modular';
-    s.src = chrome.runtime.getURL('bridge.js'); // Re-using legacy bridge but updated with protocol support
+    s.src = chrome.runtime.getURL('bridge.js');
     (document.head || document.documentElement).appendChild(s);
 }
 
-// 2. Relay messages
+// 2. Listen for messages from the extension
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    const payload = 'ZIDE_MSG:' + JSON.stringify({ source: 'EXTENSION', action: request.action, ...request });
-    window.postMessage(payload, '*');
-
-    const handler = (event) => {
-        if (typeof event.data !== 'string' || !event.data.startsWith('ZIDE_MSG:')) return;
-        try {
-            const data = JSON.parse(event.data.substring(9));
-            if (data && data.source === 'PAGE' && data.action === request.action) {
-                window.removeEventListener('message', handler);
-                sendResponse(data.response);
-            }
-        } catch (e) {}
-    };
-    window.addEventListener('message', handler);
-
+    // Immediate actions that don't need relay
     if (request.action === 'INJECT_SIDE_PANEL') {
         if (window === window.top) {
             injectSidePanel();
             sendResponse({ success: true });
+        } else {
+            sendResponse({ success: false, error: 'Not top frame' });
         }
         return false;
     }
-    return true; // Keep channel open
+
+    // Actions to relay to the bridge
+    const relayActions = ['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE', 'PING'];
+    if (relayActions.includes(request.action)) {
+        const payload = 'ZIDE_MSG:' + JSON.stringify({ source: 'EXTENSION', type: 'FROM_EXTENSION', action: request.action, ...request });
+        window.postMessage(payload, '*');
+
+        const handler = (event) => {
+            if (typeof event.data !== 'string' || !event.data.startsWith('ZIDE_MSG:')) return;
+            try {
+                const data = JSON.parse(event.data.substring(9));
+                if (data && (data.source === 'PAGE' || data.type === 'FROM_PAGE') && data.action === request.action) {
+                    window.removeEventListener('message', handler);
+                    sendResponse(data.response);
+                }
+            } catch (e) {}
+        };
+        window.addEventListener('message', handler);
+        return true; // Keep channel open
+    }
 });
 
 function injectSidePanel() {

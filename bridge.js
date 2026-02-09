@@ -25,6 +25,13 @@
                 if (cmEl.CodeMirror) return cmEl.CodeMirror.getValue();
             }
         } catch (e) {}
+        try {
+            const delugeEditor = document.querySelector('[id*="delugeEditor"], [id*="scriptEditor"], .deluge-editor');
+            if (delugeEditor) {
+                if (delugeEditor.value !== undefined) return delugeEditor.value;
+                if (delugeEditor.env && delugeEditor.env.editor) return delugeEditor.env.editor.getValue();
+            }
+        } catch (e) {}
         return null;
     }
 
@@ -36,6 +43,8 @@
                 if (models && models.length > 0) { models[0].setValue(code); success = true; }
             }
         } catch (e) {}
+        if (success) return true;
+
         try {
             const aceEls = document.querySelectorAll('.ace_editor');
             for (let aceEl of aceEls) {
@@ -45,10 +54,24 @@
                 }
             }
         } catch (e) {}
+        if (success) return true;
+
         try {
             const cmEls = document.querySelectorAll('.CodeMirror');
             for (let cmEl of cmEls) {
                 if (cmEl.CodeMirror) { cmEl.CodeMirror.setValue(code); success = true; }
+            }
+        } catch (e) {}
+        if (success) return true;
+
+        try {
+            const delugeEditor = document.querySelector('[id*="delugeEditor"], [id*="scriptEditor"], .deluge-editor');
+            if (delugeEditor) {
+                delugeEditor.value = code;
+                if (delugeEditor.env && delugeEditor.env.editor) delugeEditor.env.editor.setValue(code);
+                delugeEditor.dispatchEvent(new Event('input', { bubbles: true }));
+                delugeEditor.dispatchEvent(new Event('change', { bubbles: true }));
+                success = true;
             }
         } catch (e) {}
         return success;
@@ -57,9 +80,22 @@
     function triggerZohoAction(type) {
         let selectors = [];
         if (type === 'save') {
-            selectors = ['button[id="save_script"]', '#save_script', '#save_btn', '#crmsave', 'lyte-button[data-zcqa="functionSavev2"]', '.dxEditorPrimaryBtn', '.crm-save-btn', '.zc-save-btn', '.save-btn', '.lyte-button[data-id="save"]', '.save_btn'];
+            selectors = [
+                'button[id="save_script"]', '#save_script', '#save_btn',
+                '#crmsave', 'lyte-button[data-id="save"]', 'lyte-button[data-id="update"]',
+                'lyte-button[data-zcqa="functionSavev2"]', '.dxEditorPrimaryBtn',
+                '.crm-save-btn', '.zc-save-btn', '.save-btn', '.save_btn',
+                'input#saveBtn', 'input[value="Save"]', 'input[value="Update"]'
+            ];
         } else if (type === 'execute') {
-            selectors = ['button[id="execute_script"]', '#execute_script', '#run_script', '#crmexecute', 'span[data-zcqa="delgv2execPlay"]', '.dx_execute_icon', '#runscript', '.zc-execute-btn', '.execute-btn', '.lyte-button[data-id="execute"]', '.execute_btn'];
+            selectors = [
+                'button[id="execute_script"]', '#execute_script', 'button[id="run_script"]', '#run_script',
+                '#crmexecute', 'span[data-zcqa="delgv2execPlay"]', '.dx_execute_icon',
+                '#runscript', '.zc-execute-btn', '.execute-btn',
+                '.lyte-button[data-id="execute"]', '.lyte-button[data-id="run"]',
+                '.execute_btn', '#execute_btn', 'input#executeBtn',
+                'input[value="Execute"]', 'input[value="Run"]'
+            ];
         }
 
         for (let sel of selectors) {
@@ -68,11 +104,25 @@
                 if (el) { el.click(); return true; }
             } catch(e) {}
         }
+
+        // Fallback: search by text
+        const buttons = document.querySelectorAll('button, .lyte-button, a.btn, input[type="button"], [role="button"]');
+        for (let btn of buttons) {
+            const txt = (btn.innerText || btn.textContent || btn.value || btn.getAttribute('aria-label') || '').toLowerCase().trim();
+            if (type === 'save') {
+                if (txt === 'save' || txt === 'update' || txt.includes('save script') || txt.includes('update script') || txt.includes('save & close')) {
+                    btn.click(); return true;
+                }
+            } else if (type === 'execute') {
+                if (txt === 'execute' || txt === 'run' || txt.includes('execute script') || txt.includes('run script')) {
+                    btn.click(); return true;
+                }
+            }
+        }
         return false;
     }
 
     window.addEventListener('message', (event) => {
-        // Handle both old and new protocol for safety
         let data = event.data;
         let isNewProtocol = false;
 
