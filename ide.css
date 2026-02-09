@@ -584,7 +584,11 @@ html.sidepanel-mode #right-sidebar {
 
 /* Robust Right Sidebar Toggle */
 #right-sidebar.collapsed {
-    width: 20px !important;
+    width: 35px !important;
+}
+
+#right-sidebar.collapsed .right-sidebar-header {
+    padding: 10px 0 !important;
 }
 
 #right-sidebar.collapsed .right-sidebar-header .header-row:first-child,
