@@ -1,7 +1,3 @@
-/**
- * Autocomplete Engine (Hybrid B3 Core)
- * Interfaces directly with Monaco Editor.
- */
 import registry from './registry.js';
 import logger from '../../utils/logger.js';
 
@@ -27,19 +23,21 @@ export const setupAutocomplete = (monaco) => {
             };
 
             const context = {
-                lineUntilPos,
-                word,
-                range,
+                lineUntilPos: lineUntilPos,
+                word: word,
+                range: range,
                 code: model.getValue()
             };
 
             const suggestions = await registry.getSuggestions(model, position, context);
 
             return {
-                suggestions: suggestions.map(s => ({
-                    ...s,
-                    range: s.range || range // Fallback to default range if not provided
-                }))
+                suggestions: suggestions.map(s => {
+                    return {
+                        ...s,
+                        range: s.range || range
+                    };
+                })
             };
         }
     });

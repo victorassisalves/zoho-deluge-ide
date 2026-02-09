@@ -6,16 +6,20 @@ import { getZohoProduct } from './detectors.js';
 console.log('[ZohoIDE] Modular Bridge Initialized');
 
 window.addEventListener('message', (event) => {
-    // Only handle messages intended for ZohoIDE
-    if (event.data && event.data.type === 'ZIDE_FROM_EXTENSION') {
-        const action = event.data.action;
+    let data;
+    try {
+        data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+    } catch (e) { return; }
+
+    if (data && data.zide_type === 'FROM_EXTENSION') {
+        const action = data.action;
         let response = {};
 
         if (action === 'GET_ZOHO_CODE') {
             const code = getEditorCode();
             response = code !== null ? { code } : { error: 'No editor found' };
         } else if (action === 'SET_ZOHO_CODE') {
-            response = { success: setEditorCode(event.data.code) };
+            response = { success: setEditorCode(data.code) };
         } else if (action === 'SAVE_ZOHO_CODE') {
             response = { success: triggerBridgeAction('save') };
         } else if (action === 'EXECUTE_ZOHO_CODE') {
@@ -24,27 +28,18 @@ window.addEventListener('message', (event) => {
             response = { forms: getCreatorForms() };
         }
 
-        window.postMessage({ type: 'ZIDE_FROM_PAGE', action: action, response: response }, '*');
+        window.postMessage(JSON.stringify({ zide_type: 'FROM_PAGE', action: action, response: response }), '*');
     }
 });
 
 function triggerBridgeAction(type) {
     const product = getZohoProduct();
     let success = false;
-
-    if (product === 'crm') {
-        success = triggerCrmAction(type);
-    }
-
-    // Global fallbacks
-    if (!success) {
-        success = clickByText(type);
-    }
-
+    if (product === 'crm') success = triggerCrmAction(type);
+    if (!success) success = clickByText(type);
     return success;
 }
 
-// Console scraping
 setInterval(() => {
     try {
         const selectors = ['.console-output', '#console-result', '.builder-console-content', '.debugger-console', '[id*="console"]', '.output-container', '.deluge-console'];
@@ -54,7 +49,7 @@ setInterval(() => {
                 const text = el.innerText.trim();
                 if (text !== window._last_console_data) {
                     window._last_console_data = text;
-                    window.postMessage({ type: 'ZIDE_FROM_PAGE', action: 'ZOHO_CONSOLE_UPDATE', data: text }, '*');
+                    window.postMessage(JSON.stringify({ zide_type: 'FROM_PAGE', action: 'ZOHO_CONSOLE_UPDATE', data: text }), '*');
                     break;
                 }
             }

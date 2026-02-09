@@ -1,6 +1,5 @@
 /**
  * Bridge Client (IDE Side)
- * Sends commands to the Zoho content script.
  */
 import store from './store.js';
 import logger from '../utils/logger.js';
@@ -15,19 +14,23 @@ export const bridgeClient = {
             const isSidePanel = document.documentElement.classList.contains('sidepanel-mode');
 
             if (isSidePanel) {
-                window.parent.postMessage({ type: 'ZIDE_FROM_EXTENSION', action, ...data }, '*');
+                window.parent.postMessage(JSON.stringify({ zide_type: 'FROM_EXTENSION', action, ...data }), '*');
 
                 const handler = (event) => {
-                    if (event.data && event.data.type === 'ZIDE_FROM_PAGE' && event.data.action === action) {
+                    let eventData;
+                    try {
+                        eventData = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                    } catch (e) { return; }
+
+                    if (eventData && eventData.zide_type === 'FROM_PAGE' && eventData.action === action) {
                         window.removeEventListener('message', handler);
-                        resolve(event.data.response);
+                        resolve(eventData.response);
                     }
                 };
                 window.addEventListener('message', handler);
             } else {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs.length === 0) return reject(new Error('No active tab found'));
-
                     chrome.tabs.sendMessage(tabs[0].id, { action, ...data }, (response) => {
                         if (chrome.runtime.lastError) {
                             reject(new Error(chrome.runtime.lastError.message));
