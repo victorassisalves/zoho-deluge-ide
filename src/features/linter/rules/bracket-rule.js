@@ -28,8 +28,8 @@ export default {
 
         if (openBraces !== 0) {
             context.markers.push({
-                message: `Unbalanced braces: ${openBraces > 0 ? 'Missing closing }' : 'Extra closing }'}`,
-                severity: 8, // Error
+                message: 'Unbalanced braces',
+                severity: 8,
                 startLineNumber: context.lines.length,
                 startColumn: 1,
                 endLineNumber: context.lines.length,

@@ -19,19 +19,16 @@ async function bootstrap() {
     logger.info('Bootstrapping Modular IDE...');
 
     if (typeof monaco === 'undefined') {
-        logger.error('Monaco not found! Ensure loader-init.js is working.');
+        logger.error('Monaco not found!');
         return;
     }
 
-    // 1. Core
     registerDelugeGrammar(monaco);
     initEditor(monaco);
 
-    // 2. Features
     initAutocomplete(monaco);
     initLinter(monaco);
 
-    // 3. UI Components
     initConsole();
     initJsonConverter();
     initLeftSidebar();
@@ -39,10 +36,8 @@ async function bootstrap() {
     initResizers();
     initUIEvents();
 
-    // 4. Services
     initConnectionPolling();
 
-    // Initial data load
     window.addEventListener('zide-context-changed', loadProjectData);
     loadProjectData();
 

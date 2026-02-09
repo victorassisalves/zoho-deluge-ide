@@ -31,7 +31,7 @@ export default {
             if (!endsWithSpecial && !startsWithKeyword && openBrackets === 0 && openBraces === 0 && openParens === 0) {
                 context.markers.push({
                     message: 'Missing semicolon',
-                    severity: 8, // Error
+                    severity: 8,
                     startLineNumber: i + 1,
                     startColumn: line.length + 1,
                     endLineNumber: i + 1,
@@ -40,7 +40,6 @@ export default {
                 });
             }
 
-            // Update balances for NEXT line
             openBraces += (trimmed.match(/\{/g) || []).length;
             openBraces -= (trimmed.match(/\}/g) || []).length;
             openBrackets += (trimmed.match(/\[/g) || []).length;

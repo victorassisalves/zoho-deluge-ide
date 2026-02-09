@@ -22,23 +22,31 @@ export const setupAutocomplete = (monaco) => {
                 endColumn: word.endColumn
             };
 
+            const code = model.getValue();
             const context = {
                 lineUntilPos: lineUntilPos,
                 word: word,
                 range: range,
-                code: model.getValue()
+                code: code
             };
 
-            const suggestions = await registry.getSuggestions(model, position, context);
-
-            return {
-                suggestions: suggestions.map(s => {
-                    return {
-                        ...s,
-                        range: s.range || range
-                    };
-                })
-            };
+            try {
+                const suggestions = await registry.getSuggestions(model, position, context);
+                return {
+                    suggestions: suggestions.map(s => {
+                        return {
+                            label: s.label,
+                            kind: s.kind,
+                            insertText: s.insertText,
+                            insertTextRules: s.insertTextRules,
+                            range: s.range || range
+                        };
+                    })
+                };
+            } catch (err) {
+                logger.error('Autocomplete error', err);
+                return { suggestions: [] };
+            }
         }
     });
 };

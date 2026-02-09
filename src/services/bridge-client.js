@@ -14,18 +14,17 @@ export const bridgeClient = {
             const isSidePanel = document.documentElement.classList.contains('sidepanel-mode');
 
             if (isSidePanel) {
-                window.parent.postMessage(JSON.stringify({ zide_type: 'FROM_EXTENSION', action, ...data }), '*');
+                window.parent.postMessage('ZIDE_MSG:' + JSON.stringify({ type: 'FROM_EXTENSION', action, ...data }), '*');
 
                 const handler = (event) => {
-                    let eventData;
+                    if (typeof event.data !== 'string' || !event.data.startsWith('ZIDE_MSG:')) return;
                     try {
-                        eventData = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-                    } catch (e) { return; }
-
-                    if (eventData && eventData.zide_type === 'FROM_PAGE' && eventData.action === action) {
-                        window.removeEventListener('message', handler);
-                        resolve(eventData.response);
-                    }
+                        const dataResponse = JSON.parse(event.data.substring(9));
+                        if (dataResponse && dataResponse.type === 'FROM_PAGE' && dataResponse.action === action) {
+                            window.removeEventListener('message', handler);
+                            resolve(dataResponse.response);
+                        }
+                    } catch (e) {}
                 };
                 window.addEventListener('message', handler);
             } else {

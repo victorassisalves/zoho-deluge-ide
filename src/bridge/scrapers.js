@@ -1,6 +1,5 @@
 /**
  * Bridge Scrapers
- * Extracts data from Zoho editors and pages.
  */
 
 export function getEditorCode() {
@@ -25,21 +24,14 @@ export function getEditorCode() {
             if (cmEl.CodeMirror) return cmEl.CodeMirror.getValue();
         }
     } catch (e) {}
-    try {
-        const delugeEditor = document.querySelector('[id*="delugeEditor"], [id*="scriptEditor"], .deluge-editor');
-        if (delugeEditor) {
-            if (delugeEditor.value !== undefined) return delugeEditor.value;
-            if (delugeEditor.env && delugeEditor.env.editor) return delugeEditor.env.editor.getValue();
-        }
-    } catch (e) {}
     return null;
 }
 
 export function getCreatorForms() {
     const forms = [];
     try {
-        const formElements = document.querySelectorAll('.zc-form-name, .form-title, [data-zc-formname]');
-        formElements.forEach(el => {
+        const els = document.querySelectorAll('.zc-form-name, .form-title, [data-zc-formname]');
+        els.forEach(el => {
             const name = el.getAttribute('data-zc-formname') || el.innerText.trim();
             if (name && !forms.includes(name)) forms.push(name);
         });

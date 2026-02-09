@@ -1,7 +1,5 @@
 /**
  * Centralized Store for Zoho Deluge IDE
- * Manages application state and provides a subscription mechanism for updates.
- * Also maintains window globals for compatibility with legacy cloud modules.
  */
 
 class Store {
@@ -22,7 +20,6 @@ class Store {
         };
         this.listeners = [];
 
-        // Expose to window for legacy compatibility
         window.zideProjectUrl = this.state.zideProjectUrl;
         window.zideProjectName = this.state.zideProjectName;
         window.activeCloudFileId = this.state.activeCloudFileId;
@@ -35,23 +32,19 @@ class Store {
     set(key, value) {
         if (this.state[key] === value) return;
 
-        const oldValue = this.state[key];
         this.state[key] = value;
 
-        // Sync legacy window properties
         if (key === 'zideProjectUrl') window.zideProjectUrl = value;
         if (key === 'zideProjectName') window.zideProjectName = value;
         if (key === 'activeCloudFileId') window.activeCloudFileId = value;
         if (key === 'editor') window.editor = value;
         if (key === 'interfaceMappings') window.interfaceMappings = value;
 
-        this.notify(key, value, oldValue);
+        this.notify(key, value);
     }
 
     update(patch) {
-        Object.keys(patch).forEach(key => {
-            this.set(key, patch[key]);
-        });
+        Object.keys(patch).forEach(k => this.set(k, patch[k]));
     }
 
     subscribe(callback) {
@@ -61,9 +54,9 @@ class Store {
         };
     }
 
-    notify(key, value, oldValue) {
-        this.listeners.forEach(callback => {
-            try { callback(key, value, oldValue); } catch(e) {}
+    notify(key, value) {
+        this.listeners.forEach(cb => {
+            try { cb(key, value); } catch(e) {}
         });
     }
 

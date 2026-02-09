@@ -1,5 +1,5 @@
 /**
- * Autocomplete Provider Registry (Hybrid B3 Hub)
+ * Autocomplete Provider Registry
  */
 import logger from '../../utils/logger.js';
 
@@ -9,12 +9,12 @@ class AutocompleteRegistry {
     }
 
     register(provider) {
-        if (typeof provider.provide !== 'function') {
-            logger.error('Invalid provider: must implement provide() method');
+        if (!provider || typeof provider.provide !== 'function') {
+            logger.error('Invalid provider');
             return;
         }
         this.providers.push(provider);
-        logger.info(`Registered autocomplete provider: ${provider.name || 'Anonymous'}`);
+        logger.info('Registered autocomplete provider: ' + (provider.name || 'Anonymous'));
     }
 
     async getSuggestions(model, position, context) {
@@ -24,13 +24,12 @@ class AutocompleteRegistry {
                     const suggestions = await provider.provide(model, position, context);
                     return Array.isArray(suggestions) ? suggestions : [];
                 } catch (err) {
-                    logger.error(`Error in provider ${provider.name}:`, err);
+                    logger.error('Error in provider ' + provider.name, err);
                     return [];
                 }
             })
         );
 
-        // Flatten and return all suggestions
         return results.flat();
     }
 }

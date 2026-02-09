@@ -1,5 +1,5 @@
 // Content script to interact with Zoho Deluge editors
-console.log('[ZohoIDE] Content script loaded in frame:', window.location.href);
+console.log('[ZohoIDE] Content script loaded');
 
 if (!document.getElementById('zoho-deluge-bridge')) {
     const script = document.createElement('script');
@@ -11,20 +11,19 @@ if (!document.getElementById('zoho-deluge-bridge')) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE'].includes(request.action)) {
-        window.postMessage(JSON.stringify({ zide_type: 'FROM_EXTENSION', ...request }), '*');
+        window.postMessage('ZIDE_MSG:' + JSON.stringify({ type: 'FROM_EXTENSION', ...request }), '*');
 
         let timeout;
         const handler = (event) => {
-            let data;
+            if (typeof event.data !== 'string' || !event.data.startsWith('ZIDE_MSG:')) return;
             try {
-                data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-            } catch (e) { return; }
-
-            if (data && data.zide_type === 'FROM_PAGE' && data.action === request.action) {
-                clearTimeout(timeout);
-                window.removeEventListener('message', handler);
-                sendResponse(data.response);
-            }
+                const data = JSON.parse(event.data.substring(9));
+                if (data && data.type === 'FROM_PAGE' && data.action === request.action) {
+                    clearTimeout(timeout);
+                    window.removeEventListener('message', handler);
+                    sendResponse(data.response);
+                }
+            } catch (e) {}
         };
         window.addEventListener('message', handler);
         timeout = setTimeout(() => {
@@ -46,14 +45,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 window.addEventListener('message', (event) => {
-    let data;
+    if (typeof event.data !== 'string' || !event.data.startsWith('ZIDE_MSG:')) return;
     try {
-        data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-    } catch (e) { return; }
-
-    if (data && data.zide_type === 'FROM_PAGE' && data.action === 'ZOHO_CONSOLE_UPDATE') {
-        chrome.runtime.sendMessage({ action: 'ZOHO_CONSOLE_UPDATE', data: data.data });
-    }
+        const data = JSON.parse(event.data.substring(9));
+        if (data && data.type === 'FROM_PAGE' && data.action === 'ZOHO_CONSOLE_UPDATE') {
+            chrome.runtime.sendMessage({ action: 'ZOHO_CONSOLE_UPDATE', data: data.data });
+        }
+    } catch (e) {}
 });
 
 function injectSidePanel() {
