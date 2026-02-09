@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zoho Deluge Advanced IDE v1.2.3</title>
+    <title>Zoho Deluge Advanced IDE v2.0.0</title>
     <link rel="stylesheet" href="ide.css">
 
     <link rel="stylesheet" data-name="vs/editor/editor.main" href="assets/monaco-editor/min/vs/editor/editor.main.css">
@@ -17,6 +17,7 @@
                 <button id="new-btn" title="New Script">New</button>
                 <button id="pull-btn" title="Pull (Ctrl+Shift+P)">Pull</button>
                 <button id="push-btn" title="Sync (Ctrl+Shift+S)">Sync</button>
+                <button id="toggle-right-sidebar-top" title="Toggle Interface Manager">🗂️</button>
                 <button id="interface-btn" title="JSON to Deluge Map">JSON->Map</button>
                 <button id="execute-btn" style="background:#28a745;" title="Sync + Execute (Ctrl+Shift+Enter)">Run</button>
                     <button id="save-btn" title="Save Locally (Ctrl+S)">Save</button>
@@ -27,9 +28,13 @@
                 <div class="sidebar-item active" data-view="explorer" title="Explorer">📁</div>
                 <div class="sidebar-item" data-view="cloud" title="Workspaces">☁️</div>
                 <div class="sidebar-item" data-view="ai-agent" title="AI Agent">🤖</div>
-                <div class="sidebar-item" data-view="zoho-apis" title="Zoho APIs">📖</div>
+                <div class="sidebar-item" data-view="zoho-apis" title="Zoho APIs">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="currentColor" style="vertical-align: middle;">
+                        <path d="m480-400-80-80 80-80 80 80-80 80Zm-85-235L295-735l185-185 185 185-100 100-85-85-85 85ZM225-295 40-480l185-185 100 100-85 85 85 85-100 100Zm510 0L635-395l85-85-85-85 100-100 185 185-185 185ZM480-40 295-225l100-100 85 85 85-85 100 100L480-40Z"/>
+                    </svg>
+                </div>
                 <div class="sidebar-item" data-view="snippets" title="Snippets">📋</div>
-                <div class="sidebar-item" data-view="extensions" title="Extensions">🧩</div>
+                <div class="sidebar-item" data-view="extensions" title="Extensions" style="display: none;">🧩</div>
                 <div class="sidebar-item" data-view="settings" title="Settings">⚙️</div>
             </aside>
             <div id="left-panel-content" class="sidebar-panel">
@@ -259,7 +264,7 @@
                 </div>
 
                 <!-- Extensions View -->
-                <div id="view-extensions" class="view-content">
+                <div id="view-extensions" class="view-content" style="display: none;">
                     <h4>Extensions</h4>
                     <div style="padding:10px;">
                         <div class="extension-item" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
@@ -322,6 +327,10 @@
                             <option value="dracula">Dracula</option>
                             <option value="vs-light">Light</option>
                         </select>
+                    </div>
+                    <div class="setting-item" style="margin-top:15px;">
+                        <label style="font-size:12px; margin-bottom:4px;">Editor Font Size:</label>
+                        <input type="text" id="editor-font-size" placeholder="14" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
                     </div>
                     <div style="margin-top:30px; font-size:11px; color:#888;">
                         <strong>Shortcuts:</strong><br>

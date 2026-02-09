@@ -6,7 +6,7 @@ window.zideProjectName = zideProjectName;
 window.activeCloudFileId = null;
 
 /**
- * Zoho Deluge Advanced IDE v1.2.3
+ * Zoho Deluge Advanced IDE v2.0.0
  */
 
 var editor;
@@ -120,11 +120,18 @@ function initEditor() {
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.get(['saved_deluge_code', 'theme', 'activation_behavior', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height'], (result) => {
+            chrome.storage.local.get(['saved_deluge_code', 'theme', 'activation_behavior', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height', 'font_size'], (result) => {
                 if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
         if (typeof initApiExplorer === 'function') initApiExplorer();
         if (typeof syncProblemsPanel === 'function') syncProblemsPanel();
                 if (result.theme) monaco.editor.setTheme(result.theme);
+                if (result.font_size) {
+                    const fs = parseInt(result.font_size);
+                    if (fs && editor) {
+                        editor.updateOptions({ fontSize: fs });
+                        document.getElementById("editor-font-size").value = fs;
+                    }
+                }
                 if (result.activation_behavior) document.getElementById("activation-behavior").value = result.activation_behavior;
                 if (result.bottom_panel_height) {
                     const bottomPanel = document.getElementById('bottom-panel');
@@ -288,6 +295,18 @@ function setupEventHandlers() {
         }
     });
 
+    bind('editor-font-size', 'input', (e) => {
+        let fs = parseInt(e.target.value);
+        if (fs) {
+            if (fs > 30) fs = 30;
+            if (fs < 8) fs = 8;
+            if (editor) editor.updateOptions({ fontSize: fs });
+            if (typeof chrome !== "undefined" && chrome.storage) {
+                chrome.storage.local.set({ 'font_size': fs });
+            }
+        }
+    });
+
 
     // AI Agents Logic
 
@@ -446,8 +465,25 @@ function setupEventHandlers() {
     bind('save-settings-btn', 'click', () => {
         const key = document.getElementById('gemini-api-key').value;
         const model = document.getElementById('gemini-model').value;
+        let fontSize = document.getElementById('editor-font-size').value;
+
+        // Handle font size
+        let fs = parseInt(fontSize);
+        if (fs) {
+            if (fs > 30) fs = 30;
+            if (fs < 8) fs = 8;
+            fontSize = fs;
+            if (editor) editor.updateOptions({ fontSize: fs });
+            document.getElementById('editor-font-size').value = fs;
+        }
+
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.set({ 'gemini_api_key': key, 'gemini_model': model, 'activation_behavior': document.getElementById('activation-behavior').value }, () => {
+            chrome.storage.local.set({
+                'gemini_api_key': key,
+                'gemini_model': model,
+                'activation_behavior': document.getElementById('activation-behavior').value,
+                'font_size': fontSize
+            }, () => {
                 log('Success', 'Settings saved.');
             });
         }
@@ -1016,18 +1052,34 @@ function explainCode() {
 
 if (document.readyState === 'complete') { initEditor(); } else { window.addEventListener('load', initEditor); }
 
-document.getElementById('toggle-right-sidebar')?.addEventListener('click', () => {
+function toggleRightSidebar() {
     const sidebar = document.getElementById('right-sidebar');
-    sidebar.classList.toggle('collapsed');
+    const resizer = document.getElementById('right-sidebar-resizer');
+    if (!sidebar) return;
 
-    if (sidebar.classList.contains('collapsed')) {
-        sidebar.dataset.oldWidth = sidebar.style.width || '250px';
-        sidebar.style.width = ''; // Let CSS take over
+    const isNowCollapsing = !sidebar.classList.contains('collapsed');
+
+    if (isNowCollapsing) {
+        // Save current width before collapsing
+        const currentWidth = sidebar.getBoundingClientRect().width;
+        sidebar.dataset.oldWidth = currentWidth + 'px';
+        sidebar.classList.add('collapsed');
+        if (resizer) resizer.classList.add('collapsed');
+        sidebar.style.width = ''; // Let CSS take over for collapsed state
     } else {
+        sidebar.classList.remove('collapsed');
+        if (resizer) resizer.classList.remove('collapsed');
         sidebar.style.width = sidebar.dataset.oldWidth || '250px';
     }
-    if (editor) editor.layout();
-});
+
+    if (editor) {
+        setTimeout(() => editor.layout(), 0);
+        setTimeout(() => editor.layout(), 300); // After transition
+    }
+}
+
+document.getElementById('toggle-right-sidebar')?.addEventListener('click', toggleRightSidebar);
+document.getElementById('toggle-right-sidebar-top')?.addEventListener('click', toggleRightSidebar);
 
 // Docs search implementation
 if (document.getElementById('docs-search')) {

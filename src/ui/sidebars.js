@@ -12,6 +12,8 @@ export const initSidebars = () => {
         });
     });
 
+    // Redundant with ide.js - keeping consolidated there for now
+    /*
     const rightToggle = document.getElementById('toggle-right-sidebar');
     if (rightToggle) {
         rightToggle.addEventListener('click', () => {
@@ -19,4 +21,5 @@ export const initSidebars = () => {
             window.dispatchEvent(new Event('resize'));
         });
     }
+    */
 };

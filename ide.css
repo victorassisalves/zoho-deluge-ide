@@ -113,6 +113,7 @@ body, html {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .panel-header {
@@ -296,6 +297,7 @@ html.sidepanel-mode .status-right {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 
@@ -471,7 +473,7 @@ html.sidepanel-mode .status-right {
 /* Hide sidebars in sidepanel mode if needed */
 html.sidepanel-mode .sidebar-panel,
 html.sidepanel-mode #right-sidebar {
-    display: flex !important;
+    display: flex;
 }
 
 .resource-section h5 {
@@ -584,20 +586,52 @@ html.sidepanel-mode #right-sidebar {
 
 /* Robust Right Sidebar Toggle */
 #right-sidebar.collapsed {
-    width: 40px !important;
+    width: 30px !important;
 }
 
-#right-sidebar.collapsed .right-sidebar-header .header-title,
+#right-sidebar.collapsed .right-sidebar-header {
+    padding: 10px 0 !important;
+}
+
+#right-sidebar.collapsed .right-sidebar-header .header-row:first-child,
 #right-sidebar.collapsed .right-sidebar-header .search-container,
 #right-sidebar.collapsed #interface-mappings-list,
 #right-sidebar.collapsed #interface-tree-view {
     display: none !important;
 }
 
-#right-sidebar.collapsed
+#right-sidebar.collapsed .icons-row {
+    flex-direction: column !important;
+    gap: 20px !important;
+    padding-top: 15px !important;
+}
 
-#right-sidebar.collapsed #toggle-right-sidebar {
-    margin: 0 auto;
+#right-sidebar.collapsed .sidebar-btn {
+    background: transparent !important;
+    border: none !important;
+    width: 100% !important;
+    opacity: 0.6;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+#right-sidebar.collapsed .sidebar-btn:hover {
+    opacity: 1;
+}
+
+#right-sidebar.collapsed #add-interface-btn {
+    font-size: 24px;
+}
+
+#right-sidebar.collapsed #toggle-right-sidebar svg {
+    width: 20px;
+    height: 20px;
+}
+
+#right-sidebar-resizer.collapsed {
+    display: none !important;
 }
 
 /* Snippet Styles */
@@ -697,7 +731,6 @@ html.sidepanel-mode #right-sidebar {
 
 
 /* Resizable Panels */
-}
 
 #left-panel-content {
     min-width: 150px;
