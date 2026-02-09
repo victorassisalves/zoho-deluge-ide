@@ -471,7 +471,7 @@ html.sidepanel-mode .status-right {
 /* Hide sidebars in sidepanel mode if needed */
 html.sidepanel-mode .sidebar-panel,
 html.sidepanel-mode #right-sidebar {
-    display: flex !important;
+    display: flex;
 }
 
 .resource-section h5 {
@@ -584,20 +584,18 @@ html.sidepanel-mode #right-sidebar {
 
 /* Robust Right Sidebar Toggle */
 #right-sidebar.collapsed {
-    width: 40px !important;
+    width: 0 !important;
+    border-left: none !important;
 }
 
-#right-sidebar.collapsed .right-sidebar-header .header-title,
-#right-sidebar.collapsed .right-sidebar-header .search-container,
+#right-sidebar.collapsed .right-sidebar-header,
 #right-sidebar.collapsed #interface-mappings-list,
 #right-sidebar.collapsed #interface-tree-view {
     display: none !important;
 }
 
-#right-sidebar.collapsed
-
-#right-sidebar.collapsed #toggle-right-sidebar {
-    margin: 0 auto;
+#right-sidebar-resizer.collapsed {
+    display: none !important;
 }
 
 /* Snippet Styles */
@@ -697,7 +695,6 @@ html.sidepanel-mode #right-sidebar {
 
 
 /* Resizable Panels */
-}
 
 #left-panel-content {
     min-width: 150px;
