@@ -6,7 +6,8 @@ import { getZohoProduct } from './detectors.js';
 console.log('[ZohoIDE] Modular Bridge Initialized');
 
 window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'FROM_EXTENSION') {
+    // Only handle messages intended for ZohoIDE
+    if (event.data && event.data.type === 'ZIDE_FROM_EXTENSION') {
         const action = event.data.action;
         let response = {};
 
@@ -23,7 +24,7 @@ window.addEventListener('message', (event) => {
             response = { forms: getCreatorForms() };
         }
 
-        window.postMessage({ type: 'FROM_PAGE', action: action, response: response }, '*');
+        window.postMessage({ type: 'ZIDE_FROM_PAGE', action: action, response: response }, '*');
     }
 });
 
@@ -53,7 +54,7 @@ setInterval(() => {
                 const text = el.innerText.trim();
                 if (text !== window._last_console_data) {
                     window._last_console_data = text;
-                    window.postMessage({ type: 'FROM_PAGE', action: 'ZOHO_CONSOLE_UPDATE', data: text }, '*');
+                    window.postMessage({ type: 'ZIDE_FROM_PAGE', action: 'ZOHO_CONSOLE_UPDATE', data: text }, '*');
                     break;
                 }
             }

@@ -15,28 +15,23 @@ if (!document.getElementById('zoho-deluge-bridge')) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE'].includes(request.action)) {
         // Relay to bridge
-        window.postMessage({ type: 'FROM_EXTENSION', ...request }, '*');
+        window.postMessage({ type: 'ZIDE_FROM_EXTENSION', ...request }, '*');
 
         // Wait for response from bridge
         let timeout;
         const handler = (event) => {
-            if (event.data && event.data.type === 'FROM_PAGE' && event.data.action === request.action) {
+            if (event.data && event.data.type === 'ZIDE_FROM_PAGE' && event.data.action === request.action) {
                 clearTimeout(timeout);
                 window.removeEventListener('message', handler);
 
                 const response = event.data.response;
                 if (response && (response.code !== undefined || response.success)) {
-                    // Success! Respond immediately
                     sendResponse(response);
                 } else {
-                    // No editor in this frame.
-                    // If we are top frame, wait a bit to let other frames respond first.
                     if (window === window.top) {
                         setTimeout(() => {
                             try { sendResponse({ error: 'No editor found in any frame' }); } catch(e) {}
                         }, 1000);
-                    } else {
-                        // Subframe found nothing, just stay silent
                     }
                 }
             }
@@ -58,7 +53,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             injectSidePanel();
             sendResponse({ success: true });
         } else {
-            // Not top frame, don't respond or respond false
             sendResponse({ success: false, error: 'Not top frame' });
         }
         return false;
@@ -67,7 +61,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // 3. Listen for unsolicited messages from bridge (e.g. console updates)
 window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'FROM_PAGE' && event.data.action === 'ZOHO_CONSOLE_UPDATE') {
+    if (event.data && event.data.type === 'ZIDE_FROM_PAGE' && event.data.action === 'ZOHO_CONSOLE_UPDATE') {
         chrome.runtime.sendMessage({ action: 'ZOHO_CONSOLE_UPDATE', data: event.data.data });
     }
 });
@@ -152,7 +146,6 @@ function injectSidePanel() {
     container.appendChild(closeBtn);
     document.body.appendChild(container);
 
-    // Resizing logic
     let isResizing = false;
     let startX, startWidth;
 

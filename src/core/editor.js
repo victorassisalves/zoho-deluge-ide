@@ -12,7 +12,7 @@ export const initEditor = (monaco) => {
     registerDraculaTheme(monaco);
 
     const editor = monaco.editor.create(container, {
-        value: '// Start coding in Zoho Deluge...\\n\\n',
+        value: '// Start coding in Zoho Deluge...\n\n',
         language: 'deluge',
         theme: 'dracula',
         automaticLayout: true,
@@ -34,7 +34,7 @@ export const initEditor = (monaco) => {
     });
 
     editor.onDidChangeCursorPosition(e => {
-        const pos = \`Ln \${e.position.lineNumber}, Col \${e.position.column}\`;
+        const pos = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
         const statusBarPos = document.getElementById('cursor-pos');
         if (statusBarPos) statusBarPos.innerText = pos;
     });

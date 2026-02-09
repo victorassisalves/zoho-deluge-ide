@@ -24,39 +24,39 @@ export const convertInterfaceToDeluge = (varName, jsonStr, options = {}) => {
                 let parts = [];
                 for (const key in val) {
                     if (key.startsWith("$")) continue;
-                    parts.push(\`"\${key}": \${toInline(val[key])}\`);
+                    parts.push(`"${key}": ${toInline(val[key])}`);
                 }
                 return "{" + parts.join(", ") + "}";
             } else {
-                if (typeof val === "string") return \`"\${val.replace(/"/g, '\\\\"')}"\`;
+                if (typeof val === "string") return `"${val.replace(/"/g, '\\"')}"`;
                 return val;
             }
         };
-        return \`\${varName} = \${toInline(obj)};\`;
+        return `${varName} = ${toInline(obj)};`;
     }
 
     const processValue = (val, name) => {
         if (Array.isArray(val)) {
-            const listVar = name || \`list_\${++varCounter}\`;
-            code += \`\${listVar} = List();\\n\`;
+            const listVar = name || `list_${++varCounter}`;
+            code += `${listVar} = List();\n`;
             val.forEach(item => {
                 const itemVal = processValue(item);
-                code += \`\${listVar}.add(\${itemVal});\\n\`;
+                code += `${listVar}.add(${itemVal});\n`;
             });
             return listVar;
         } else if (typeof val === "object" && val !== null) {
-            const mapVar = name || \`map_\${++varCounter}\`;
+            const mapVar = name || `map_${++varCounter}`;
             if (!isUpdate || name !== varName) {
-                code += \`\${mapVar} = Map();\\n\`;
+                code += `${mapVar} = Map();\n`;
             }
             for (const key in val) {
                 if (key.startsWith("$")) continue;
                 const memberVal = processValue(val[key]);
-                code += \`\${mapVar}.put("\${key}", \${memberVal});\\n\`;
+                code += `${mapVar}.put("${key}", ${memberVal});\n`;
             }
             return mapVar;
         } else {
-            if (typeof val === "string") return \`"\${val.replace(/"/g, '\\\\"')}"\`;
+            if (typeof val === "string") return `"${val.replace(/"/g, '\\"')}"`;
             return val;
         }
     };

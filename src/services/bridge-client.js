@@ -12,22 +12,19 @@ export const bridgeClient = {
                 return reject(new Error('Chrome tabs API not available'));
             }
 
-            // In side panel mode, we might want to target our own tab
             const isSidePanel = document.documentElement.classList.contains('sidepanel-mode');
 
             if (isSidePanel) {
-                // Send to parent frame
-                window.parent.postMessage({ type: 'FROM_EXTENSION', action, ...data }, '*');
+                window.parent.postMessage({ type: 'ZIDE_FROM_EXTENSION', action, ...data }, '*');
 
                 const handler = (event) => {
-                    if (event.data && event.data.type === 'FROM_PAGE' && event.data.action === action) {
+                    if (event.data && event.data.type === 'ZIDE_FROM_PAGE' && event.data.action === action) {
                         window.removeEventListener('message', handler);
                         resolve(event.data.response);
                     }
                 };
                 window.addEventListener('message', handler);
             } else {
-                // Standalone mode: target active tab
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs.length === 0) return reject(new Error('No active tab found'));
 
