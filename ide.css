@@ -113,6 +113,7 @@ body, html {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .panel-header {
@@ -296,6 +297,7 @@ html.sidepanel-mode .status-right {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 
@@ -584,7 +586,7 @@ html.sidepanel-mode #right-sidebar {
 
 /* Robust Right Sidebar Toggle */
 #right-sidebar.collapsed {
-    width: 50px !important;
+    width: 30px !important;
 }
 
 #right-sidebar.collapsed .right-sidebar-header {

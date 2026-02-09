@@ -6,7 +6,7 @@ window.zideProjectName = zideProjectName;
 window.activeCloudFileId = null;
 
 /**
- * Zoho Deluge Advanced IDE v2.0
+ * Zoho Deluge Advanced IDE v2.0.0
  */
 
 var editor;
@@ -1057,16 +1057,25 @@ function toggleRightSidebar() {
     const resizer = document.getElementById('right-sidebar-resizer');
     if (!sidebar) return;
 
-    sidebar.classList.toggle('collapsed');
-    if (resizer) resizer.classList.toggle('collapsed');
+    const isNowCollapsing = !sidebar.classList.contains('collapsed');
 
-    if (sidebar.classList.contains('collapsed')) {
-        sidebar.dataset.oldWidth = sidebar.style.width || '250px';
-        sidebar.style.width = '';
+    if (isNowCollapsing) {
+        // Save current width before collapsing
+        const currentWidth = sidebar.getBoundingClientRect().width;
+        sidebar.dataset.oldWidth = currentWidth + 'px';
+        sidebar.classList.add('collapsed');
+        if (resizer) resizer.classList.add('collapsed');
+        sidebar.style.width = ''; // Let CSS take over for collapsed state
     } else {
+        sidebar.classList.remove('collapsed');
+        if (resizer) resizer.classList.remove('collapsed');
         sidebar.style.width = sidebar.dataset.oldWidth || '250px';
     }
-    if (editor) editor.layout();
+
+    if (editor) {
+        setTimeout(() => editor.layout(), 0);
+        setTimeout(() => editor.layout(), 300); // After transition
+    }
 }
 
 document.getElementById('toggle-right-sidebar')?.addEventListener('click', toggleRightSidebar);
