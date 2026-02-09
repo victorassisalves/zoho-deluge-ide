@@ -6,9 +6,9 @@
 
         switch (type) {
             // Condition
-            case 'if': snippet = "if (${1:condition}) \n{\n\t$0\n}"; break;
-            case 'else if': snippet = "else if (${1:condition}) \n{\n\t$0\n}"; break;
-            case 'else': snippet = "else \n{\n\t$0\n}"; break;
+            case 'if': snippet = "if (${1:condition})\n{\n\t$0\n}"; break;
+            case 'else if': snippet = "else if (${1:condition})\n{\n\t$0\n}"; break;
+            case 'else': snippet = "else\n{\n\t$0\n}"; break;
             case 'conditional if': snippet = "if(${1:condition}, ${2:true_val}, ${3:false_val})"; break;
 
             // Data Access

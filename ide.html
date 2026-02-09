@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoho Deluge Advanced IDE v2.0.0</title>
     <link rel="stylesheet" href="ide.css">
-
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" data-name="vs/editor/editor.main" href="assets/monaco-editor/min/vs/editor/editor.main.css">
 </head>
 <body>
@@ -14,28 +14,24 @@
             <div class="logo">Deluge IDE <div class="project-info" style="margin-left: 20px; display: inline-flex; align-items: center; gap: 5px;"><label style="font-size: 10px; color: #888;">Project:</label><input type="text" id="project-name-input" placeholder="Untitled Project" style="background: #1e1e1e; color: #ccc; border: 1px solid #444; padding: 2px 5px; font-size: 11px; width: 150px;"></div></div>
             <div class="actions">
                 <span id="status-indicator">Disconnected</span>
-                <button id="new-btn" title="New Script">New</button>
-                <button id="pull-btn" title="Pull (Ctrl+Shift+P)">Pull</button>
-                <button id="push-btn" title="Sync (Ctrl+Shift+S)">Sync</button>
-                <button id="toggle-right-sidebar-top" title="Toggle Interface Manager">🗂️</button>
-                <button id="interface-btn" title="JSON to Deluge Map">JSON->Map</button>
-                <button id="execute-btn" style="background:#28a745;" title="Sync + Execute (Ctrl+Shift+Enter)">Run</button>
-                    <button id="save-btn" title="Save Locally (Ctrl+S)">Save</button>
+                <button id="new-btn" title="New Script"><span class="material-icons">add</span> New</button>
+                <button id="pull-btn" title="Pull (Ctrl+Shift+P)"><span class="material-icons">download</span> Pull</button>
+                <button id="push-btn" title="Sync (Ctrl+Shift+S)"><span class="material-icons">sync</span> Sync</button>
+                <button id="toggle-right-sidebar-top" title="Toggle Interface Manager"><span class="material-icons">dashboard</span></button>
+                <button id="interface-btn" title="JSON to Deluge Map"><span class="material-icons">transform</span> JSON->Map</button>
+                <button id="execute-btn" style="background:#28a745;" title="Sync + Execute (Ctrl+Shift+Enter)"><span class="material-icons">play_arrow</span> Run</button>
+                <button id="save-btn" title="Save Locally (Ctrl+S)"><span class="material-icons">save</span> Save</button>
             </div>
         </header>
         <main id="main-content">
             <aside id="sidebar">
-                <div class="sidebar-item active" data-view="explorer" title="Explorer">📁</div>
-                <div class="sidebar-item" data-view="cloud" title="Workspaces">☁️</div>
-                <div class="sidebar-item" data-view="ai-agent" title="AI Agent">🤖</div>
-                <div class="sidebar-item" data-view="zoho-apis" title="Zoho APIs">
-                    <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="currentColor" style="vertical-align: middle;">
-                        <path d="m480-400-80-80 80-80 80 80-80 80Zm-85-235L295-735l185-185 185 185-100 100-85-85-85 85ZM225-295 40-480l185-185 100 100-85 85 85 85-100 100Zm510 0L635-395l85-85-85-85 100-100 185 185-185 185ZM480-40 295-225l100-100 85 85 85-85 100 100L480-40Z"/>
-                    </svg>
-                </div>
-                <div class="sidebar-item" data-view="snippets" title="Snippets">📋</div>
-                <div class="sidebar-item" data-view="extensions" title="Extensions" style="display: none;">🧩</div>
-                <div class="sidebar-item" data-view="settings" title="Settings">⚙️</div>
+                <div class="sidebar-item active" data-view="explorer" title="Explorer"><span class="material-icons">folder</span></div>
+                <div class="sidebar-item" data-view="cloud" title="Workspaces"><span class="material-icons">cloud</span></div>
+                <div class="sidebar-item" data-view="ai-agent" title="AI Agent"><span class="material-icons">psychology</span></div>
+                <div class="sidebar-item" data-view="zoho-apis" title="Zoho APIs"><span class="material-icons">api</span></div>
+                <div class="sidebar-item" data-view="snippets" title="Snippets"><span class="material-icons">description</span></div>
+                <div class="sidebar-item" data-view="extensions" title="Extensions" style="display: none;"><span class="material-icons">extension</span></div>
+                <div class="sidebar-item" data-view="settings" title="Settings"><span class="material-icons">settings</span></div>
             </aside>
             <div id="left-panel-content" class="sidebar-panel">
                 <!-- Explorer View -->
@@ -353,9 +349,9 @@
                     </div>
                     <div class="header-row icons-row">
                         <button id="toggle-right-sidebar" class="sidebar-btn" title="Toggle Sidebar">
-                            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+                            <span class="material-icons">chevron_right</span>
                         </button>
-                        <button id="add-interface-btn" class="sidebar-btn" title="Add Interface Mapping">+</button>
+                        <button id="add-interface-btn" class="sidebar-btn" title="Add Interface Mapping"><span class="material-icons">add</span></button>
                     </div>
                     <div class="search-container">
                         <input type="text" id="interface-search" placeholder="Search keys...">
@@ -374,9 +370,9 @@
         <div id="bottom-resizer" class="resizer horizontal"></div>
         <footer id="bottom-panel">
             <div class="panel-header">
-                <div class="tab active" data-target="console-output">Console</div>
-                <div class="tab" data-target="problems-output">Problems</div>
-                <div class="tab" data-target="docs-output">Docs</div>
+                <div class="tab active" data-target="console-output"><span class="material-icons" style="font-size:14px; margin-right:4px;">terminal</span> Console</div>
+                <div class="tab" data-target="problems-output"><span class="material-icons" style="font-size:14px; margin-right:4px;">error_outline</span> Problems</div>
+                <div class="tab" data-target="docs-output"><span class="material-icons" style="font-size:14px; margin-right:4px;">help_outline</span> Docs</div>
 
                 <div class="panel-actions">
                     <button id="clear-console">Clear</button>

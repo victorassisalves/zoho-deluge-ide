@@ -75,6 +75,7 @@ function initEditor() {
             language: 'deluge',
             theme: 'dracula',
             automaticLayout: true,
+            wordBasedSuggestions: false,
             fontSize: 14,
             minimap: { enabled: true },
             lineNumbers: 'on',
@@ -665,9 +666,11 @@ function updateInterfaceMappingsList() {
         actions.style.gap = '8px';
 
         const copyAllBtn = document.createElement('span');
-        copyAllBtn.innerHTML = '📋';
+        copyAllBtn.className = 'material-icons';
+        copyAllBtn.innerHTML = 'content_copy';
         copyAllBtn.title = 'Copy as Deluge Map';
         copyAllBtn.style.cursor = 'pointer';
+        copyAllBtn.style.fontSize = '14px';
         copyAllBtn.onclick = (e) => {
             e.stopPropagation();
             const code = convertInterfaceToDeluge(name, JSON.stringify(interfaceMappings[name]));
@@ -678,9 +681,10 @@ function updateInterfaceMappingsList() {
         };
 
         const deleteBtn = document.createElement('span');
-        deleteBtn.className = 'delete-mapping';
-        deleteBtn.innerHTML = '×';
+        deleteBtn.className = 'delete-mapping material-icons';
+        deleteBtn.innerHTML = 'close';
         deleteBtn.style.opacity = '1';
+        deleteBtn.style.fontSize = '16px';
         deleteBtn.onclick = (e) => {
             e.stopPropagation();
             if (confirm(`Delete mapping "${name}"?`)) {
@@ -729,9 +733,9 @@ function renderInterfaceTree(mappingName, obj) {
 
                 let iconHtml = '';
                 if (isObject) {
-                    iconHtml = '<span class="toggle-icon">▼</span><span class="node-icon">📁</span>';
+                    iconHtml = '<span class="toggle-icon material-icons" style="font-size:12px;">arrow_drop_down</span><span class="node-icon material-icons" style="font-size:12px;">folder</span>';
                 } else {
-                    iconHtml = '<span class="toggle-icon" style="visibility:hidden">▼</span><span class="node-icon">📄</span>';
+                    iconHtml = '<span class="toggle-icon material-icons" style="visibility:hidden; font-size:12px;">arrow_drop_down</span><span class="node-icon material-icons" style="font-size:12px;">description</span>';
                 }
 
                 const keyHtml = `<span class="tree-key">${key}</span>`;
