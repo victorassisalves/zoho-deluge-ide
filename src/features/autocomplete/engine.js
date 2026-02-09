@@ -3,6 +3,7 @@ import diagnostics from '../../services/diagnostics.js';
 
 export const setupAutocomplete = (monaco) => {
     diagnostics.report('AutocompleteEngine', 'initializing');
+    return; // Disabled to prevent duplication with deluge-lang.js
 
     monaco.languages.registerCompletionItemProvider('deluge', {
         triggerCharacters: ['.', '"', ':'],

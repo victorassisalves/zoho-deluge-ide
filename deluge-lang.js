@@ -262,12 +262,14 @@
 
         // Validation logic
             function extractVariables(code) {
+        // Strip comments for extraction
+        const cleanCode = code.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
         const vars = new Set(['input', 'zoho', 'thisapp', 'standalone', 'today', 'now']);
 
         // Extract parameters from function signatures
         const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
         let pMatch;
-        while ((pMatch = funcParamRegex.exec(code)) !== null) {
+        while ((pMatch = funcParamRegex.exec(cleanCode)) !== null) {
             const params = pMatch[1].split(',');
             params.forEach(p => {
                 const parts = p.trim().split(/\s+/);
@@ -280,7 +282,7 @@
 
         // Extract variables from catch blocks
         const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
-        while ((pMatch = catchRegex.exec(code)) !== null) {
+        while ((pMatch = catchRegex.exec(cleanCode)) !== null) {
             vars.add(pMatch[1]);
         }
 
@@ -289,7 +291,7 @@
         // Extract from assignments
         const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
         let match;
-        while ((match = assignmentRegex.exec(code)) !== null) {
+        while ((match = assignmentRegex.exec(cleanCode)) !== null) {
             if (!keywords.includes(match[1])) {
                 vars.add(match[1]);
             }
@@ -297,7 +299,7 @@
 
         // Extract from for each loops
         const forEachRegex = /for\s+each\s+([a-zA-Z0-9_]+)\s+in/gi;
-        while ((match = forEachRegex.exec(code)) !== null) {
+        while ((match = forEachRegex.exec(cleanCode)) !== null) {
             if (!keywords.includes(match[1])) {
                 vars.add(match[1]);
             }
@@ -305,7 +307,7 @@
 
         // Extract from for loops
         const forRegex = /for\s+([a-zA-Z0-9_]+)\s+in/gi;
-        while ((match = forRegex.exec(code)) !== null) {
+        while ((match = forRegex.exec(cleanCode)) !== null) {
             if (!keywords.includes(match[1])) {
                 vars.add(match[1]);
             }
