@@ -72,40 +72,63 @@
                 ],
             },
         });
-        const staticSuggestions = [
+                        const staticSuggestions = [
             { label: 'Map()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'Map()' },
             { label: 'List()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'List()' },
+            { label: 'Collection()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'Collection()' },
             { label: 'info', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'info $0', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
             { label: 'return', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'return ' },
             { label: 'if', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'if (${1:condition}) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
             { label: 'for each', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'for each ${1:var} in ${2:list} {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
             { label: 'try catch', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'try {\n\t$1\n} catch (${2:err}) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
             { label: 'void function', kind: monaco.languages.CompletionItemKind.Function, insertText: 'void ${1:name}($2) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-            { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Function, insertText: 'invokeurl\n[\n\turl: "$1"\n\ttype: ${2|GET,POST,PUT,DELETE|}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }
+            { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Function, insertText: 'invokeurl\n[\n\turl: "$1"\n\ttype: ${2|GET,POST,PUT,DELETE|}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+            { label: 'sendmail', kind: monaco.languages.CompletionItemKind.Snippet, insertText: 'sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: "$1"\n\tsubject: "$2"\n\tmessage: "$3"\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+            { label: 'today', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'today' },
+            { label: 'now', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'now' },
+            { label: 'daysBetween', kind: monaco.languages.CompletionItemKind.Function, insertText: 'daysBetween(${1:d1}, ${2:d2})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }
         ];
 
-        const typeMethods = {
+                const typeMethods = {
             string: [
                 { label: 'length()', insertText: 'length()' },
                 { label: 'subString(start, end)', insertText: 'subString(${1:start}, ${2:end})' },
                 { label: 'toLowerCase()', insertText: 'toLowerCase()' },
                 { label: 'toUpperCase()', insertText: 'toUpperCase()' },
                 { label: 'trim()', insertText: 'trim()' },
-                { label: 'toList(sep)', insertText: 'toList("${1:,}")' }
+                { label: 'toList(sep)', insertText: 'toList("${1:,}")' },
+                { label: 'toNumber()', insertText: 'toNumber()' },
+                { label: 'toDecimal()', insertText: 'toDecimal()' },
+                { label: 'toDate()', insertText: 'toDate()' },
+                { label: 'toDateTime()', insertText: 'toDateTime()' },
+                { label: 'contains(str)', insertText: 'contains("${1:str}")' },
+                { label: 'startsWith(str)', insertText: 'startsWith("${1:str}")' },
+                { label: 'endsWith(str)', insertText: 'endsWith("${1:str}")' },
+                { label: 'replaceAll(old, new)', insertText: 'replaceAll("${1:old}", "${2:new}")' }
             ],
             list: [
                 { label: 'add(val)', insertText: 'add(${1:val})' },
+                { label: 'addAll(otherList)', insertText: 'addAll(${1:otherList})' },
                 { label: 'get(index)', insertText: 'get(${1:index})' },
                 { label: 'size()', insertText: 'size()' },
                 { label: 'contains(val)', insertText: 'contains(${1:val})' },
-                { label: 'isEmpty()', insertText: 'isEmpty()' }
+                { label: 'isEmpty()', insertText: 'isEmpty()' },
+                { label: 'remove(index)', insertText: 'remove(${1:index})' },
+                { label: 'clear()', insertText: 'clear()' },
+                { label: 'sort(asc)', insertText: 'sort(${1:true})' },
+                { label: 'distinct()', insertText: 'distinct()' }
             ],
             map: [
                 { label: 'put(key, val)', insertText: 'put("${1:key}", ${2:val})' },
                 { label: 'get(key)', insertText: 'get("${1:key}")' },
                 { label: 'getJSON(key)', insertText: 'getJSON("${1:key}")' },
                 { label: 'keys()', insertText: 'keys()' },
-                { label: 'remove(key)', insertText: 'remove("${1:key}")' }
+                { label: 'remove(key)', insertText: 'remove("${1:key}")' },
+                { label: 'size()', insertText: 'size()' },
+                { label: 'isEmpty()', insertText: 'isEmpty()' },
+                { label: 'containsKey(key)', insertText: 'containsKey("${1:key}")' },
+                { label: 'containValue(val)', insertText: 'containValue(${1:val})' },
+                { label: 'clear()', insertText: 'clear()' }
             ],
             zoho: [
                 { label: 'zoho.crm.getRecordById(module, id)', insertText: 'zoho.crm.getRecordById("${1:Leads}", ${2:id})' },
@@ -114,7 +137,8 @@
                 { label: 'zoho.crm.searchRecords(module, criteria)', insertText: 'zoho.crm.searchRecords("${1:Leads}", "(${2:Email} == \'${3:test@example.com}\')")' },
                 { label: 'zoho.books.getRecords(module, orgId)', insertText: 'zoho.books.getRecords("${1:Invoices}", "${2:organization_id}")' },
                 { label: 'zoho.books.createRecord(module, orgId, map)', insertText: 'zoho.books.createRecord("${1:Invoices}", "${2:organization_id}", ${3:dataMap})' },
-                { label: 'zoho.recruit.getRecordById(module, id)', insertText: 'zoho.recruit.getRecordById("${1:Candidates}", ${2:id})' }
+                { label: 'zoho.recruit.getRecordById(module, id)', insertText: 'zoho.recruit.getRecordById("${1:Candidates}", ${2:id})' },
+                { label: 'zoho.recruit.updateRecord(module, id, map)', insertText: 'zoho.recruit.updateRecord("${1:Candidates}", ${2:id}, ${3:dataMap})' }
             ]
         };
 
@@ -166,18 +190,71 @@
                 }
 
                 // Default suggestions
+                const vars = extractVariables(code);
+                const varSuggestions = Array.from(vars).map(v => ({
+                    label: v,
+                    kind: monaco.languages.CompletionItemKind.Variable,
+                    insertText: v,
+                    range: range
+                }));
+
                 return {
-                    suggestions: staticSuggestions.map(s => ({
-                        ...s,
-                        range: range
-                    }))
+                    suggestions: [
+                        ...staticSuggestions.map(s => ({ ...s, range: range })),
+                        ...varSuggestions
+                    ]
                 };
             }
         });
 
 
         // Validation logic
-        function inferVarType(varName, code) {
+            function extractVariables(code) {
+        const vars = new Set(['input', 'zoho', 'thisapp', 'standalone', 'today', 'now', 'invokeurl']);
+
+        // Extract parameters from function signatures
+        const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
+        let pMatch;
+        while ((pMatch = funcParamRegex.exec(code)) !== null) {
+            const params = pMatch[1].split(',');
+            params.forEach(p => {
+                const parts = p.trim().split(/\s+/);
+                if (parts.length > 0) {
+                    const paramName = parts[parts.length - 1].trim();
+                    if (paramName) vars.add(paramName);
+                }
+            });
+        }
+
+        // Extract variables from catch blocks
+        const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
+        while ((pMatch = catchRegex.exec(code)) !== null) {
+            vars.add(pMatch[1]);
+        }
+
+        // Extract from assignments
+        const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
+        let match;
+        while ((match = assignmentRegex.exec(code)) !== null) {
+            vars.add(match[1]);
+        }
+
+        // Extract from for each loops
+        const forEachRegex = /for\s+each\s+([a-zA-Z0-9_]+)\s+in/gi;
+        while ((match = forEachRegex.exec(code)) !== null) {
+            vars.add(match[1]);
+        }
+
+        // Extract from for loops
+        const forRegex = /for\s+([a-zA-Z0-9_]+)\s+in/gi;
+        while ((match = forRegex.exec(code)) !== null) {
+            vars.add(match[1]);
+        }
+
+        return vars;
+    }
+
+    function inferVarType(varName, code) {
             const mapRegex = new RegExp(varName + "\\s*=\\s*Map\\(\\)", "i");
             if (mapRegex.test(code)) return "Map";
             const listRegex = new RegExp(varName + "\\s*=\\s*List\\(\\)", "i");
@@ -198,40 +275,7 @@
             let inCommentBlock = false;
 
             // 1. Collect defined variables
-            const definedVars = new Set(['input', 'zoho', 'thisapp', 'standalone', 'today', 'now', 'invokeurl']);
-
-            // Extract parameters from function signatures
-            const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
-            let pMatch;
-            while ((pMatch = funcParamRegex.exec(code)) !== null) {
-                const params = pMatch[1].split(',');
-                params.forEach(p => {
-                    const parts = p.trim().split(/\s+/);
-                    if (parts.length > 0) {
-                        const paramName = parts[parts.length - 1].trim();
-                        if (paramName) definedVars.add(paramName);
-                    }
-                });
-            }
-
-            // Extract variables from catch blocks
-            const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
-            while ((pMatch = catchRegex.exec(code)) !== null) {
-                definedVars.add(pMatch[1]);
-            }
-            const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
-            let match;
-            while ((match = assignmentRegex.exec(code)) !== null) {
-                definedVars.add(match[1]);
-            }
-            const forEachRegex = /for\s+each\s+([a-zA-Z0-9_]+)\s+in/gi;
-            while ((match = forEachRegex.exec(code)) !== null) {
-                definedVars.add(match[1]);
-            }
-            const forRegex = /for\s+([a-zA-Z0-9_]+)\s+in/gi;
-            while ((match = forRegex.exec(code)) !== null) {
-                definedVars.add(match[1]);
-            }
+            const definedVars = extractVariables(code);
 
             const mandatoryParams = {
                 'zoho.crm.getRecordById': 2,
