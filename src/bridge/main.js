@@ -10,8 +10,11 @@ window.addEventListener('message', (e) => {
         if (msg.source !== 'EXTENSION') return;
 
         let resp = {};
-        if (msg.action === 'PING') resp = { status: 'PONG', product: getZohoProduct() };
-        else if (msg.action === 'GET_CODE') resp = { code: getEditorCode() };
+        if (msg.action === 'PING') {
+            resp = { status: 'PONG', product: getZohoProduct() };
+        } else if (msg.action === 'GET_CODE') {
+            resp = { code: getEditorCode() };
+        }
 
         window.postMessage('ZIDE_MSG:' + JSON.stringify({
             source: 'PAGE',

@@ -9,8 +9,8 @@ window.MonacoEnvironment = {
         const workerPath = 'assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
         const workerUrl = chrome.runtime.getURL(workerPath);
         const blob = new Blob([
-            `self.MonacoEnvironment = { baseUrl: '${chrome.runtime.getURL('assets/monaco-editor/min/vs/')}' };
-             importScripts('${workerUrl}');`
+            'self.MonacoEnvironment = { baseUrl: \'' + chrome.runtime.getURL('assets/monaco-editor/min/vs/') + '\' };' +
+            'importScripts(\'' + workerUrl + '\');'
         ], { type: 'application/javascript' });
         return URL.createObjectURL(blob);
     }

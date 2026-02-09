@@ -1,6 +1,3 @@
-/**
- * Centralized Store for Zoho Deluge IDE
- */
 import diagnostics from './diagnostics.js';
 
 class Store {
@@ -13,14 +10,10 @@ class Store {
             interfaceMappings: {}
         };
         this.listeners = [];
-
-        // Initial report
         diagnostics.report('Store', 'initialized');
     }
 
-    get(key) {
-        return this.state[key];
-    }
+    get(key) { return this.state[key]; }
 
     set(key, value) {
         if (this.state[key] === value) return;
@@ -30,15 +23,11 @@ class Store {
 
     subscribe(callback) {
         this.listeners.push(callback);
-        return () => {
-            this.listeners = this.listeners.filter(l => l !== callback);
-        };
+        return () => { this.listeners = this.listeners.filter(l => l !== callback); };
     }
 
     notify(key, value) {
-        this.listeners.forEach(cb => {
-            try { cb(key, value); } catch(e) {}
-        });
+        this.listeners.forEach(cb => { try { cb(key, value); } catch(e) {} });
     }
 }
 

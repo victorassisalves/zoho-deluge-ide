@@ -30,15 +30,13 @@ export const setupAutocomplete = (monaco) => {
             try {
                 const suggestions = await registry.getSuggestions(model, position, context);
                 return {
-                    suggestions: suggestions.map(s => {
-                        return {
-                            label: s.label,
-                            kind: s.kind,
-                            insertText: s.insertText,
-                            insertTextRules: s.insertTextRules,
-                            range: s.range || range
-                        };
-                    })
+                    suggestions: suggestions.map(s => ({
+                        label: s.label,
+                        kind: s.kind,
+                        insertText: s.insertText,
+                        insertTextRules: s.insertTextRules,
+                        range: s.range || range
+                    }))
                 };
             } catch (err) {
                 return { suggestions: [] };

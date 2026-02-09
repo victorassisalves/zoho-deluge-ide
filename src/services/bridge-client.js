@@ -20,11 +20,16 @@ export const bridgeClient = {
                 };
                 window.addEventListener('message', handler);
             } else {
+                if (typeof chrome === "undefined" || !chrome.tabs) {
+                    return resolve(null);
+                }
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]) {
                         chrome.tabs.sendMessage(tabs[0].id, { zide_payload: payload }, (resp) => {
                             resolve(resp);
                         });
+                    } else {
+                        resolve(null);
                     }
                 });
             }
@@ -32,8 +37,13 @@ export const bridgeClient = {
     },
     ping: async () => {
         const resp = await bridgeClient.send('PING');
-        diagnostics.report('Bridge', resp ? 'connected (' + resp.product + ')' : 'disconnected');
-        return !!resp;
+        if (resp) {
+            diagnostics.report('Bridge', 'connected (' + resp.product + ')');
+            return true;
+        } else {
+            diagnostics.report('Bridge', 'disconnected');
+            return false;
+        }
     }
 };
 
