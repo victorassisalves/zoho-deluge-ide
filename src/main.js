@@ -12,7 +12,8 @@ async function bootstrap() {
     diagnostics.report('Main', 'bootstrapping');
 
     if (typeof monaco !== 'undefined') {
-        initAutocomplete(monaco);
+        // Autocomplete is now handled by deluge-lang.js for better Zoho integration
+        // initAutocomplete(monaco);
         initLinter(monaco);
     }
 
