@@ -1,7 +1,4 @@
-/**
- * Linter Engine
- */
-import logger from '../../utils/logger.js';
+import diagnostics from '../../services/diagnostics.js';
 
 class LinterEngine {
     constructor() {
@@ -13,28 +10,16 @@ class LinterEngine {
     }
 
     validate(model) {
-        if (!model || model.getLanguageId() !== 'deluge') return [];
-
-        const code = model.getValue();
-        const lines = model.getLinesContent();
-        const markers = [];
-
-        // Global context that can be shared across rules
+        if (!model) return [];
         const context = {
-            lines,
-            code,
-            markers
+            lines: model.getLinesContent(),
+            code: model.getValue(),
+            markers: []
         };
-
         this.rules.forEach(rule => {
-            try {
-                rule.validate(context);
-            } catch (err) {
-                logger.error(\`Error in linter rule \${rule.name}:\`, err);
-            }
+            try { rule.validate(context); } catch (e) {}
         });
-
-        return markers;
+        return context.markers;
     }
 }
 
@@ -42,28 +27,19 @@ const engine = new LinterEngine();
 export default engine;
 
 export const setupLinter = (monaco) => {
-    logger.info('Initializing Linter Engine...');
+    diagnostics.report('LinterEngine', 'initializing');
 
-    const validateModel = (model) => {
+    const validate = (model) => {
         const markers = engine.validate(model);
         monaco.editor.setModelMarkers(model, 'deluge', markers);
-
-        // Expose global for sync blocking if needed
-        window.hasLinterErrors = markers.some(m => m.severity === monaco.MarkerSeverity.Error);
     };
 
     monaco.editor.onDidCreateModel(model => {
         if (model.getLanguageId() === 'deluge') {
-            validateModel(model);
-            model.onDidChangeContent(() => validateModel(model));
+            validate(model);
+            model.onDidChangeContent(() => validate(model));
         }
     });
 
-    // Validate existing models
-    monaco.editor.getModels().forEach(model => {
-        if (model.getLanguageId() === 'deluge') {
-            validateModel(model);
-            model.onDidChangeContent(() => validateModel(model));
-        }
-    });
+    diagnostics.report('LinterEngine', 'ready');
 };

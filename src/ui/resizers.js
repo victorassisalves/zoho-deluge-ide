@@ -1,49 +1,26 @@
-/**
- * Resizer Logic for IDE Panels
- */
+import diagnostics from '../services/diagnostics.js';
 
 export const initResizers = () => {
-    const setupResizer = (resizerId, panelId, property, isReverse = false) => {
+    diagnostics.report('UI', 'initializing resizers');
+    const setup = (resizerId, panelId, prop, reverse = false) => {
         const resizer = document.getElementById(resizerId);
         const panel = document.getElementById(panelId);
         if (!resizer || !panel) return;
 
-        let isResizing = false;
-
-        resizer.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            document.body.style.userSelect = 'none';
-            document.body.classList.add('resizing');
-        });
-
+        let resizing = false;
+        resizer.addEventListener('mousedown', () => resizing = true);
         window.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-
-            let size;
-            if (property === 'width') {
-                size = isReverse ? (window.innerWidth - e.clientX) : e.clientX;
-                if (size > 100 && size < window.innerWidth * 0.8) {
-                    panel.style.width = size + 'px';
-                }
-            } else {
-                size = window.innerHeight - e.clientY;
-                if (size > 50 && size < window.innerHeight * 0.8) {
-                    panel.style.height = size + 'px';
-                }
-            }
+            if (!resizing) return;
+            let size = prop === 'width'
+                ? (reverse ? window.innerWidth - e.clientX : e.clientX)
+                : window.innerHeight - e.clientY;
+            if (size > 50) panel.style[prop] = size + 'px';
             window.dispatchEvent(new Event('resize'));
         });
-
-        window.addEventListener('mouseup', () => {
-            if (isResizing) {
-                isResizing = false;
-                document.body.style.userSelect = 'auto';
-                document.body.classList.remove('resizing');
-            }
-        });
+        window.addEventListener('mouseup', () => resizing = false);
     };
 
-    setupResizer('left-resizer', 'sidebar-panel', 'width');
-    setupResizer('right-sidebar-resizer', 'right-sidebar', 'width', true);
-    setupResizer('bottom-resizer', 'bottom-panel', 'height');
+    setup('left-resizer', 'sidebar-panel', 'width');
+    setup('right-sidebar-resizer', 'right-sidebar', 'width', true);
+    setup('bottom-resizer', 'bottom-panel', 'height');
 };

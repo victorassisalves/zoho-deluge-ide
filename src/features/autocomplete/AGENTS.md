@@ -1,20 +1,21 @@
-# Autocomplete Feature (B1+B3 Hybrid)
+# Autocomplete Module (B1+B3 Hybrid)
 
 ## Purpose
-Provides context-aware suggestions for Deluge code, including keywords, methods, Zoho tasks, and variables.
+Provides isolated, source-based autocomplete suggestions for Deluge.
 
 ## Structure
-- `engine.js`: Monaco registration and event handling.
-- `registry.js`: Central hub for merging results from different providers.
-- `providers/`: Specialized plugins for different types of suggestions.
-- `data/`: Static definition files for keywords and methods.
+- `engine.js`: Monaco interaction.
+- `registry.js`: Provider management.
+- `providers/`: Logic for specific suggestion types.
+- `data/`: Raw data (keywords, methods).
 
-## API
-- `initAutocomplete(monaco)`: Initializes the entire autocomplete system.
-- `registry.register(provider)`: Add a new provider at runtime.
+## Verification Checklist
+- [ ] Dot-triggered methods show up for strings (`"test".` -> `length()`, etc).
+- [ ] Native keywords (`if`, `for each`) show up in global context.
+- [ ] `zoho.` triggers Zoho task suggestions.
+- [ ] Variables defined in current script are suggested.
+- [ ] No SyntaxErrors in console during typing.
 
 ## Golden Rules
-1. **Source Isolation**: Do NOT add native Deluge keywords to `zoho-task-provider.js`. Keep them in `keyword-provider.js`.
-2. **Provider Independence**: A provider should not depend on another provider's state.
-3. **Performance**: Providers must return results as quickly as possible (use \`async\` but avoid heavy processing).
-4. **No Side Effects**: `provide()` should be a pure function that returns suggestions based on the inputs.
+- Never add logic to `data/*.js`.
+- Always use `registry.register()` to add new providers.

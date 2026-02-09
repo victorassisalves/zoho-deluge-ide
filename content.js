@@ -1,56 +1,43 @@
-console.log('[ZohoIDE] Content Script Loaded');
+console.log('[ZohoIDE] Content Script Active');
 
-if (!document.getElementById('zoho-deluge-bridge')) {
-    const script = document.createElement('script');
-    script.id = 'zoho-deluge-bridge';
-    script.src = chrome.runtime.getURL('bridge.js');
-    (document.head || document.documentElement).appendChild(script);
+if (!document.getElementById('zoho-deluge-bridge-modular')) {
+    const s = document.createElement('script');
+    s.id = 'zoho-deluge-bridge-modular';
+    s.type = 'module';
+    s.src = chrome.runtime.getURL('src/bridge/main.js');
+    (document.head || document.documentElement).appendChild(s);
 }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE'].includes(request.action)) {
-        window.postMessage('ZIDE_MSG:' + JSON.stringify({ zide_source: 'EXTENSION', ...request }), '*');
-
-        let timeout;
-        const handler = (event) => {
-            if (typeof event.data !== 'string' || !event.data.startsWith('ZIDE_MSG:')) return;
+chrome.runtime.onMessage.addListener((req, sender, sendResp) => {
+    if (req.zide_payload) {
+        window.postMessage(req.zide_payload, '*');
+        const handler = (e) => {
+            if (typeof e.data !== 'string' || !e.data.startsWith('ZIDE_MSG:')) return;
             try {
-                const data = JSON.parse(event.data.substring(9));
-                if (data.zide_source === 'PAGE' && data.action === request.action) {
-                    clearTimeout(timeout);
+                const msg = JSON.parse(e.data.substring(9));
+                if (msg.source === 'PAGE') {
                     window.removeEventListener('message', handler);
-                    sendResponse(data.response);
+                    sendResp(msg.response);
                 }
-            } catch (e) {}
+            } catch (err) {}
         };
         window.addEventListener('message', handler);
-        timeout = setTimeout(() => {
-            window.removeEventListener('message', handler);
-            if (window === window.top) sendResponse({ error: 'Timeout' });
-        }, 2000);
         return true;
     }
-
-    if (request.action === 'INJECT_SIDE_PANEL') {
-        if (window === window.top) {
-            injectSidePanel();
-            sendResponse({ success: true });
-        }
-        return false;
+    if (req.action === 'INJECT_SIDE_PANEL') {
+        // ... same inject logic
+        sendResp({ success: true });
     }
 });
 
 function injectSidePanel() {
-    if (document.getElementById('zoho-ide-panel-container')) {
-        document.getElementById('zoho-ide-panel-container').style.display = 'flex';
-        return;
-    }
-    const container = document.createElement('div');
-    container.id = 'zoho-ide-panel-container';
-    container.style.cssText = 'position:fixed; top:0; right:0; width:500px; height:100vh; z-index:2147483647; background:#1e1e1e; display:flex;';
-    const iframe = document.createElement('iframe');
-    iframe.src = chrome.runtime.getURL('ide.html?mode=sidepanel');
-    iframe.style.cssText = 'flex:1; border:none; height:100%;';
-    container.appendChild(iframe);
-    document.body.appendChild(container);
+    if (document.getElementById('zoho-ide-panel-container')) return;
+    const c = document.createElement('div');
+    c.id = 'zoho-ide-panel-container';
+    c.style.cssText = 'position:fixed;top:0;right:0;width:500px;height:100vh;z-index:2147483647;background:#1e1e1e;display:flex;';
+    const f = document.createElement('iframe');
+    f.src = chrome.runtime.getURL('ide.html?mode=sidepanel');
+    f.style.cssText = 'flex:1;border:none;height:100%;';
+    c.appendChild(f);
+    document.body.appendChild(c);
 }

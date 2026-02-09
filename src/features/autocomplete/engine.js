@@ -1,17 +1,12 @@
 import registry from './registry.js';
-import logger from '../../utils/logger.js';
+import diagnostics from '../../services/diagnostics.js';
 
 export const setupAutocomplete = (monaco) => {
+    diagnostics.report('AutocompleteEngine', 'initializing');
+
     monaco.languages.registerCompletionItemProvider('deluge', {
         triggerCharacters: ['.', '"', ':'],
         provideCompletionItems: async (model, position) => {
-            const lineUntilPos = model.getValueInRange({
-                startLineNumber: position.lineNumber,
-                startColumn: 1,
-                endLineNumber: position.lineNumber,
-                endColumn: position.column
-            });
-
             const word = model.getWordUntilPosition(position);
             const range = {
                 startLineNumber: position.lineNumber,
@@ -21,7 +16,12 @@ export const setupAutocomplete = (monaco) => {
             };
 
             const context = {
-                lineUntilPos: lineUntilPos,
+                lineUntilPos: model.getValueInRange({
+                    startLineNumber: position.lineNumber,
+                    startColumn: 1,
+                    endLineNumber: position.lineNumber,
+                    endColumn: position.column
+                }),
                 word: word,
                 range: range,
                 code: model.getValue()
@@ -30,17 +30,21 @@ export const setupAutocomplete = (monaco) => {
             try {
                 const suggestions = await registry.getSuggestions(model, position, context);
                 return {
-                    suggestions: suggestions.map(s => ({
-                        label: s.label,
-                        kind: s.kind,
-                        insertText: s.insertText,
-                        insertTextRules: s.insertTextRules,
-                        range: s.range || range
-                    }))
+                    suggestions: suggestions.map(s => {
+                        return {
+                            label: s.label,
+                            kind: s.kind,
+                            insertText: s.insertText,
+                            insertTextRules: s.insertTextRules,
+                            range: s.range || range
+                        };
+                    })
                 };
             } catch (err) {
                 return { suggestions: [] };
             }
         }
     });
+
+    diagnostics.report('AutocompleteEngine', 'ready');
 };

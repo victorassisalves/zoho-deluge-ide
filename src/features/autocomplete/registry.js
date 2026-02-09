@@ -1,7 +1,4 @@
-/**
- * Autocomplete Provider Registry
- */
-import logger from '../../utils/logger.js';
+import diagnostics from '../../services/diagnostics.js';
 
 class AutocompleteRegistry {
     constructor() {
@@ -9,12 +6,9 @@ class AutocompleteRegistry {
     }
 
     register(provider) {
-        if (!provider || typeof provider.provide !== 'function') {
-            logger.error('Invalid provider');
-            return;
-        }
+        if (!provider || typeof provider.provide !== 'function') return;
         this.providers.push(provider);
-        logger.info('Registered autocomplete provider: ' + (provider.name || 'Anonymous'));
+        diagnostics.report('AutocompleteRegistry', 'registered provider: ' + (provider.name || 'anon'));
     }
 
     async getSuggestions(model, position, context) {
@@ -24,12 +18,11 @@ class AutocompleteRegistry {
                     const suggestions = await provider.provide(model, position, context);
                     return Array.isArray(suggestions) ? suggestions : [];
                 } catch (err) {
-                    logger.error('Error in provider ' + provider.name, err);
+                    console.error('Provider error:', provider.name, err);
                     return [];
                 }
             })
         );
-
         return results.flat();
     }
 }

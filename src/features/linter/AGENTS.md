@@ -1,17 +1,17 @@
-# Linter Feature
+# Linter Module
 
 ## Purpose
-Real-time syntax validation for Deluge code.
+Modularized syntax checking for Deluge.
 
 ## Structure
-- \`engine.js\`: Orchestrates the validation process and interfaces with Monaco.
-- \`rules/\`: Individual validation rules. Each rule must export an object with a \`validate(context)\` method.
+- `engine.js`: Validation orchestrator.
+- `rules/`: Individual syntax check logic.
 
-## API
-- \`initLinter(monaco)\`: Initializes the linter.
-- \`engine.registerRule(rule)\`: Add a custom validation rule.
+## Verification Checklist
+- [ ] Unbalanced braces `{` trigger an error at the end of the file.
+- [ ] Missing semicolons trigger an error on the offending line.
+- [ ] Correct code does not trigger any errors.
 
 ## Golden Rules
-1. **Rule Isolation**: Rules must be independent.
-2. **Performance**: Linter runs on every keystroke. Keep regex efficient.
-3. **No False Positives**: If a syntax is valid Deluge, the linter must not mark it as an error.
+- Each rule must be independent.
+- Use `monaco.MarkerSeverity` for marker levels.

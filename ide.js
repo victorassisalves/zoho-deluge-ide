@@ -1057,32 +1057,32 @@ document.getElementById('right-sidebar-resizer')?.addEventListener('mousedown', 
     document.body.classList.add('resizing');
 });
 
-window.addEventListener('mousemove', (e) => {
-    if (isResizingBottom) {
-        const bottomPanel = document.getElementById('bottom-panel');
-        const height = window.innerHeight - e.clientY;
-        if (height > 50 && height < window.innerHeight * 0.8) {
-            bottomPanel.style.height = height + 'px';
-            document.documentElement.style.setProperty('--footer-height', height + 'px');
-            if (typeof chrome !== 'undefined' && chrome.storage) {
-                chrome.storage.local.set({ 'bottom_panel_height': height + 'px' });
-            }
-            if (editor) editor.layout();
-        }
-    }
-    if (isResizingRight) {
-        const sidebar = document.getElementById('right-sidebar');
-        if (!sidebar) return;
-        const width = window.innerWidth - e.clientX;
-        if (width > 50 && width < 600) {
-            sidebar.classList.remove('collapsed');
-            sidebar.style.width = width + 'px';
-            if (editor) editor.layout();
-        }
-    } else if (isResizingLeft) {
-        const leftPanel = document.getElementById('left-panel-content');
-        if (!leftPanel) return;
-        const sidebarWidth = document.getElementById('sidebar')?.offsetWidth || 48;
+//window.addEventListener('mousemove', (e) => {
+//    if (isResizingBottom) {
+//        const bottomPanel = document.getElementById('bottom-panel');
+//        const height = window.innerHeight - e.clientY;
+//        if (height > 50 && height < window.innerHeight * 0.8) {
+//            bottomPanel.style.height = height + 'px';
+//            document.documentElement.style.setProperty('--footer-height', height + 'px');
+//            if (typeof chrome !== 'undefined' && chrome.storage) {
+//                chrome.storage.local.set({ 'bottom_panel_height': height + 'px' });
+//            }
+//            if (editor) editor.layout();
+//        }
+//    }
+//    if (isResizingRight) {
+//        const sidebar = document.getElementById('right-sidebar');
+//        if (!sidebar) return;
+//        const width = window.innerWidth - e.clientX;
+//        if (width > 50 && width < 600) {
+//            sidebar.classList.remove('collapsed');
+//            sidebar.style.width = width + 'px';
+//            if (editor) editor.layout();
+//        }
+//    } else if (isResizingLeft) {
+//        const leftPanel = document.getElementById('left-panel-content');
+//        if (!leftPanel) return;
+//        const sidebarWidth = document.getElementById('sidebar')?.offsetWidth || 48;
         const width = e.clientX - sidebarWidth;
         if (width > 150 && width < 600) {
             leftPanel.style.width = width + 'px';

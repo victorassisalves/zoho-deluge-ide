@@ -1,7 +1,6 @@
 /**
  * Standardized Logger for Zoho Deluge IDE
  */
-
 const PREFIX = '[ZohoIDE]';
 
 export const logger = {

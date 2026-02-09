@@ -2,23 +2,16 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
     document.documentElement.classList.add("sidepanel-mode");
 }
 
-/**
- * Monaco Loader Initialization
- */
-
 console.log('[ZohoIDE] Loader starting...');
 
-// Set up Monaco Environment for Chrome Extension
 window.MonacoEnvironment = {
     getWorkerUrl: function (workerId, label) {
         const workerPath = 'assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
         const workerUrl = chrome.runtime.getURL(workerPath);
-
         const blob = new Blob([
             `self.MonacoEnvironment = { baseUrl: '${chrome.runtime.getURL('assets/monaco-editor/min/vs/')}' };
              importScripts('${workerUrl}');`
         ], { type: 'application/javascript' });
-
         return URL.createObjectURL(blob);
     }
 };
@@ -33,21 +26,14 @@ function loadScript(src, isModule = false) {
         var script = document.createElement('script');
         script.src = src;
         if (isModule) script.type = 'module';
-        script.onload = () => {
-            console.log('[ZohoIDE] Loaded:', src);
-            resolve();
-        };
-        script.onerror = (e) => {
-            console.error('[ZohoIDE] Failed to load:', src, e);
-            reject(e);
-        };
+        script.onload = () => resolve();
+        script.onerror = (e) => reject(e);
         document.body.appendChild(script);
     });
 }
 
-// Initializing Monaco and dependencies
 require(['vs/editor/editor.main'], async function() {
-    console.log('[ZohoIDE] Monaco Core (AMD) loaded.');
+    console.log('[ZohoIDE] Monaco Core loaded.');
 
     try {
         const originalDefine = window.define;
@@ -63,13 +49,19 @@ require(['vs/editor/editor.main'], async function() {
         await loadScript('cloud-service.js');
         await loadScript('cloud-ui.js');
 
-        console.log('[ZohoIDE] Firebase and Cloud UI initialized.');
+        console.log('[ZohoIDE] Firebase initialized.');
 
-        // Load Modular IDE (ES Modules)
+        // Load Modular Framework alongside Monolithic scripts
         await loadScript('src/main.js', true);
-        console.log('[ZohoIDE] src/main.js loaded.');
+
+        await loadScript('deluge-lang.js');
+        await loadScript('snippet_logic.js');
+        await loadScript('api_data.js');
+        await loadScript('ide.js');
+
+        console.log('[ZohoIDE] Monolithic logic loaded.');
 
     } catch (err) {
-        console.error('[ZohoIDE] Critical error during script initialization:', err);
+        console.error('[ZohoIDE] Initialization Error:', err);
     }
 });
