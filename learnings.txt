@@ -1,0 +1,5 @@
+The project was refactored into a modular architecture using ES Modules.
+Key features like Autocomplete and Linter are now isolated in 'src/features/'.
+The Bridge script (content script) is now modularized in 'src/bridge/'.
+State management is centralized in 'src/services/store.js' to prevent regressions.
+Each module has an 'AGENTS.md' file with Golden Rules for future development.

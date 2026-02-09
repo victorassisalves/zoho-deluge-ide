@@ -7,7 +7,7 @@ console.log('[ZohoIDE] Content script loaded in frame:', window.location.href);
 if (!document.getElementById('zoho-deluge-bridge')) {
     const script = document.createElement('script');
     script.id = 'zoho-deluge-bridge';
-    script.src = chrome.runtime.getURL('bridge.js');
+    script.type = 'module'; script.src = chrome.runtime.getURL('src/bridge/main.js');
     (document.head || document.documentElement).appendChild(script);
 }
 

@@ -27,11 +27,12 @@ require.config({
     paths: { 'vs': 'assets/monaco-editor/min/vs' }
 });
 
-function loadScript(src) {
+function loadScript(src, isModule = false) {
     return new Promise((resolve, reject) => {
         console.log('[ZohoIDE] Loading script:', src);
         var script = document.createElement('script');
         script.src = src;
+        if (isModule) script.type = 'module';
         script.onload = () => {
             console.log('[ZohoIDE] Loaded:', src);
             resolve();
@@ -49,17 +50,13 @@ require(['vs/editor/editor.main'], async function() {
     console.log('[ZohoIDE] Monaco Core (AMD) loaded.');
 
     try {
-        // Temporarily disable AMD define to avoid conflicts with Firebase SDKs (Compat versions)
-        // This forces them to attach to the 'firebase' global instead of using the AMD loader.
         const originalDefine = window.define;
         window.define = undefined;
 
-        // Load Firebase SDKs sequentially
         await loadScript('assets/firebase-app-compat.js');
         await loadScript('assets/firebase-auth-compat.js');
         await loadScript('assets/firebase-firestore-compat.js');
 
-        // Restore define before loading our own modules that might use it
         window.define = originalDefine;
 
         await loadScript('firebase-config.js');
@@ -68,15 +65,9 @@ require(['vs/editor/editor.main'], async function() {
 
         console.log('[ZohoIDE] Firebase and Cloud UI initialized.');
 
-        // Load Deluge Language
-        await loadScript('deluge-lang.js');
-
-        // Finally load main IDE logic
-
-        await loadScript('snippet_logic.js');
-        await loadScript('api_data.js');
-        await loadScript('ide.js');
-        console.log('[ZohoIDE] ide.js, snippet_logic.js and api_data.js loaded.');
+        // Load Modular IDE (ES Modules)
+        await loadScript('src/main.js', true);
+        console.log('[ZohoIDE] src/main.js loaded.');
 
     } catch (err) {
         console.error('[ZohoIDE] Critical error during script initialization:', err);
