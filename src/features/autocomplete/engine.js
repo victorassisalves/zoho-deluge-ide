@@ -2,8 +2,6 @@ import registry from './registry.js';
 import logger from '../../utils/logger.js';
 
 export const setupAutocomplete = (monaco) => {
-    logger.info('Initializing Autocomplete Engine...');
-
     monaco.languages.registerCompletionItemProvider('deluge', {
         triggerCharacters: ['.', '"', ':'],
         provideCompletionItems: async (model, position) => {
@@ -22,29 +20,25 @@ export const setupAutocomplete = (monaco) => {
                 endColumn: word.endColumn
             };
 
-            const code = model.getValue();
             const context = {
                 lineUntilPos: lineUntilPos,
                 word: word,
                 range: range,
-                code: code
+                code: model.getValue()
             };
 
             try {
                 const suggestions = await registry.getSuggestions(model, position, context);
                 return {
-                    suggestions: suggestions.map(s => {
-                        return {
-                            label: s.label,
-                            kind: s.kind,
-                            insertText: s.insertText,
-                            insertTextRules: s.insertTextRules,
-                            range: s.range || range
-                        };
-                    })
+                    suggestions: suggestions.map(s => ({
+                        label: s.label,
+                        kind: s.kind,
+                        insertText: s.insertText,
+                        insertTextRules: s.insertTextRules,
+                        range: s.range || range
+                    }))
                 };
             } catch (err) {
-                logger.error('Autocomplete error', err);
                 return { suggestions: [] };
             }
         }

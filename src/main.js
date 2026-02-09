@@ -1,6 +1,3 @@
-/**
- * Main Entry Point for Zoho Deluge IDE
- */
 import { registerDelugeGrammar } from './core/deluge-grammar.js';
 import { initEditor } from './core/editor.js';
 import { initAutocomplete } from './features/autocomplete/index.js';
@@ -16,32 +13,40 @@ import { loadProjectData } from './services/storage.js';
 import logger from './utils/logger.js';
 
 async function bootstrap() {
-    logger.info('Bootstrapping Modular IDE...');
+    console.log('[ZohoIDE] Bootstrap starting...');
+    try {
+        if (typeof monaco === 'undefined') {
+            console.error('[ZohoIDE] Monaco not found');
+            return;
+        }
 
-    if (typeof monaco === 'undefined') {
-        logger.error('Monaco not found!');
-        return;
+        registerDelugeGrammar(monaco);
+        console.log('[ZohoIDE] Grammar registered');
+
+        initEditor(monaco);
+        console.log('[ZohoIDE] Editor initialized');
+
+        initAutocomplete(monaco);
+        initLinter(monaco);
+        console.log('[ZohoIDE] Features initialized');
+
+        initConsole();
+        initJsonConverter();
+        initLeftSidebar();
+        initRightSidebar();
+        initResizers();
+        initUIEvents();
+        console.log('[ZohoIDE] UI initialized');
+
+        initConnectionPolling();
+
+        window.addEventListener('zide-context-changed', loadProjectData);
+        loadProjectData();
+
+        console.log('[ZohoIDE] IDE Ready');
+    } catch (err) {
+        console.error('[ZohoIDE] Bootstrap Error:', err);
     }
-
-    registerDelugeGrammar(monaco);
-    initEditor(monaco);
-
-    initAutocomplete(monaco);
-    initLinter(monaco);
-
-    initConsole();
-    initJsonConverter();
-    initLeftSidebar();
-    initRightSidebar();
-    initResizers();
-    initUIEvents();
-
-    initConnectionPolling();
-
-    window.addEventListener('zide-context-changed', loadProjectData);
-    loadProjectData();
-
-    logger.info('IDE Ready.');
 }
 
 if (document.readyState === 'complete') {
