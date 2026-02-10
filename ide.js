@@ -911,7 +911,7 @@ function pullFromZoho() {
 
 function pushToZoho(triggerSave = false, triggerExecute = false) {
     const now = Date.now();
-    if (now - lastActionTime < 800) return;
+    if (now - lastActionTime < 1000) return;
     lastActionTime = now;
 
     if (!isConnected) {
@@ -934,19 +934,38 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
         chrome.runtime.sendMessage({ action: 'SET_ZOHO_CODE', code: code }, (response) => {
             if (response && response.success) {
                 log('Success', 'Code pushed.');
-                if (triggerSave) {
+
+                if (triggerSave || triggerExecute) {
+                    // Logic: Save first. If Execute is requested, wait 500ms then Execute.
                     chrome.runtime.sendMessage({ action: 'SAVE_ZOHO_CODE' }, (res) => {
-                        if (res && res.success) log('Success', 'Zoho Save triggered.');
-                        else log('Warning', 'Zoho Save trigger returned false. Try clicking manually.');
+                        if (res && res.success) {
+                            log('Success', 'Zoho Save triggered.');
+
+                            if (triggerExecute) {
+                                log('System', 'Waiting 500ms before execution...');
+                                setTimeout(() => {
+                                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (execRes) => {
+                                        if (execRes && execRes.success) log('Success', 'Zoho Execute triggered.');
+                                        else log('Warning', 'Zoho Execute trigger failed.');
+                                    });
+                                }, 500);
+                            }
+                        } else {
+                            log('Warning', 'Zoho Save trigger failed. Try clicking manually.');
+                            // Still try to execute if it was requested, as some saves might be "no-op"
+                            if (triggerExecute) {
+                                setTimeout(() => {
+                                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (execRes) => {
+                                        if (execRes && execRes.success) log('Success', 'Zoho Execute triggered.');
+                                    });
+                                }, 500);
+                            }
+                        }
                     });
                 }
-                if (triggerExecute) {
-                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (res) => {
-                        if (res && res.success) log('Success', 'Zoho Execute triggered.');
-                        else log('Warning', 'Zoho Execute trigger returned false. Try clicking manually.');
-                    });
-                }
-            } else { log('Error', response?.error || 'Push failed.'); }
+            } else {
+                log('Error', response?.error || 'Push failed.');
+            }
         });
     }
 }

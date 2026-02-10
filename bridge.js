@@ -117,8 +117,8 @@
     const Products = {
         flow: {
             match: (url) => url.includes('flow.zoho'),
-            save: ['input[value="Save"].zf-green-btn.zf-mw-btn', 'input[value="Save"]', '.zf-green-btn', '.zf-mw-btn'],
-            execute: ['input[value="Execute"].zf-btn-outline.zf-green-o-btn.zf-mw-btn', 'input[value="Execute"]', '.zf-green-o-btn']
+            save: ['input[value="Save"].zf-green-btn', 'input[value="Save"]'],
+            execute: ['input[value="Execute"].zf-green-o-btn', 'input[value="Execute"]']
         },
         creator: {
             match: (url) => url.includes('creator.zoho') || url.includes('creatorapp.zoho') || url.includes('creatorportal.zoho'),
@@ -127,7 +127,7 @@
         },
         crm: {
             match: (url) => url.includes('crm.zoho'),
-            save: ['lyte-button[data-zcqa="functionSavev2"]', '#crmsave', 'lyte-button[data-zcqa="save"]', '.crm-save-btn'],
+            save: ['lyte-button[data-zcqa="functionSavev2"]', 'lyte-button[data-zcqa="functionSavev2"] button', '#crmsave', 'lyte-button[data-zcqa="save"]', '.crm-save-btn'],
             execute: ['span[data-zcqa="delgv2execPlay"]', '#crmexecute', 'lyte-button[data-id="execute"]']
         },
         generic: {
@@ -181,14 +181,25 @@
 
     function triggerAction(type) {
         const url = window.location.href;
-        let product = Object.values(Products).find(p => p.match && p.match(url)) || Products.generic;
+        log(`Triggering ${type} for URL: ${url}`);
+        let productMatch = Object.entries(Products).find(([name, p]) => p.match && p.match(url));
+        let product = productMatch ? productMatch[1] : Products.generic;
+        let productName = productMatch ? productMatch[0] : 'generic';
+
+        log(`Detected product: ${productName}`);
         const selectors = product[type] || [];
 
         for (let sel of selectors) {
             const els = document.querySelectorAll(sel);
+            log(`Checking selector: ${sel}, found ${els.length} elements`);
             for (let el of els) {
-                if (el && (el.offsetParent !== null || el.offsetWidth > 0)) {
-                    if (robustClick(el)) return true;
+                const isVisible = !!(el.offsetParent !== null || el.offsetWidth > 0);
+                log(`Element ${el.tagName} visible: ${isVisible}`);
+                if (el && isVisible) {
+                    if (robustClick(el)) {
+                        log(`${type} action successful with selector: ${sel}`);
+                        return true;
+                    }
                 }
             }
         }
