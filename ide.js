@@ -570,9 +570,9 @@ function tryFixJson(str) {
 
         // 1. Fix unquoted keys
         // Handles { key: "value" } and { , key: "value" }
-        processed = processed.replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
+        processed = processed.replace(/([{,]\s*)([a-zA-Z0-9_$-]+)\s*:/g, '$1"$2":');
         // Handles start of object: {key: "value"}
-        processed = processed.replace(/(^\s*{\s*)([a-zA-Z0-9_$]+)\s*:/, '$1"$2":');
+        processed = processed.replace(/(^\s*{\s*)([a-zA-Z0-9_$-]+)\s*:/, '$1"$2":');
 
         // 2. Fix single quotes to double quotes for keys and string values
         // Safer approach: replace single-quoted strings with double-quoted ones
