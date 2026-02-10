@@ -81,18 +81,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const handleOpen = (tabId) => {
             chrome.tabs.update(tabId, { active: true });
             chrome.windows.update(sender.tab ? sender.tab.windowId : tabId, { focused: true });
-            chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                func: () => {
-                    const ed = document.querySelector('[id*="delugeEditor"]') || document.querySelector('.ace_editor') || document.querySelector('.monaco-editor');
-                    if (ed) {
-                        ed.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        ed.click();
-                        const inner = ed.querySelector('textarea, .ace_text-input, .monaco-mouse-cursor-text');
-                        if (inner) inner.focus();
-                    }
-                }
-            });
         };
         if (targetTabId) handleOpen(targetTabId);
         else findZohoTab(tab => tab && handleOpen(tab.id));
@@ -101,54 +89,49 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.action === 'GET_ZOHO_CODE' || request.action === 'SET_ZOHO_CODE' || request.action === 'SAVE_ZOHO_CODE' || request.action === 'EXECUTE_ZOHO_CODE') {
-        const handleAction = (tabId) => {
+        const handleAction = async (tabId) => {
             lastZohoTabId = tabId;
+            try {
+                const results = await chrome.scripting.executeScript({
+                    target: { tabId: tabId, allFrames: true },
+                    func: () => {
+                        return !!(window.monaco || window.ace || document.querySelector('.ace_editor, .monaco-editor, .CodeMirror, [id*="delugeEditor"], .deluge-editor, [id*="script"]'));
+                    }
+                });
 
-            // 1. Try Main Frame
-            chrome.tabs.sendMessage(tabId, request, { frameId: 0 }, (mainResponse) => {
-                const isGet = request.action === 'GET_ZOHO_CODE';
-                const mainSuccess = mainResponse && (isGet ? !!mainResponse.code : !!mainResponse.success);
+                if (!results || results.length === 0) {
+                    sendResponse({ error: 'No frames found in tab' });
+                    return;
+                }
 
-                if (!chrome.runtime.lastError && mainSuccess) {
-                    sendResponse(mainResponse);
-                } else {
-                    // 2. Try All Subframes
-                    chrome.scripting.executeScript({
-                        target: { tabId: tabId, allFrames: true },
-                        func: () => {
-                            return !!(document.querySelector('.ace_editor, .monaco-editor, .CodeMirror, [id*="delugeEditor"], .deluge-editor'));
-                        }
-                    }, (results) => {
-                        if (!results || results.length === 0) {
-                            sendResponse(mainResponse || { error: 'No editor found in any frame' });
-                            return;
-                        }
+                // Prefer frames where result is true
+                const sortedFrames = results.sort((a, b) => {
+                    if (a.result === b.result) return 0;
+                    return a.result ? -1 : 1;
+                });
 
-                        const potentialFrames = results.filter(r => r.result === true && r.frameId !== 0);
-                        if (potentialFrames.length === 0) {
-                            sendResponse(mainResponse || { error: 'No editor found in subframes' });
-                            return;
-                        }
-
-                        let responded = false;
-                        let count = 0;
-                        potentialFrames.forEach(frame => {
-                            chrome.tabs.sendMessage(tabId, request, { frameId: frame.frameId }, (subResponse) => {
-                                count++;
-                                if (responded) return;
-
-                                const subSuccess = subResponse && (isGet ? !!subResponse.code : !!subResponse.success);
-                                if (!chrome.runtime.lastError && subSuccess) {
-                                    responded = true;
-                                    sendResponse(subResponse);
-                                } else if (count === potentialFrames.length) {
-                                    sendResponse(mainResponse || subResponse || { error: 'Action failed in all frames' });
-                                }
+                let lastErr = null;
+                for (const frame of sortedFrames) {
+                    try {
+                        const response = await new Promise((resolve, reject) => {
+                            chrome.tabs.sendMessage(tabId, request, { frameId: frame.frameId }, (res) => {
+                                if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+                                else resolve(res);
                             });
                         });
-                    });
+                        if (response && (request.action === 'GET_ZOHO_CODE' ? !!response.code : !!response.success)) {
+                            sendResponse(response);
+                            return;
+                        }
+                        if (response && response.error) lastErr = response.error;
+                    } catch (e) {
+                        console.warn(`[ZohoIDE] Frame ${frame.frameId} fail:`, e);
+                    }
                 }
-            });
+                sendResponse({ error: lastErr || 'No editor found in any frame' });
+            } catch (err) {
+                sendResponse({ error: 'Frame traversal failed: ' + err.message });
+            }
         };
 
         if (targetTabId) handleAction(targetTabId);
@@ -179,5 +162,5 @@ function findZohoTab(callback) {
 function isZohoUrl(url) {
     if (!url) return false;
     const domains = ["zoho.com", "zoho.eu", "zoho.in", "zoho.com.au", "zoho.jp", "zoho.ca", "zoho.uk", "zoho.com.cn"];
-    return domains.some(d => url.includes(d)) || url.includes("zoho.");
+    return domains.some(d => url.includes(d));
 }
