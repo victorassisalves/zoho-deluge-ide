@@ -72,6 +72,12 @@
                 ],
             },
         });
+        // --- User Configuration ---
+        // Add your own methods here to have them appear in autocomplete
+        const userMethods = {
+            // example: [ { label: 'myMethod()', insertText: 'myMethod()', doc: 'My custom method' } ]
+        };
+
                         const staticSuggestions = [
             { label: 'Map()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'Map()' },
             { label: 'List()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'List()' },
@@ -87,46 +93,100 @@
             { label: 'daysBetween', kind: monaco.languages.CompletionItemKind.Function, insertText: 'daysBetween(${1:d1}, ${2:d2})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }
         ];
 
-                const typeMethods = {
+        const typeMethods = {
             string: [
-                { label: 'length()', insertText: 'length()' },
-                { label: 'subString(start, end)', insertText: 'subString(${1:start}, ${2:end})' },
-                { label: 'toLowerCase()', insertText: 'toLowerCase()' },
-                { label: 'toUpperCase()', insertText: 'toUpperCase()' },
-                { label: 'trim()', insertText: 'trim()' },
-                { label: 'toList(sep)', insertText: 'toList("${1:,}")' },
-                { label: 'toNumber()', insertText: 'toNumber()' },
-                { label: 'toDecimal()', insertText: 'toDecimal()' },
-                { label: 'toDate()', insertText: 'toDate()' },
-                { label: 'toDateTime()', insertText: 'toDateTime()' },
-                { label: 'contains(str)', insertText: 'contains("${1:str}")' },
-                { label: 'startsWith(str)', insertText: 'startsWith("${1:str}")' },
-                { label: 'endsWith(str)', insertText: 'endsWith("${1:str}")' },
-                { label: 'replaceAll(old, new)', insertText: 'replaceAll("${1:old}", "${2:new}")' }
+                { label: "contains(str)", insertText: "contains(\"${1:str}\")", doc: "Checks if the string contains the specified substring." },
+                { label: "notContains(str)", insertText: "notContains(\"${1:str}\")", doc: "Checks if the string does not contain the specified substring." },
+                { label: "containsIgnoreCase(str)", insertText: "containsIgnoreCase(\"${1:str}\")", doc: "Checks if the string contains the specified substring, ignoring case." },
+                { label: "isEmpty()", insertText: "isEmpty()", doc: "Checks if the string is empty." },
+                { label: "length()", insertText: "length()", doc: "Returns the length of the string." },
+                { label: "toLowerCase()", insertText: "toLowerCase()", doc: "Converts the string to lower case." },
+                { label: "toUpperCase()", insertText: "toUpperCase()", doc: "Converts the string to upper case." },
+                { label: "trim()", insertText: "trim()", doc: "Removes leading and trailing whitespace." },
+                { label: "subString(start, end)", insertText: "subString(${1:start}, ${2:end})", doc: "Returns a substring from start index to end index." },
+                { label: "indexOf(str)", insertText: "indexOf(\"${1:str}\")", doc: "Returns the index of the first occurrence of the specified substring." },
+                { label: "lastIndexOf(str)", insertText: "lastIndexOf(\"${1:str}\")", doc: "Returns the index of the last occurrence of the specified substring." },
+                { label: "startsWith(str)", insertText: "startsWith(\"${1:str}\")", doc: "Checks if the string starts with the specified substring." },
+                { label: "endsWith(str)", insertText: "endsWith(\"${1:str}\")", doc: "Checks if the string ends with the specified substring." },
+                { label: "replaceAll(old, new)", insertText: "replaceAll(\"${1:old}\", \"${2:new}\")", doc: "Replaces all occurrences of a substring with another." },
+                { label: "toList(sep)", insertText: "toList(\"${1:,}\")", doc: "Splits the string into a list based on the separator." },
+                { label: "toNumber()", insertText: "toNumber()", doc: "Converts the string to a number." },
+                { label: "toDecimal()", insertText: "toDecimal()", doc: "Converts the string to a decimal." },
+                { label: "toDate()", insertText: "toDate()", doc: "Converts the string to a date." },
+                { label: "toDateTime()", insertText: "toDateTime()", doc: "Converts the string to a date-time." },
+                { label: "toString()", insertText: "toString()", doc: "Converts the value to a string." },
+                { label: "proper()", insertText: "proper()", doc: "Converts the string to proper case (first letter of each word capitalized)." },
+                { label: "left(n)", insertText: "left(${1:n})", doc: "Returns the first n characters of the string." },
+                { label: "right(n)", insertText: "right(${1:n})", doc: "Returns the last n characters of the string." },
+                { label: "mid(start, n)", insertText: "mid(${1:start}, ${2:n})", doc: "Returns n characters starting from the start index." },
+                { label: "leftpad(n)", insertText: "leftpad(${1:n})", doc: "Pads the string on the left to length n." },
+                { label: "rightpad(n)", insertText: "rightpad(${1:n})", doc: "Pads the string on the right to length n." },
+                { label: "reverse()", insertText: "reverse()", doc: "Reverses the string." }
             ],
             list: [
-                { label: 'add(val)', insertText: 'add(${1:val})' },
-                { label: 'addAll(otherList)', insertText: 'addAll(${1:otherList})' },
-                { label: 'get(index)', insertText: 'get(${1:index})' },
-                { label: 'size()', insertText: 'size()' },
-                { label: 'contains(val)', insertText: 'contains(${1:val})' },
-                { label: 'isEmpty()', insertText: 'isEmpty()' },
-                { label: 'remove(index)', insertText: 'remove(${1:index})' },
-                { label: 'clear()', insertText: 'clear()' },
-                { label: 'sort(asc)', insertText: 'sort(${1:true})' },
-                { label: 'distinct()', insertText: 'distinct()' }
+                { label: "add(val)", insertText: "add(${1:val})", doc: "Adds an element to the list." },
+                { label: "addAll(otherList)", insertText: "addAll(${1:otherList})", doc: "Adds all elements from another list." },
+                { label: "get(index)", insertText: "get(${1:index})", doc: "Returns the element at the specified index." },
+                { label: "size()", insertText: "size()", doc: "Returns the number of elements in the list." },
+                { label: "isEmpty()", insertText: "isEmpty()", doc: "Checks if the list is empty." },
+                { label: "contains(val)", insertText: "contains(${1:val})", doc: "Checks if the list contains the specified value." },
+                { label: "remove(index)", insertText: "remove(${1:index})", doc: "Removes the element at the specified index." },
+                { label: "clear()", insertText: "clear()", doc: "Removes all elements from the list." },
+                { label: "sort(asc)", insertText: "sort(${1:true})", doc: "Sorts the list in ascending or descending order." },
+                { label: "distinct()", insertText: "distinct()", doc: "Returns a new list with unique elements." },
+                { label: "intersect(otherList)", insertText: "intersect(${1:otherList})", doc: "Returns the intersection of two lists." },
+                { label: "subList(start, end)", insertText: "subList(${1:start}, ${2:end})", doc: "Returns a sublist from start index to end index." }
             ],
             map: [
-                { label: 'put(key, val)', insertText: 'put("${1:key}", ${2:val})' },
-                { label: 'get(key)', insertText: 'get("${1:key}")' },
-                { label: 'getJSON(key)', insertText: 'getJSON("${1:key}")' },
-                { label: 'keys()', insertText: 'keys()' },
-                { label: 'remove(key)', insertText: 'remove("${1:key}")' },
-                { label: 'size()', insertText: 'size()' },
-                { label: 'isEmpty()', insertText: 'isEmpty()' },
-                { label: 'containsKey(key)', insertText: 'containsKey("${1:key}")' },
-                { label: 'containValue(val)', insertText: 'containValue(${1:val})' },
-                { label: 'clear()', insertText: 'clear()' }
+                { label: "put(key, val)", insertText: "put(\"${1:key}\", ${2:val})", doc: "Adds a key-value pair to the map." },
+                { label: "putAll(otherMap)", insertText: "putAll(${1:otherMap})", doc: "Adds all entries from another map." },
+                { label: "get(key)", insertText: "get(\"${1:key}\")", doc: "Returns the value associated with the specified key." },
+                { label: "getJSON(key)", insertText: "getJSON(\"${1:key}\")", doc: "Returns the value as a JSON object." },
+                { label: "keys()", insertText: "keys()", doc: "Returns a list of keys in the map." },
+                { label: "remove(key)", insertText: "remove(\"${1:key}\")", doc: "Removes the entry for the specified key." },
+                { label: "size()", insertText: "size()", doc: "Returns the number of entries in the map." },
+                { label: "isEmpty()", insertText: "isEmpty()", doc: "Checks if the map is empty." },
+                { label: "containsKey(key)", insertText: "containsKey(\"${1:key}\")", doc: "Checks if the map contains the specified key." },
+                { label: "containsValue(val)", insertText: "containsValue(${1:val})", doc: "Checks if the map contains the specified value." },
+                { label: "clear()", insertText: "clear()", doc: "Removes all entries from the map." }
+            ],
+            int: [
+                { label: "abs()", insertText: "abs()", doc: "Returns the absolute value." },
+                { label: "toDecimal()", insertText: "toDecimal()", doc: "Converts to a decimal." },
+                { label: "toString()", insertText: "toString()", doc: "Converts to a string." },
+                { label: "toHex()", insertText: "toHex()", doc: "Converts to a hexadecimal string." }
+            ],
+            decimal: [
+                { label: "abs()", insertText: "abs()", doc: "Returns the absolute value." },
+                { label: "round(precision)", insertText: "round(${1:2})", doc: "Rounds to the specified number of decimal places." },
+                { label: "ceil()", insertText: "ceil()", doc: "Returns the smallest integer greater than or equal to the number." },
+                { label: "floor()", insertText: "floor()", doc: "Returns the largest integer less than or equal to the number." },
+                { label: "toLong()", insertText: "toLong()", doc: "Converts to a long integer." },
+                { label: "toString()", insertText: "toString()", doc: "Converts to a string." }
+            ],
+            date: [
+                { label: "addDay(n)", insertText: "addDay(${1:1})", doc: "Adds n days to the date." },
+                { label: "subDay(n)", insertText: "subDay(${1:1})", doc: "Subtracts n days from the date." },
+                { label: "addMonth(n)", insertText: "addMonth(${1:1})", doc: "Adds n months to the date." },
+                { label: "addYear(n)", insertText: "addYear(${1:1})", doc: "Adds n years to the date." },
+                { label: "getDay()", insertText: "getDay()", doc: "Returns the day of the month." },
+                { label: "getMonth()", insertText: "getMonth()", doc: "Returns the month (1-12)." },
+                { label: "getYear()", insertText: "getYear()", doc: "Returns the year." },
+                { label: "toString(format)", insertText: "toString(\"${1:dd-MMM-yyyy}\")", doc: "Converts to a string with the specified format." },
+                { label: "toDateTime()", insertText: "toDateTime()", doc: "Converts to a date-time." }
+            ],
+            datetime: [
+                { label: "addHour(n)", insertText: "addHour(${1:1})", doc: "Adds n hours to the date-time." },
+                { label: "addMinutes(n)", insertText: "addMinutes(${1:1})", doc: "Adds n minutes to the date-time." },
+                { label: "addSeconds(n)", insertText: "addSeconds(${1:1})", doc: "Adds n seconds to the date-time." },
+                { label: "getHour()", insertText: "getHour()", doc: "Returns the hour of the day." },
+                { label: "getMinutes()", insertText: "getMinutes()", doc: "Returns the minutes." },
+                { label: "getSeconds()", insertText: "getSeconds()", doc: "Returns the seconds." },
+                { label: "toString(format)", insertText: "toString(\"${1:dd-MMM-yyyy HH:mm:ss}\")", doc: "Converts to a string with the specified format." }
+            ],
+            common: [
+                { label: "isNull()", insertText: "isNull()", doc: "Checks if the value is null." },
+                { label: "toString()", insertText: "toString()", doc: "Converts the value to a string." }
             ],
             zoho: [
                 { label: 'zoho.crm.getRecordById(module, id)', insertText: 'crm.getRecordById("${1:Leads}", ${2:id})' },
@@ -162,7 +222,7 @@
         };
 
         monaco.languages.registerCompletionItemProvider('deluge', {
-            triggerCharacters: ['.', '"'],
+            triggerCharacters: ['.', '"', "'"],
             provideCompletionItems: (model, position) => {
                 const lineUntilPos = model.getValueInRange({
                     startLineNumber: position.lineNumber,
@@ -179,7 +239,38 @@
                     endColumn: position.column
                 };
 
-                // Zoho suggestions (handle zoho. and zoho.crm. etc)
+                // 1. Interface Manager Autocomplete (Auto-Trigger on Get)
+                const interfaceMatch = lineUntilPos.match(/([a-zA-Z_]\w*)((?:\.get(?:JSON)?\(['"][^'"]*['"]\))*)\.get(?:JSON)?\(['"]([^'"]*)$/);
+                if (interfaceMatch) {
+                    const varName = interfaceMatch[1];
+                    const path = interfaceMatch[2];
+                    const mappings = window.interfaceMappings || {};
+                    if (mappings[varName]) {
+                        let currentObj = mappings[varName];
+                        const pathParts = path.match(/\.get(?:JSON)?\(['"]([^'"]*)['"]\)/g) || [];
+                        for (const part of pathParts) {
+                            const keyMatch = part.match(/\(['"]([^'"]*)['"]\)/);
+                            if (keyMatch && currentObj) {
+                                currentObj = currentObj[keyMatch[1]];
+                            }
+                        }
+
+                        if (currentObj && typeof currentObj === 'object') {
+                            const keys = Object.keys(currentObj);
+                            return {
+                                suggestions: keys.map(key => ({
+                                    label: key,
+                                    kind: monaco.languages.CompletionItemKind.Property,
+                                    detail: typeof currentObj[key],
+                                    insertText: key,
+                                    range: range
+                                }))
+                            };
+                        }
+                    }
+                }
+
+                // 2. Zoho suggestions (handle zoho. and zoho.crm. etc)
                 if (lineUntilPos.match(/zoho\.[a-zA-Z0-9_.]*$/)) {
                     const parts = lineUntilPos.split('.');
                     const lastPart = parts[parts.length - 1];
@@ -222,30 +313,35 @@
                     }
                 }
 
-                // Method Suggestion after a dot (generic)
+                // 3. Method Suggestion after a dot (generic)
                 const dotMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.$/);
                 if (dotMatch) {
                     const varName = dotMatch[1];
                     if (varName !== 'zoho') {
                         const type = inferVarType(varName, code) || 'map';
                         const methods = typeMethods[type.toLowerCase()] || typeMethods.map;
+                        const common = typeMethods.common || [];
+                        const user = userMethods[type.toLowerCase()] || [];
 
                         return {
-                            suggestions: methods.map(m => ({
+                            suggestions: [...methods, ...user, ...common].map((m, index) => ({
                                 ...m,
                                 kind: monaco.languages.CompletionItemKind.Method,
+                                detail: m.doc,
                                 insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                range: range
+                                range: range,
+                                sortText: (m.label === 'isNull()' || m.label === 'toString()') ? 'zzz' : String.fromCharCode(97 + index)
                             }))
                         };
                     }
                 }
 
-                // Default suggestions
-                const vars = extractVariables(code);
-                const varSuggestions = Array.from(vars).map(v => ({
+                // 4. Default suggestions
+                const varMap = extractVariables(code);
+                const varSuggestions = Object.keys(varMap).map(v => ({
                     label: v,
                     kind: monaco.languages.CompletionItemKind.Variable,
+                    detail: varMap[v],
                     insertText: v,
                     range: range
                 }));
@@ -261,67 +357,88 @@
 
 
         // Validation logic
-            function extractVariables(code) {
-        // Strip comments for extraction
-        const cleanCode = code.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
-        const vars = new Set(['input', 'zoho', 'thisapp', 'standalone', 'today', 'now']);
+        function extractVariables(code) {
+            const cleanCode = code.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
+            const varMap = {
+                'input': 'Map',
+                'zoho': 'Namespace',
+                'thisapp': 'Namespace',
+                'standalone': 'Namespace',
+                'today': 'Date',
+                'now': 'DateTime'
+            };
 
-        // Extract parameters from function signatures
-        const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
-        let pMatch;
-        while ((pMatch = funcParamRegex.exec(cleanCode)) !== null) {
-            const params = pMatch[1].split(',');
-            params.forEach(p => {
-                const parts = p.trim().split(/\s+/);
-                if (parts.length > 0) {
-                    const paramName = parts[parts.length - 1].trim();
-                    if (paramName) vars.add(paramName);
+            const keywords = new Set(['if', 'else', 'for', 'each', 'in', 'return', 'info', 'true', 'false', 'null', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'zoho', 'thisapp', 'standalone', 'input', 'today', 'now', 'invokeurl']);
+
+            // 1. Explicit Declarations: string name = "..."
+            const declRegex = /\b(string|int|decimal|boolean|map|list)\s+([a-zA-Z_]\w*)/gi;
+            let match;
+            while ((match = declRegex.exec(cleanCode)) !== null) {
+                varMap[match[2]] = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+            }
+
+            // 2. Assignments: name = ...
+            const assignRegex = /([a-zA-Z_]\w*)\s*=\s*([^;]+)/g;
+            while ((match = assignRegex.exec(cleanCode)) !== null) {
+                const name = match[1];
+                const val = match[2].trim();
+                if (keywords.has(name)) continue;
+
+                if (!varMap[name]) {
+                    if (val.startsWith('"') || val.startsWith("'")) varMap[name] = 'String';
+                    else if (val.match(/^\d+$/)) varMap[name] = 'Int';
+                    else if (val.match(/^\d+\.\d+$/)) varMap[name] = 'Decimal';
+                    else if (val.toLowerCase().startsWith('map()')) varMap[name] = 'Map';
+                    else if (val.toLowerCase().startsWith('list()')) varMap[name] = 'List';
+                    else if (val.toLowerCase().startsWith('collection()')) varMap[name] = 'List';
                 }
-            });
-        }
-
-        // Extract variables from catch blocks
-        const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
-        while ((pMatch = catchRegex.exec(cleanCode)) !== null) {
-            vars.add(pMatch[1]);
-        }
-
-        const keywords = ['if', 'else', 'for', 'each', 'in', 'return', 'info', 'true', 'false', 'null', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'zoho', 'thisapp', 'standalone', 'input', 'today', 'now', 'invokeurl'];
-
-        // Extract from assignments
-        const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
-        let match;
-        while ((match = assignmentRegex.exec(cleanCode)) !== null) {
-            if (!keywords.includes(match[1])) {
-                vars.add(match[1]);
             }
-        }
 
-        // Extract from for each loops
-        const forEachRegex = /for\s+each\s+([a-zA-Z0-9_]+)\s+in/gi;
-        while ((match = forEachRegex.exec(cleanCode)) !== null) {
-            if (!keywords.includes(match[1])) {
-                vars.add(match[1]);
+            // 3. Function params
+            const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
+            while ((match = funcParamRegex.exec(cleanCode)) !== null) {
+                const params = match[1].split(',');
+                params.forEach(p => {
+                    const parts = p.trim().split(/\s+/);
+                    if (parts.length >= 2) {
+                        const type = parts[0].trim();
+                        const name = parts[parts.length - 1].trim();
+                        varMap[name] = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+                    } else if (parts.length === 1 && parts[0]) {
+                        varMap[parts[0]] = 'Object';
+                    }
+                });
             }
-        }
 
-        // Extract from for loops
-        const forRegex = /for\s+([a-zA-Z0-9_]+)\s+in/gi;
-        while ((match = forRegex.exec(cleanCode)) !== null) {
-            if (!keywords.includes(match[1])) {
-                vars.add(match[1]);
+            // 4. Loops
+            const forEachRegex = /for\s+each\s+([a-zA-Z_]\w*)\s+in\s+([a-zA-Z_]\w*)/gi;
+            while ((match = forEachRegex.exec(cleanCode)) !== null) {
+                varMap[match[1]] = 'Object';
             }
+
+            // 5. Catch
+            const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
+            while ((match = catchRegex.exec(cleanCode)) !== null) {
+                varMap[match[1]] = 'Error';
+            }
+
+            // 6. Heuristics from usage
+            const methodUsageRegex = /([a-zA-Z_]\w*)\.(put|get|keys|remove|size|isEmpty|containsKey|containsValue|clear|add|addAll|sort|distinct)\(/g;
+            while ((match = methodUsageRegex.exec(cleanCode)) !== null) {
+                const name = match[1];
+                const method = match[2];
+                if (keywords.has(name) || (varMap[name] && varMap[name] !== 'Object')) continue;
+
+                if (['put', 'keys', 'containsKey', 'containsValue'].includes(method)) varMap[name] = 'Map';
+                else if (['add', 'addAll', 'sort', 'distinct'].includes(method)) varMap[name] = 'List';
+            }
+
+            return varMap;
         }
 
-        return vars;
-    }
-
-    function inferVarType(varName, code) {
-            const mapRegex = new RegExp(varName + "\\s*=\\s*Map\\(\\)", "i");
-            if (mapRegex.test(code)) return "Map";
-            const listRegex = new RegExp(varName + "\\s*=\\s*List\\(\\)", "i");
-            if (listRegex.test(code)) return "List";
-            return null;
+        function inferVarType(varName, code) {
+            const vars = extractVariables(code);
+            return vars[varName] || null;
         }
 
 
@@ -337,7 +454,7 @@
             let inCommentBlock = false;
 
             // 1. Collect defined variables
-            const definedVars = extractVariables(code);
+            const varMap = extractVariables(code);
 
             const mandatoryParams = {
                 'zoho.crm.getRecordById': 2,
@@ -396,7 +513,7 @@
                 const words = trimmed.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
                 words.forEach(word => {
                     if (skipKeywords.includes(word)) return;
-                    if (definedVars.has(word)) return;
+                    if (varMap[word]) return;
 
                     // Check if it's followed by ( or . (might be a function/namespace)
                     const index = line.indexOf(word);
@@ -497,6 +614,20 @@
             provideHover: (model, position) => {
                 const word = model.getWordAtPosition(position);
                 if (!word) return;
+
+                // Try to find method documentation
+                for (const type in typeMethods) {
+                    const method = typeMethods[type].find(m => m.label.startsWith(word.word + '('));
+                    if (method && method.doc) {
+                        return {
+                            range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
+                            contents: [
+                                { value: `**${method.label}**` },
+                                { value: method.doc }
+                            ]
+                        };
+                    }
+                }
 
                 const docs = {
                     'Map': 'A key-value pair data structure. Use `Map()` to initialize.',
