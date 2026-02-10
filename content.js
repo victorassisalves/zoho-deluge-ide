@@ -36,39 +36,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return false;
     }
 
-    // Actions to relay to the bridge
+    // Actions to relay to the bridge using CustomEvent to avoid Zoho's onmessage listeners
     const relayActions = ['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE', 'PING'];
     if (relayActions.includes(request.action)) {
-        const payload = JSON.stringify({
-            _zide_msg_: true,
-            source: 'EXTENSION',
-            type: 'FROM_EXTENSION',
+        const eventId = Math.random().toString(36).substring(2);
+        const detail = {
+            eventId,
             action: request.action,
             ...request
-        });
-        window.postMessage(payload, '*');
+        };
 
-        const handler = (event) => {
-            let data;
-            try {
-                // Support both new JSON string format and potential raw objects
-                data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-            } catch (e) {
-                // Fallback for old prefixed format
-                if (typeof event.data === 'string' && event.data.startsWith('ZIDE_MSG:')) {
-                    try { data = JSON.parse(event.data.substring(9)); } catch (e2) { return; }
-                } else { return; }
-            }
-
-            // Only process responses from the page/bridge
-            if (data && (data.source === 'PAGE' || data.type === 'FROM_PAGE')) {
-                if (data.action === request.action) {
-                    window.removeEventListener('message', handler);
-                    sendResponse(data.response);
-                }
+        const responseHandler = (event) => {
+            const data = event.detail;
+            if (data && data.eventId === eventId) {
+                window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+                sendResponse(data.response);
             }
         };
-        window.addEventListener('message', handler);
+
+        window.addEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+
+        // Dispatch to bridge
+        window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', { detail }));
+
+        // Timeout if no response
+        setTimeout(() => {
+            window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+            // Don't sendResponse here to avoid duplicate or late responses,
+            // the original sendResponse might still be valid if it hasn't timed out.
+        }, 5000);
+
         return true; // Keep channel open
     }
 });

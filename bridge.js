@@ -30,12 +30,19 @@
             }
         },
         Ace: {
-            isAvailable: () => !!(document.querySelector('.ace_editor, .zace-editor') || (window.ace && window.ace.edit) || window.ZEditor || window.Zace),
+            isAvailable: () => !!(document.querySelector('.ace_editor, .zace-editor, lyte-ace-editor') || (window.ace && window.ace.edit) || window.ZEditor || window.Zace),
             getCode: () => {
                 try {
                     // Try ZEditor/Zace first (common in Zoho Creator)
                     if (window.ZEditor && window.ZEditor.getValue) return window.ZEditor.getValue();
                     if (window.Zace && window.Zace.getValue) return window.Zace.getValue();
+
+                    // Try lyte-ace-editor component
+                    const lyteAce = document.querySelector('lyte-ace-editor');
+                    if (lyteAce && lyteAce.getEditor) {
+                        const ed = lyteAce.getEditor();
+                        if (ed && ed.getValue) return ed.getValue();
+                    }
 
                     const aceEls = document.querySelectorAll('.ace_editor, .zace-editor');
                     for (let el of aceEls) {
@@ -51,6 +58,12 @@
                 try {
                     if (window.ZEditor && window.ZEditor.setValue) { window.ZEditor.setValue(code); return true; }
                     if (window.Zace && window.Zace.setValue) { window.Zace.setValue(code); return true; }
+
+                    const lyteAce = document.querySelector('lyte-ace-editor');
+                    if (lyteAce && lyteAce.getEditor) {
+                        const ed = lyteAce.getEditor();
+                        if (ed && ed.setValue) { ed.setValue(code); return true; }
+                    }
 
                     const aceEls = document.querySelectorAll('.ace_editor, .zace-editor');
                     let success = false;
@@ -104,18 +117,18 @@
     const Products = {
         flow: {
             match: (url) => url.includes('flow.zoho'),
-            save: ['input[value="Save"].zf-green-btn', 'input[value="Save"]', '.zf-green-btn', '.zf-mw-btn:not(.zf-btn-outline)'],
-            execute: ['input[value="Execute"].zf-green-o-btn', 'input[value="Execute"]', '.zf-btn-outline.zf-green-o-btn']
+            save: ['input[value="Save"].zf-green-btn.zf-mw-btn', 'input[value="Save"]', '.zf-green-btn', '.zf-mw-btn'],
+            execute: ['input[value="Execute"].zf-btn-outline.zf-green-o-btn.zf-mw-btn', 'input[value="Execute"]', '.zf-green-o-btn']
         },
         creator: {
             match: (url) => url.includes('creator.zoho') || url.includes('creatorapp.zoho') || url.includes('creatorportal.zoho'),
-            save: ['lyte-button[data-zcqa="save"]', 'lyte-button[data-zcqa="update"]', 'lyte-button[data-id="save"]', '.zc-save-btn', '.zc-update-btn', 'button.save-btn'],
-            execute: ['lyte-button[data-zcqa="execute"]', 'lyte-button[data-zcqa="run"]', 'span[data-zcqa="delgv2execPlay"]', '.zc-execute-btn', 'button.run-btn']
+            save: ['input#saveFuncBtn', 'input[elename="saveFunction"]', 'lyte-button[data-zcqa="save"]', '.zc-save-btn', 'button.save-btn'],
+            execute: ['input#executeFuncBtn', 'input[elename="executeFunction"]', 'lyte-button[data-zcqa="execute"]', '.zc-execute-btn', 'button.run-btn']
         },
         crm: {
             match: (url) => url.includes('crm.zoho'),
-            save: ['#crmsave', 'lyte-button[data-zcqa="save"]', '.crm-save-btn', 'input[value="Save"]'],
-            execute: ['#crmexecute', 'lyte-button[data-id="execute"]']
+            save: ['lyte-button[data-zcqa="functionSavev2"]', '#crmsave', 'lyte-button[data-zcqa="save"]', '.crm-save-btn'],
+            execute: ['span[data-zcqa="delgv2execPlay"]', '#crmexecute', 'lyte-button[data-id="execute"]']
         },
         generic: {
             match: () => true,
@@ -127,13 +140,43 @@
     function robustClick(el) {
         if (!el) return false;
         try {
+            log('Clicking element:', el.tagName, el.id, el.className);
+
+            // Try regular click first
             el.click();
-            ['mousedown', 'mouseup', 'click', 'pointerdown', 'pointerup'].forEach(type => {
-                const Cls = type.startsWith('pointer') ? PointerEvent : MouseEvent;
-                el.dispatchEvent(new Cls(type, { bubbles: true, cancelable: true, view: window }));
+
+            // Dispatch a sequence of events to mimic real user interaction
+            const events = [
+                { type: 'mousedown', cls: MouseEvent },
+                { type: 'pointerdown', cls: PointerEvent },
+                { type: 'mouseup', cls: MouseEvent },
+                { type: 'pointerup', cls: PointerEvent },
+                { type: 'click', cls: MouseEvent }
+            ];
+
+            events.forEach(({ type, cls }) => {
+                try {
+                    const event = new cls(type, {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                        buttons: 1
+                    });
+                    el.dispatchEvent(event);
+                } catch (e) {}
             });
+
+            // If it's a lyte-button or has a specific 'click' attribute (common in Zoho)
+            // we might need to trigger its internal handlers if they didn't fire
+            if (el.tagName.toLowerCase() === 'lyte-button' && el.executeAction) {
+                try { el.executeAction('click', new MouseEvent('click')); } catch(e) {}
+            }
+
             return true;
-        } catch(e) { return false; }
+        } catch(e) {
+            log('Click error:', e);
+            return false;
+        }
     }
 
     function triggerAction(type) {
@@ -163,60 +206,55 @@
 
     log('Bridge initialized in frame:', window.location.href);
 
-    window.addEventListener('message', (event) => {
-        let data;
-        try {
-            data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        } catch (e) {
-            if (typeof event.data === 'string' && event.data.startsWith('ZIDE_MSG:')) {
-                try { data = JSON.parse(event.data.substring(9)); } catch (e2) { return; }
-            } else return;
-        }
+    window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
+        const data = event.detail;
+        if (!data || !data.action) return;
 
-        if (data && (data.source === 'EXTENSION' || data._zide_msg_) && data.source !== 'PAGE') {
-            let response = {};
-            if (data.action === 'GET_ZOHO_CODE') {
-                log('GET_ZOHO_CODE requested');
-                for (let engineName of Object.keys(Engines)) {
-                    const engine = Engines[engineName];
-                    if (engine.isAvailable()) {
-                        log('Engine available:', engineName);
-                        const code = engine.getCode();
-                        if (code !== null) {
-                            log('Code retrieved from:', engineName);
-                            response = { code };
-                            break;
-                        }
+        let response = {};
+        const { action, eventId } = data;
+
+        if (action === 'GET_ZOHO_CODE') {
+            log('GET_ZOHO_CODE requested');
+            for (let engineName of Object.keys(Engines)) {
+                const engine = Engines[engineName];
+                if (engine.isAvailable()) {
+                    const code = engine.getCode();
+                    if (code !== null) {
+                        log('Code retrieved from:', engineName);
+                        response = { code };
+                        break;
                     }
                 }
-                if (!response.code) {
-                    log('No editor found in this frame');
-                    response = { error: 'No editor found' };
-                }
-            } else if (data.action === 'SET_ZOHO_CODE') {
-                log('SET_ZOHO_CODE requested');
-                let success = false;
-                for (let engineName of Object.keys(Engines)) {
-                    const engine = Engines[engineName];
-                    if (engine.isAvailable()) {
-                        log('Engine available for set:', engineName);
-                        if (engine.setCode(data.code)) {
-                            log('Code set successfully using:', engineName);
-                            success = true;
-                            break;
-                        }
-                    }
-                }
-                response = { success };
-            } else if (data.action === 'SAVE_ZOHO_CODE') {
-                response = { success: triggerAction('save') };
-            } else if (data.action === 'EXECUTE_ZOHO_CODE') {
-                response = { success: triggerAction('execute') };
-            } else if (data.action === 'PING') {
-                response = { status: 'PONG' };
             }
-
-            window.postMessage(JSON.stringify({ _zide_msg_: true, source: 'PAGE', action: data.action, response }), '*');
+            if (!response.code) response = { error: 'No editor found' };
+        } else if (action === 'SET_ZOHO_CODE') {
+            log('SET_ZOHO_CODE requested');
+            let success = false;
+            for (let engineName of Object.keys(Engines)) {
+                const engine = Engines[engineName];
+                if (engine.isAvailable()) {
+                    if (engine.setCode(data.code)) {
+                        log('Code set successfully using:', engineName);
+                        success = true;
+                        break;
+                    }
+                }
+            }
+            // Give the editor a moment to process the change before returning
+            if (success) await new Promise(r => setTimeout(r, 100));
+            response = { success };
+        } else if (action === 'SAVE_ZOHO_CODE') {
+            log('SAVE_ZOHO_CODE requested');
+            response = { success: triggerAction('save') };
+        } else if (action === 'EXECUTE_ZOHO_CODE') {
+            log('EXECUTE_ZOHO_CODE requested');
+            response = { success: triggerAction('execute') };
+        } else if (action === 'PING') {
+            response = { status: 'PONG' };
         }
+
+        window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
+            detail: { eventId, action, response }
+        }));
     });
 })();

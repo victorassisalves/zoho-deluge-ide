@@ -98,9 +98,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     func: () => {
                         // Check for common editor objects and elements in the main world
                         const hasMonaco = !!(window.monaco && (window.monaco.editor || window.monaco.languages));
-                        const hasAce = !!(window.ace && window.ace.edit) || !!document.querySelector('.ace_editor');
+                        const hasAce = !!(window.ace && window.ace.edit) || !!document.querySelector('.ace_editor, .zace-editor, lyte-ace-editor');
                         const hasCodeMirror = !!document.querySelector('.CodeMirror');
-                        const hasDelugeEditor = !!document.querySelector('[id*="delugeEditor"], .deluge-editor, [id*="script"], textarea.deluge-editor, .zace-editor');
+                        const hasDelugeEditor = !!document.querySelector('[id*="delugeEditor"], .deluge-editor, [id*="script"], textarea.deluge-editor');
                         const hasZEditor = !!(window.ZEditor || window.Zace || window.delugeEditor);
 
                         return hasMonaco || hasAce || hasCodeMirror || hasDelugeEditor || hasZEditor;
