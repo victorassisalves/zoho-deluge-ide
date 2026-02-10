@@ -8,14 +8,16 @@ const selectors = {
     save: [
         'button[id="save_script"]', '#save_script', '#save_btn',
         '#crmsave', 'lyte-button[data-id="save"]', 'lyte-button[data-id="update"]',
+        'lyte-button[data-zcqa="save"]', 'lyte-button[data-zcqa="update"]',
         'lyte-button[data-zcqa="functionSavev2"]', '.dxEditorPrimaryBtn',
-        '.crm-save-btn', '.zc-save-btn', '.save-btn', '.save_btn',
+        '.crm-save-btn', '.zc-save-btn', '.save-btn', '.zc-update-btn', '.save_btn',
         'input#saveBtn', 'input[value="Save"]', 'input[value="Update"]'
     ],
     execute: [
         'button[id="execute_script"]', '#execute_script', 'button[id="run_script"]', '#run_script',
         '#crmexecute', 'span[data-zcqa="delgv2execPlay"]', '.dx_execute_icon',
         '#runscript', '.zc-execute-btn', '.execute-btn',
+        'lyte-button[data-zcqa="execute"]', 'lyte-button[data-zcqa="run"]',
         '.lyte-button[data-id="execute"]', '.lyte-button[data-id="run"]',
         '.execute_btn', '#execute_btn', 'input#executeBtn',
         'input[value="Execute"]', 'input[value="Run"]'
@@ -23,11 +25,17 @@ const selectors = {
 };
 
 window.addEventListener('message', (e) => {
-    if (typeof e.data !== 'string' || !e.data.startsWith('ZIDE_MSG:')) return;
+    let msg;
     try {
-        const msg = JSON.parse(e.data.substring(9));
-        if (msg.source !== 'EXTENSION') return;
+        msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+    } catch (err) {
+        // Fallback for old prefix
+        if (typeof e.data === 'string' && e.data.startsWith('ZIDE_MSG:')) {
+            try { msg = JSON.parse(e.data.substring(9)); } catch (e2) { return; }
+        } else { return; }
+    }
 
+    if (msg && (msg.source === 'EXTENSION' || msg._zide_msg_)) {
         let resp = {};
         if (msg.action === 'PING') {
             resp = { status: 'PONG', product: getZohoProduct() };
@@ -41,12 +49,13 @@ window.addEventListener('message', (e) => {
             resp = { success: triggerAction('execute') };
         }
 
-        window.postMessage('ZIDE_MSG:' + JSON.stringify({
+        window.postMessage(JSON.stringify({
+            _zide_msg_: true,
             source: 'PAGE',
             action: msg.action,
             response: resp
         }), '*');
-    } catch (err) {}
+    }
 });
 
 function triggerAction(type) {

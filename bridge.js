@@ -83,15 +83,17 @@
             selectors = [
                 'button[id="save_script"]', '#save_script', '#save_btn',
                 '#crmsave', 'lyte-button[data-id="save"]', 'lyte-button[data-id="update"]',
+                'lyte-button[data-zcqa="save"]', 'lyte-button[data-zcqa="update"]',
                 'lyte-button[data-zcqa="functionSavev2"]', '.dxEditorPrimaryBtn',
                 '.crm-save-btn', '.zc-save-btn', '.save-btn', '.save_btn',
-                'input#saveBtn', 'input[value="Save"]', 'input[value="Update"]'
+                '.zc-update-btn', 'input#saveBtn', 'input[value="Save"]', 'input[value="Update"]'
             ];
         } else if (type === 'execute') {
             selectors = [
                 'button[id="execute_script"]', '#execute_script', 'button[id="run_script"]', '#run_script',
                 '#crmexecute', 'span[data-zcqa="delgv2execPlay"]', '.dx_execute_icon',
                 '#runscript', '.zc-execute-btn', '.execute-btn',
+                'lyte-button[data-zcqa="execute"]', 'lyte-button[data-zcqa="run"]',
                 '.lyte-button[data-id="execute"]', '.lyte-button[data-id="run"]',
                 '.execute_btn', '#execute_btn', 'input#executeBtn',
                 'input[value="Execute"]', 'input[value="Run"]'
@@ -123,17 +125,22 @@
     }
 
     window.addEventListener('message', (event) => {
-        let data = event.data;
-        let isNewProtocol = false;
-
-        if (typeof event.data === 'string' && event.data.startsWith('ZIDE_MSG:')) {
-            try {
-                data = JSON.parse(event.data.substring(9));
-                isNewProtocol = true;
-            } catch (e) { return; }
+        let data;
+        try {
+            // Try parsing as JSON first
+            data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        } catch (e) {
+            // Fallback for old ZIDE_MSG: prefix
+            if (typeof event.data === 'string' && event.data.startsWith('ZIDE_MSG:')) {
+                try {
+                    data = JSON.parse(event.data.substring(9));
+                } catch (e2) { return; }
+            } else {
+                return;
+            }
         }
 
-        if (data && (data.type === 'FROM_EXTENSION' || data.source === 'EXTENSION')) {
+        if (data && (data.type === 'FROM_EXTENSION' || data.source === 'EXTENSION' || data._zide_msg_)) {
             const action = data.action;
             let response = {};
 
@@ -150,12 +157,16 @@
                 response = { status: 'PONG' };
             }
 
-            const payload = { type: 'FROM_PAGE', source: 'PAGE', action: action, response: response };
-            if (isNewProtocol) {
-                window.postMessage('ZIDE_MSG:' + JSON.stringify(payload), '*');
-            } else {
-                window.postMessage(payload, '*');
-            }
+            const payload = {
+                _zide_msg_: true,
+                type: 'FROM_PAGE',
+                source: 'PAGE',
+                action: action,
+                response: response
+            };
+
+            // Always send as JSON string to be safe with other listeners
+            window.postMessage(JSON.stringify(payload), '*');
         }
     });
 })();
