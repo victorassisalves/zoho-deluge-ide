@@ -562,6 +562,16 @@ function setupEventHandlers() {
         validateModalJson();
     });
 
+    bind('interface-input', 'paste', () => {
+        setTimeout(() => {
+            const input = document.getElementById('interface-input');
+            if (input) {
+                input.value = tryFixJson(input.value);
+                validateModalJson();
+            }
+        }, 0);
+    });
+
     bind('modal-fix-json', 'click', () => {
         const input = document.getElementById('interface-input');
         if (input) {
@@ -617,17 +627,44 @@ function tryFixJson(str) {
     if (!str) return str;
     let fixed = str.trim();
 
-    // 1. Replace single quotes with double quotes for keys
+    // 0. Try to extract JSON if it's wrapped in other text
+    const firstBrace = fixed.indexOf('{');
+    const firstBracket = fixed.indexOf('[');
+    let startPos = -1;
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) startPos = firstBrace;
+    else if (firstBracket !== -1) startPos = firstBracket;
+
+    if (startPos !== -1) {
+        const lastBrace = fixed.lastIndexOf('}');
+        const lastBracket = fixed.lastIndexOf(']');
+        let endPos = -1;
+        if (lastBrace !== -1 && (lastBracket === -1 || lastBrace > lastBracket)) endPos = lastBrace;
+        else if (lastBracket !== -1) endPos = lastBracket;
+
+        if (endPos !== -1 && endPos > startPos) {
+            fixed = fixed.substring(startPos, endPos + 1);
+        }
+    }
+
+    // 1. Remove comments
+    fixed = fixed.replace(/\/\/.*$/gm, '');
+    fixed = fixed.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // 2. Replace single quotes with double quotes for keys
     fixed = fixed.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'\s*:/g, '"$1":');
 
-    // 2. Replace single quotes with double quotes for values (after colon, or in arrays)
+    // 3. Replace single quotes with double quotes for values
     fixed = fixed.replace(/([:\[,]\s*)'([^'\\]*(?:\\.[^'\\]*)*)'/g, '$1"$2"');
 
-    // 3. Quote unquoted keys
-    fixed = fixed.replace(/([{,]\s*)([a-zA-Z0-9_.\-@$!]+)\s*:/g, '$1"$2":');
+    // 4. Quote unquoted keys
+    const keyPattern = /([{,]\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/g;
+    fixed = fixed.replace(keyPattern, '$1"$2":');
 
-    // 4. Remove trailing commas
-    fixed = fixed.replace(/,\s*([}\]])/g, '$1');
+    // Also handle keys at the start of a line (missing commas or object body)
+    fixed = fixed.replace(/^(\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/gm, '$1"$2":');
+
+    // 5. Remove trailing commas
+    fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
 
     try {
         const obj = JSON.parse(fixed);
