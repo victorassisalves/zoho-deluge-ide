@@ -240,8 +240,8 @@
                 };
 
                 // 1. Interface Manager Autocomplete (Auto-Trigger on Get or Dot)
-                const interfaceGetMatch = lineUntilPos.match(/([a-zA-Z_]\w*)((?:\.get(?:JSON)?\(['"][^'"]*['"]\))*)\.get(?:JSON)?\(['"]([^'"]*)$/);
-                const interfaceDotMatch = lineUntilPos.match(/([a-zA-Z_]\w*)((?:\.get(?:JSON)?\(['"][^'"]*['"]\))*)\.([a-zA-Z_]\w*)?$/);
+                const interfaceGetMatch = lineUntilPos.match(/([a-zA-Z_]\w*)\s*((?:\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"][^'"]*['"]|\d+)\s*\))*)\s*\.\s*get(?:JSON)?\s*\(\s*['"]([^'"]*)$/);
+                const interfaceDotMatch = lineUntilPos.match(/([a-zA-Z_]\w*)\s*((?:\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"][^'"]*['"]|\d+)\s*\))*)\s*\.\s*([a-zA-Z_]\w*)?$/);
 
                 if (interfaceGetMatch || interfaceDotMatch) {
                     const isDot = !!interfaceDotMatch;
@@ -261,11 +261,12 @@
                         for (const p of initialPath) {
                             if (currentObj) currentObj = currentObj[p];
                         }
-                        const pathParts = path.match(/\.get(?:JSON)?\(['"]([^'"]*)['"]\)/g) || [];
+                        const pathParts = path.match(/\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/g) || [];
                         for (const part of pathParts) {
-                            const keyMatch = part.match(/\(['"]([^'"]*)['"]\)/);
-                            if (keyMatch && currentObj) {
-                                currentObj = currentObj[keyMatch[1]];
+                            const keyMatch = part.match(/\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/);
+                            if (keyMatch && currentObj && typeof currentObj === 'object') {
+                                const key = keyMatch[1] !== undefined ? keyMatch[1] : keyMatch[2];
+                                currentObj = currentObj[key];
                             }
                         }
 
@@ -427,11 +428,11 @@
                     else if (val.startsWith('{')) {
                         varMap[name] = { type: 'Map', isLiteral: true };
                         // Basic literal key extraction for dynamic autocomplete
-                        const keysMatch = val.match(/"([^"]+)"\s*:/g);
+                        const keysMatch = val.match(/['"]([^'"]+)['"]\s*:/g);
                         if (keysMatch) {
                             const literalMapping = {};
                             keysMatch.forEach(k => {
-                                const key = k.match(/"([^"]+)"/)[1];
+                                const key = k.match(/['"]([^'"]+)['"]/)[1];
                                 literalMapping[key] = "Object";
                             });
                             if (!window.interfaceMappings) window.interfaceMappings = {};
@@ -443,7 +444,7 @@
                     }
 
                     // Trace assignments from other variables: data = resp.get("data")
-                    const getMatch = val.match(/([a-zA-Z_]\w*)((?:\.get(?:JSON)?\(['"][^'"]*['"]\))+)$/);
+                    const getMatch = val.match(/([a-zA-Z_]\w*)\s*((?:\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"][^'"]*['"]|\d+)\s*\))+)\s*$/);
                     if (getMatch) {
                         const sourceVar = getMatch[1];
                         const pathStr = getMatch[2];
@@ -452,10 +453,13 @@
                         if (sourceInfo && (sourceInfo.mapping || (window.interfaceMappings && window.interfaceMappings[sourceVar]))) {
                             const mappingName = sourceInfo.mapping || sourceVar;
                             const newPath = [...(sourceInfo.path || [])];
-                            const pathParts = pathStr.match(/\.get(?:JSON)?\(['"]([^'"]*)['"]\)/g) || [];
+                            const pathParts = pathStr.match(/\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/g) || [];
                             for (const part of pathParts) {
-                                const keyMatch = part.match(/\(['"]([^'"]*)['"]\)/);
-                                if (keyMatch) newPath.push(keyMatch[1]);
+                                const keyMatch = part.match(/\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/);
+                                if (keyMatch) {
+                                    const key = keyMatch[1] !== undefined ? keyMatch[1] : keyMatch[2];
+                                    newPath.push(key);
+                                }
                             }
                             varMap[name] = { type: 'Map', mapping: mappingName, path: newPath };
                         }
