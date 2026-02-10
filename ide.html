@@ -422,14 +422,18 @@
                 </div>
                 <div class="input-group">
                     <label>JSON Content:</label>
-                    <textarea id="interface-input" placeholder='{"key": "value"}'></textarea>
+                    <div class="textarea-container">
+                        <textarea id="interface-input" placeholder='{"key": "value"}'></textarea>
+                        <div class="textarea-actions">
+                            <button id="modal-paste" class="mini-action-btn" title="Paste from clipboard"><span class="material-icons">content_paste</span></button>
+                            <button id="modal-fix-json" class="mini-action-btn fix-btn" title="Fix and Format JSON" style="display:none;"><span class="material-icons">auto_fix_high</span></button>
+                        </div>
+                    </div>
                     <div id="modal-json-status"></div>
                 </div>
             </div>
             <div class="modal-footer">
                 <div class="footer-left">
-                    <button id="modal-paste" class="secondary-btn"><span class="material-icons">content_paste</span> Paste</button>
-                    <button id="modal-fix-json" class="secondary-btn" style="display:none; color: #ffb86c; border-color: #ffb86c;"><span class="material-icons">auto_fix_high</span> Fix & Format</button>
                 </div>
                 <div class="footer-right">
                     <button id="modal-cancel" class="text-btn">Cancel</button>

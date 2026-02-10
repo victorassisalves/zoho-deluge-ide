@@ -1486,3 +1486,54 @@ html.sidepanel-mode .resizer {
     max-height: 80px;
     overflow-y: auto;
 }
+
+/* Textarea Actions in Corner */
+.textarea-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.textarea-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 6px;
+    z-index: 5;
+}
+
+.mini-action-btn {
+    background: rgba(45, 45, 45, 0.9);
+    border: 1px solid #444;
+    color: #888;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.mini-action-btn:hover {
+    background: #3c3c3c;
+    color: #eee;
+    border-color: #007acc;
+}
+
+.mini-action-btn.fix-btn {
+    color: #ffb86c;
+    border-color: rgba(255, 184, 108, 0.3);
+}
+
+.mini-action-btn.fix-btn:hover {
+    background: rgba(255, 184, 108, 0.1);
+    color: #ffb86c;
+    border-color: #ffb86c;
+}
+
+.mini-action-btn .material-icons {
+    font-size: 18px;
+}
