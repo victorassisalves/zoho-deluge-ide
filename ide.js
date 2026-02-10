@@ -247,6 +247,7 @@ function loadProjectData() {
 
         const projectMappings = result.project_mappings || {};
         interfaceMappings = projectMappings[zideProjectUrl] || {};
+        window.interfaceMappings = interfaceMappings;
         updateInterfaceMappingsList();
     });
 }
@@ -537,7 +538,16 @@ function setupEventHandlers() {
 
     bind('modal-cancel', 'click', () => { document.getElementById('interface-modal').style.display = 'none'; });
 
-        bind('modal-convert', 'click', () => {
+    bind('modal-paste', 'click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            document.getElementById('interface-input').value = text;
+        } catch (err) {
+            console.error('Failed to read clipboard:', err);
+        }
+    });
+
+    bind('modal-convert', 'click', () => {
         const varName = document.getElementById('interface-var-name').value || 'payload';
         const jsonStr = document.getElementById('interface-input').value;
         const style = document.getElementById('gen-style').value;
@@ -640,6 +650,7 @@ function saveInterfaceMapping(name, jsonStr) {
     try {
         const obj = JSON.parse(jsonStr);
         interfaceMappings[name] = obj;
+        window.interfaceMappings = interfaceMappings;
         saveCurrentMappings();
         updateInterfaceMappingsList();
     } catch (e) {
@@ -702,6 +713,7 @@ function updateInterfaceMappingsList() {
             e.stopPropagation();
             if (confirm(`Delete mapping "${name}"?`)) {
                 delete interfaceMappings[name];
+                window.interfaceMappings = interfaceMappings;
                 saveCurrentMappings();
                 updateInterfaceMappingsList();
             }

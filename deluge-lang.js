@@ -239,33 +239,75 @@
                     endColumn: position.column
                 };
 
-                // 1. Interface Manager Autocomplete (Auto-Trigger on Get)
-                const interfaceMatch = lineUntilPos.match(/([a-zA-Z_]\w*)((?:\.get(?:JSON)?\(['"][^'"]*['"]\))*)\.get(?:JSON)?\(['"]([^'"]*)$/);
-                if (interfaceMatch) {
-                    const varName = interfaceMatch[1];
-                    const path = interfaceMatch[2];
+                // 1. Interface Manager Autocomplete (Auto-Trigger on Get or Dot)
+                // We use \b to ensure we match whole variable names
+                const interfaceGetMatch = lineUntilPos.match(/\b([a-zA-Z_]\w*)\s*((?:\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"][^'"]*['"]|\d+)\s*\))*)\s*\.\s*get(?:JSON)?\s*\(\s*['"]([^'"]*)$/);
+                const interfaceDotMatch = lineUntilPos.match(/\b([a-zA-Z_]\w*)\s*((?:\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"][^'"]*['"]|\d+)\s*\))*)\s*\.\s*([a-zA-Z_]\w*)?$/);
+
+                if (interfaceGetMatch || interfaceDotMatch) {
+                    const isDot = !!interfaceDotMatch;
+                    const match = isDot ? interfaceDotMatch : interfaceGetMatch;
+                    const varName = match[1];
+                    const path = match[2];
+
+                    const varMap = extractVariables(code);
+                    const varInfo = varMap[varName];
                     const mappings = window.interfaceMappings || {};
-                    if (mappings[varName]) {
-                        let currentObj = mappings[varName];
-                        const pathParts = path.match(/\.get(?:JSON)?\(['"]([^'"]*)['"]\)/g) || [];
+
+                    let mappingName = (varInfo && typeof varInfo === 'object' && varInfo.mapping) ? varInfo.mapping : (mappings[varName] ? varName : null);
+                    let initialPath = (varInfo && typeof varInfo === 'object' && varInfo.path) ? varInfo.path : [];
+
+                    if (mappingName && mappings[mappingName]) {
+                        let currentObj = mappings[mappingName];
+                        for (const p of initialPath) {
+                            if (currentObj) currentObj = currentObj[p];
+                        }
+                        const pathParts = path.match(/\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/g) || [];
                         for (const part of pathParts) {
-                            const keyMatch = part.match(/\(['"]([^'"]*)['"]\)/);
-                            if (keyMatch && currentObj) {
-                                currentObj = currentObj[keyMatch[1]];
+                            const keyMatch = part.match(/\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/);
+                            if (keyMatch && currentObj && typeof currentObj === 'object') {
+                                const key = keyMatch[1] !== undefined ? keyMatch[1] : keyMatch[2];
+                                currentObj = currentObj[key];
                             }
                         }
 
                         if (currentObj && typeof currentObj === 'object') {
-                            const keys = Object.keys(currentObj);
-                            return {
-                                suggestions: keys.map(key => ({
-                                    label: key,
-                                    kind: monaco.languages.CompletionItemKind.Property,
-                                    detail: typeof currentObj[key],
-                                    insertText: key,
-                                    range: range
-                                }))
-                            };
+                            let objToSuggest = currentObj;
+                            let prefix = "";
+
+                            if (Array.isArray(currentObj)) {
+                                if (currentObj.length > 0 && typeof currentObj[0] === 'object' && currentObj[0] !== null) {
+                                    objToSuggest = currentObj[0];
+                                    prefix = "get(0).";
+                                } else {
+                                    return; // Nothing to suggest for empty or non-object lists
+                                }
+                            }
+
+                            if (objToSuggest && typeof objToSuggest === 'object' && !Array.isArray(objToSuggest)) {
+                                const keys = Object.keys(objToSuggest);
+                                return {
+                                    suggestions: keys.map(key => {
+                                        const val = objToSuggest[key];
+                                        const isComplex = typeof val === 'object' && val !== null;
+                                        const method = isComplex ? 'getJSON' : 'get';
+
+                                        return {
+                                            label: key,
+                                            kind: monaco.languages.CompletionItemKind.Property,
+                                            detail: (isComplex ? (Array.isArray(val) ? 'List' : 'Map') : typeof val) + " (Interface)",
+                                            insertText: isDot ? `${prefix}${method}("${key}")` : key,
+                                            range: isDot ? {
+                                                startLineNumber: position.lineNumber,
+                                                endLineNumber: position.lineNumber,
+                                                startColumn: match.index + match[0].lastIndexOf('.') + 2,
+                                                endColumn: position.column
+                                            } : range,
+                                            command: { id: 'editor.action.triggerSuggest', title: 'Re-trigger' }
+                                        };
+                                    })
+                                };
+                            }
                         }
                     }
                 }
@@ -341,7 +383,7 @@
                 const varSuggestions = Object.keys(varMap).map(v => ({
                     label: v,
                     kind: monaco.languages.CompletionItemKind.Variable,
-                    detail: varMap[v],
+                    detail: varMap[v].type + (varMap[v].mapping ? ` (Mapped: ${varMap[v].mapping})` : ""),
                     insertText: v,
                     range: range
                 }));
@@ -360,13 +402,20 @@
         function extractVariables(code) {
             const cleanCode = code.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
             const varMap = {
-                'input': 'Map',
-                'zoho': 'Namespace',
-                'thisapp': 'Namespace',
-                'standalone': 'Namespace',
-                'today': 'Date',
-                'now': 'DateTime'
+                'input': { type: 'Map' },
+                'zoho': { type: 'Namespace' },
+                'thisapp': { type: 'Namespace' },
+                'standalone': { type: 'Namespace' },
+                'today': { type: 'Date' },
+                'now': { type: 'DateTime' }
             };
+
+            // 0. Interface Mappings
+            if (window.interfaceMappings) {
+                for (const name in window.interfaceMappings) {
+                    varMap[name] = { type: 'Map', mapping: name, path: [] };
+                }
+            }
 
             const keywords = new Set(['if', 'else', 'for', 'each', 'in', 'return', 'info', 'true', 'false', 'null', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'zoho', 'thisapp', 'standalone', 'input', 'today', 'now', 'invokeurl']);
 
@@ -374,7 +423,7 @@
             const declRegex = /\b(string|int|decimal|boolean|map|list)\s+([a-zA-Z_]\w*)/gi;
             let match;
             while ((match = declRegex.exec(cleanCode)) !== null) {
-                varMap[match[2]] = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+                varMap[match[2]] = { type: match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase() };
             }
 
             // 2. Assignments: name = ...
@@ -384,13 +433,53 @@
                 const val = match[2].trim();
                 if (keywords.has(name)) continue;
 
-                if (!varMap[name]) {
-                    if (val.startsWith('"') || val.startsWith("'")) varMap[name] = 'String';
-                    else if (val.match(/^\d+$/)) varMap[name] = 'Int';
-                    else if (val.match(/^\d+\.\d+$/)) varMap[name] = 'Decimal';
-                    else if (val.toLowerCase().startsWith('map()')) varMap[name] = 'Map';
-                    else if (val.toLowerCase().startsWith('list()')) varMap[name] = 'List';
-                    else if (val.toLowerCase().startsWith('collection()')) varMap[name] = 'List';
+                if (val.startsWith('"') || val.startsWith("'")) varMap[name] = { type: 'String' };
+                else if (val.match(/^\d+$/)) varMap[name] = { type: 'Int' };
+                else if (val.match(/^\d+\.\d+$/)) varMap[name] = { type: 'Decimal' };
+                else if (val.toLowerCase().startsWith('map()')) varMap[name] = { type: 'Map' };
+                else if (val.toLowerCase().startsWith('list()')) varMap[name] = { type: 'List' };
+                else if (val.toLowerCase().startsWith('collection()')) varMap[name] = { type: 'List' };
+                else if (val.startsWith('{')) {
+                    varMap[name] = { type: 'Map', isLiteral: true };
+                    // Basic literal key extraction for dynamic autocomplete
+                    const keysMatch = val.match(/['"]([^'"]+)['"]\s*:/g);
+                    if (keysMatch) {
+                        const literalMapping = {};
+                        keysMatch.forEach(k => {
+                            const key = k.match(/['"]([^'"]+)['"]/)[1];
+                            literalMapping[key] = "Object";
+                        });
+                        if (!window.interfaceMappings) window.interfaceMappings = {};
+                        const mappingName = `_literal_${name}`;
+                        window.interfaceMappings[mappingName] = literalMapping;
+                        varMap[name].mapping = mappingName;
+                        varMap[name].path = [];
+                    }
+                }
+
+                // Trace assignments from other variables: data = resp.get("data")
+                const getMatch = val.match(/\b([a-zA-Z_]\w*)\s*((?:\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"][^'"]*['"]|\d+)\s*\))+)\s*$/);
+                if (getMatch) {
+                    const sourceVar = getMatch[1];
+                    const pathStr = getMatch[2];
+                    const sourceInfo = varMap[sourceVar] || (window.interfaceMappings && window.interfaceMappings[sourceVar] ? { mapping: sourceVar, path: [] } : null);
+
+                    if (sourceInfo && (sourceInfo.mapping || (window.interfaceMappings && window.interfaceMappings[sourceVar]))) {
+                        const mappingName = sourceInfo.mapping || sourceVar;
+                        const newPath = [...(sourceInfo.path || [])];
+                        const pathParts = pathStr.match(/\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/g) || [];
+                        for (const part of pathParts) {
+                            const keyMatch = part.match(/\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/);
+                            if (keyMatch) {
+                                const key = keyMatch[1] !== undefined ? keyMatch[1] : keyMatch[2];
+                                newPath.push(key);
+                            }
+                        }
+                        varMap[name] = { type: 'Map', mapping: mappingName, path: newPath };
+                    }
+                } else if (varMap[val]) {
+                    // Direct assignment: v2 = v1
+                    varMap[name] = { ...varMap[val] };
                 }
             }
 
@@ -403,9 +492,9 @@
                     if (parts.length >= 2) {
                         const type = parts[0].trim();
                         const name = parts[parts.length - 1].trim();
-                        varMap[name] = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+                        varMap[name] = { type: type.charAt(0).toUpperCase() + type.slice(1).toLowerCase() };
                     } else if (parts.length === 1 && parts[0]) {
-                        varMap[parts[0]] = 'Object';
+                        varMap[parts[0]] = { type: 'Object' };
                     }
                 });
             }
@@ -413,13 +502,13 @@
             // 4. Loops
             const forEachRegex = /for\s+each\s+([a-zA-Z_]\w*)\s+in\s+([a-zA-Z_]\w*)/gi;
             while ((match = forEachRegex.exec(cleanCode)) !== null) {
-                varMap[match[1]] = 'Object';
+                varMap[match[1]] = { type: 'Object' };
             }
 
             // 5. Catch
             const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
             while ((match = catchRegex.exec(cleanCode)) !== null) {
-                varMap[match[1]] = 'Error';
+                varMap[match[1]] = { type: 'Error' };
             }
 
             // 6. Heuristics from usage
@@ -427,10 +516,10 @@
             while ((match = methodUsageRegex.exec(cleanCode)) !== null) {
                 const name = match[1];
                 const method = match[2];
-                if (keywords.has(name) || (varMap[name] && varMap[name] !== 'Object')) continue;
+                if (keywords.has(name) || (varMap[name] && varMap[name].type && varMap[name].type !== 'Object')) continue;
 
-                if (['put', 'keys', 'containsKey', 'containsValue'].includes(method)) varMap[name] = 'Map';
-                else if (['add', 'addAll', 'sort', 'distinct'].includes(method)) varMap[name] = 'List';
+                if (['put', 'keys', 'containsKey', 'containsValue'].includes(method)) varMap[name] = { type: 'Map' };
+                else if (['add', 'addAll', 'sort', 'distinct'].includes(method)) varMap[name] = { type: 'List' };
             }
 
             return varMap;
@@ -438,7 +527,7 @@
 
         function inferVarType(varName, code) {
             const vars = extractVariables(code);
-            return vars[varName] || null;
+            return vars[varName] ? vars[varName].type : null;
         }
 
 
@@ -529,6 +618,9 @@
 
                     // If it's on the left of =, it's being defined now
                     if (after.trim().startsWith('=')) return;
+
+                    // If it's part of a mapping name, it's valid
+                    if (window.interfaceMappings && window.interfaceMappings[word]) return;
 
                     markers.push({
                         message: `Undefined variable: '${word}'`,
