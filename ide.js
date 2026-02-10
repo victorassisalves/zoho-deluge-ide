@@ -537,7 +537,16 @@ function setupEventHandlers() {
 
     bind('modal-cancel', 'click', () => { document.getElementById('interface-modal').style.display = 'none'; });
 
-        bind('modal-convert', 'click', () => {
+    bind('modal-paste', 'click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            document.getElementById('interface-input').value = text;
+        } catch (err) {
+            console.error('Failed to read clipboard:', err);
+        }
+    });
+
+    bind('modal-convert', 'click', () => {
         const varName = document.getElementById('interface-var-name').value || 'payload';
         const jsonStr = document.getElementById('interface-input').value;
         const style = document.getElementById('gen-style').value;
