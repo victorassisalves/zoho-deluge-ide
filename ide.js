@@ -455,7 +455,15 @@ function setupEventHandlers() {
         });
     });
 
+    const resetInterfaceModal = (defaultVar = 'payload') => {
+        document.getElementById('interface-var-name').value = defaultVar;
+        document.getElementById('interface-input').value = '';
+        const errorDisplay = document.getElementById('modal-error-display');
+        if (errorDisplay) errorDisplay.style.display = 'none';
+    };
+
     bind('interface-btn', 'click', () => {
+        resetInterfaceModal();
         document.getElementById('modal-title').innerText = 'Convert JSON to Deluge Map';
         document.getElementById('modal-var-container').style.display = 'block';
         document.getElementById('modal-convert').style.display = 'block';
@@ -464,6 +472,7 @@ function setupEventHandlers() {
     });
 
     bind('add-interface-btn', 'click', () => {
+        resetInterfaceModal('mapping');
         document.getElementById('modal-title').innerText = 'Add JSON Mapping for Autocomplete';
         document.getElementById('modal-var-container').style.display = 'block';
         document.getElementById('modal-convert').style.display = 'none';
@@ -471,28 +480,65 @@ function setupEventHandlers() {
         document.getElementById('interface-modal').style.display = 'flex';
     });
 
-    bind('modal-cancel', 'click', () => { document.getElementById('interface-modal').style.display = 'none'; });
+    const closeModal = () => { document.getElementById('interface-modal').style.display = 'none'; };
+    bind('modal-cancel', 'click', closeModal);
+    bind('modal-close-x', 'click', closeModal);
 
-        bind('modal-convert', 'click', () => {
+    const interfaceInput = document.getElementById('interface-input');
+    if (interfaceInput) {
+        interfaceInput.addEventListener('paste', (e) => {
+            setTimeout(() => {
+                interfaceInput.value = tryFixJson(interfaceInput.value);
+                validateModalJson();
+            }, 10);
+        });
+        interfaceInput.addEventListener('input', validateModalJson);
+    }
+
+    bind('modal-convert', 'click', () => {
         const varName = document.getElementById('interface-var-name').value || 'payload';
-        const jsonStr = document.getElementById('interface-input').value;
+        let jsonStr = document.getElementById('interface-input').value;
         const style = document.getElementById('gen-style').value;
         const update = document.getElementById('gen-update').checked;
+
+        // Auto-fix on submit too
+        jsonStr = tryFixJson(jsonStr);
+        document.getElementById('interface-input').value = jsonStr;
+
         try {
             const code = convertInterfaceToDeluge(varName, jsonStr, { style, update });
             editor.executeEdits('json-convert', [{ range: editor.getSelection(), text: code }]);
-            document.getElementById('interface-modal').style.display = 'none';
+            closeModal();
         } catch (e) {
             console.error("[ZohoIDE] modal-convert Error:", e);
-            alert('Invalid JSON: ' + e.message);
+            const errorDisplay = document.getElementById('modal-error-display');
+            if (errorDisplay) {
+                errorDisplay.innerText = "Error: " + e.message;
+                errorDisplay.style.color = "#f44747";
+                errorDisplay.style.display = "block";
+            } else {
+                alert('Invalid JSON: ' + e.message);
+            }
         }
     });
 
     bind('modal-map-only', 'click', () => {
         const name = document.getElementById('interface-var-name').value || 'mapping';
-        const jsonStr = document.getElementById('interface-input').value;
-        saveInterfaceMapping(name, jsonStr);
-        document.getElementById('interface-modal').style.display = 'none';
+        let jsonStr = document.getElementById('interface-input').value;
+
+        jsonStr = tryFixJson(jsonStr);
+        document.getElementById('interface-input').value = jsonStr;
+
+        if (saveInterfaceMapping(name, jsonStr)) {
+            closeModal();
+        } else {
+            const errorDisplay = document.getElementById('modal-error-display');
+            if (errorDisplay) {
+                errorDisplay.innerText = "Invalid JSON. Please fix it before saving.";
+                errorDisplay.style.color = "#f44747";
+                errorDisplay.style.display = "block";
+            }
+        }
     });
 
     bind('clear-console', 'click', () => { document.getElementById('console-output').innerHTML = ''; });
@@ -511,8 +557,83 @@ function setupEventHandlers() {
 
 }
 
+function tryFixJson(str) {
+    if (!str || str.trim() === "") return "";
+
+    let processed = str.trim();
+
+    // Attempt 1: Standard JSON parse
+    try {
+        return JSON.stringify(JSON.parse(processed), null, 4);
+    } catch (e) {
+        // Fallback: Try to fix common issues
+
+        // 1. Fix unquoted keys
+        // Handles { key: "value" } and { , key: "value" }
+        processed = processed.replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
+        // Handles start of object: {key: "value"}
+        processed = processed.replace(/(^\s*{\s*)([a-zA-Z0-9_$]+)\s*:/, '$1"$2":');
+
+        // 2. Fix single quotes to double quotes for keys and string values
+        // Safer approach: replace single-quoted strings with double-quoted ones
+        processed = processed.replace(/(['])((?:\\\1|.)*?)\1/g, (match, quote, content) => {
+            return '"' + content.replace(/"/g, '\\"') + '"';
+        });
+
+        // 3. Remove trailing commas
+        processed = processed.replace(/,\s*([\]}])/g, '$1');
+
+        try {
+            return JSON.stringify(JSON.parse(processed), null, 4);
+        } catch (e2) {
+            // If still failing, return the best effort fixed string
+            return processed;
+        }
+    }
+}
+
+function validateModalJson() {
+    const input = document.getElementById('interface-input').value;
+    const errorDisplay = document.getElementById('modal-error-display');
+    const convertBtn = document.getElementById('modal-convert');
+    const saveBtn = document.getElementById('modal-map-only');
+
+    if (!errorDisplay) return false;
+
+    try {
+        if (input.trim() === "") {
+            errorDisplay.style.display = "none";
+            return false;
+        }
+        JSON.parse(input);
+        errorDisplay.innerText = "✓ Valid JSON";
+        errorDisplay.style.color = "#4ec9b0";
+        errorDisplay.style.display = "block";
+        if (convertBtn) convertBtn.disabled = false;
+        if (saveBtn) saveBtn.disabled = false;
+        return true;
+    } catch (e) {
+        errorDisplay.innerText = "Invalid JSON: " + e.message;
+        errorDisplay.style.color = "#f44747";
+        errorDisplay.style.display = "block";
+        // We don't disable buttons because tryFixJson might handle it during the actual action,
+        // but it's better to show the error.
+        return false;
+    }
+}
+
 function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
-    const obj = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+    let obj;
+    try {
+        obj = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+    } catch (e) {
+        // Try one last fix attempt
+        try {
+            obj = JSON.parse(tryFixJson(jsonStr));
+        } catch (e2) {
+            throw new Error("Could not parse JSON even after fix attempts.");
+        }
+    }
     const style = options.style || 'step'; // 'step' or 'inline'
     const isUpdate = options.update || false;
     let code = "";
@@ -578,9 +699,10 @@ function saveInterfaceMapping(name, jsonStr) {
         interfaceMappings[name] = obj;
         saveCurrentMappings();
         updateInterfaceMappingsList();
+        return true;
     } catch (e) {
         console.error("[ZohoIDE] saveInterfaceMapping Error:", e);
-        alert('Invalid JSON: ' + e.message);
+        return false;
     }
 }
 
@@ -600,24 +722,49 @@ function saveCurrentMappings() {
 
 function updateInterfaceMappingsList() {
     const list = document.getElementById('interface-mappings-list');
+    const noMappingsMsg = document.getElementById('no-mappings-msg');
     if (!list) return;
+
     list.innerHTML = '';
-    Object.keys(interfaceMappings).forEach(name => {
-        const item = document.createElement('div');
-        item.className = 'mapping-item';
+    const keys = Object.keys(interfaceMappings);
+
+    if (noMappingsMsg) {
+        noMappingsMsg.style.display = keys.length === 0 ? 'block' : 'none';
+    }
+
+    keys.forEach(name => {
+        const container = document.createElement('div');
+        container.className = 'mapping-item-container';
+        container.id = `mapping-${name}`;
+
+        const header = document.createElement('div');
+        header.className = 'mapping-item-header';
 
         const nameSpan = document.createElement('span');
+        nameSpan.className = 'var-name';
         nameSpan.innerText = name;
-        nameSpan.style.flex = '1';
 
         const actions = document.createElement('div');
-        actions.style.display = 'flex';
-        actions.style.gap = '8px';
+        actions.className = 'mapping-item-actions';
+
+        const editBtn = document.createElement('span');
+        editBtn.innerHTML = '✎';
+        editBtn.title = 'Edit JSON';
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            document.getElementById('modal-title').innerText = 'Edit Interface Mapping';
+            document.getElementById('interface-var-name').value = name;
+            document.getElementById('interface-input').value = JSON.stringify(interfaceMappings[name], null, 4);
+            document.getElementById('modal-var-container').style.display = 'block';
+            document.getElementById('modal-convert').style.display = 'none';
+            document.getElementById('modal-map-only').style.display = 'block';
+            document.getElementById('interface-modal').style.display = 'flex';
+            validateModalJson();
+        };
 
         const copyAllBtn = document.createElement('span');
         copyAllBtn.innerHTML = '📋';
         copyAllBtn.title = 'Copy as Deluge Map';
-        copyAllBtn.style.cursor = 'pointer';
         copyAllBtn.onclick = (e) => {
             e.stopPropagation();
             const code = convertInterfaceToDeluge(name, JSON.stringify(interfaceMappings[name]));
@@ -628,9 +775,10 @@ function updateInterfaceMappingsList() {
         };
 
         const deleteBtn = document.createElement('span');
-        deleteBtn.className = 'delete-mapping';
         deleteBtn.innerHTML = '×';
-        deleteBtn.style.opacity = '1';
+        deleteBtn.title = 'Delete';
+        deleteBtn.style.fontSize = '18px';
+        deleteBtn.style.color = '#f44747';
         deleteBtn.onclick = (e) => {
             e.stopPropagation();
             if (confirm(`Delete mapping "${name}"?`)) {
@@ -640,25 +788,104 @@ function updateInterfaceMappingsList() {
             }
         };
 
+        actions.appendChild(editBtn);
         actions.appendChild(copyAllBtn);
         actions.appendChild(deleteBtn);
 
-        item.appendChild(nameSpan);
-        item.appendChild(actions);
+        header.appendChild(nameSpan);
+        header.appendChild(actions);
 
-        item.onclick = () => {
-            document.querySelectorAll('.mapping-item').forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            renderInterfaceTree(name, interfaceMappings[name]);
+        const treeView = document.createElement('div');
+        treeView.className = 'mapping-item-tree';
+        treeView.style.display = 'none';
+
+        header.onclick = () => {
+            const isOpen = treeView.style.display !== 'none';
+
+            // Close all other accordions
+            document.querySelectorAll('.mapping-item-tree').forEach(t => t.style.display = 'none');
+            document.querySelectorAll('.mapping-item-header').forEach(h => h.classList.remove('active'));
+
+            if (!isOpen) {
+                treeView.style.display = 'block';
+                header.classList.add('active');
+                renderInterfaceTree(name, interfaceMappings[name], treeView);
+                // Scroll header into view if it's sticky but maybe hidden
+                header.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
         };
-        list.appendChild(item);
+
+        container.appendChild(header);
+        container.appendChild(treeView);
+        list.appendChild(container);
     });
 }
 
-function renderInterfaceTree(mappingName, obj) {
-    const tree = document.getElementById('interface-tree-view');
+function makeValueEditable(el, parentObj, key) {
+    const originalVal = parentObj[key];
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tree-val-edit';
+
+    // Don't stringify if it's already a string, to avoid extra quotes
+    input.value = typeof originalVal === 'string' ? originalVal : JSON.stringify(originalVal);
+
+    const save = () => {
+        let newVal = input.value;
+        try {
+            // Attempt to preserve types for non-strings
+            if (newVal === 'true') newVal = true;
+            else if (newVal === 'false') newVal = false;
+            else if (newVal === 'null') newVal = null;
+            else if (!isNaN(newVal) && newVal.trim() !== "") {
+                newVal = Number(newVal);
+            } else {
+                // Check if it's a JSON string (like a list or map being inserted as a string)
+                try {
+                    const parsed = JSON.parse(newVal);
+                    if (typeof parsed !== 'string') newVal = parsed;
+                } catch (e) {
+                    // Keep as string
+                }
+            }
+
+            parentObj[key] = newVal;
+            el.innerText = JSON.stringify(newVal);
+            saveCurrentMappings();
+            if (window.showStatus) showStatus('Value updated locally', 'success');
+        } catch (e) {
+            el.innerText = JSON.stringify(originalVal);
+        }
+        input.replaceWith(el);
+    };
+
+    input.onblur = save;
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') save();
+        if (e.key === 'Escape') {
+            input.replaceWith(el);
+        }
+    };
+
+    el.replaceWith(input);
+    input.style.width = Math.max(input.value.length * 8, 50) + 'px';
+    input.focus();
+    input.select();
+}
+
+function renderInterfaceTree(mappingName, obj, container) {
+    const tree = container || document.getElementById('interface-tree-view');
     if (!tree) return;
     tree.innerHTML = '';
+
+    // If it's the standalone tree view, we might want a header.
+    // In accordion mode, the header is already there.
+    if (tree.id === 'interface-tree-view') {
+        const header = document.createElement('div');
+        header.className = 'tree-sticky-header';
+        header.innerText = mappingName;
+        tree.appendChild(header);
+    }
 
     function buildTree(data, container, path = "", depth = 0) {
         if (typeof data === 'object' && data !== null) {
@@ -684,17 +911,36 @@ function renderInterfaceTree(mappingName, obj) {
                     iconHtml = '<span class="toggle-icon" style="visibility:hidden">▼</span><span class="node-icon">📄</span>';
                 }
 
-                const keyHtml = `<span class="tree-key">${key}</span>`;
-                let valHtml = '';
-                let typeHtml = `<span class="tree-type">${isArray ? 'List' : (isObject ? 'Map' : typeof val)}</span>`;
+                const keySpan = document.createElement('span');
+                keySpan.className = 'tree-key';
+                keySpan.innerText = key;
+
+                const typeSpan = document.createElement('span');
+                typeSpan.className = 'tree-type';
+                typeSpan.innerText = isArray ? 'List' : (isObject ? 'Map' : typeof val);
+
+                label.innerHTML = iconHtml;
+                label.appendChild(keySpan);
 
                 if (!isObject) {
-                    valHtml = `: <span class="tree-val">${JSON.stringify(val)}</span>`;
+                    const colon = document.createTextNode(': ');
+                    label.appendChild(colon);
+
+                    const valSpan = document.createElement('span');
+                    valSpan.className = 'tree-val';
+                    valSpan.innerText = JSON.stringify(val);
+                    valSpan.title = 'Click to edit';
+                    valSpan.onclick = (e) => {
+                        e.stopPropagation();
+                        makeValueEditable(valSpan, data, key);
+                    };
+                    label.appendChild(valSpan);
                 } else {
-                    valHtml = `: ${isArray ? '[' : '{'}`;
+                    const colon = document.createTextNode(`: ${isArray ? '[' : '{'}`);
+                    label.appendChild(colon);
                 }
 
-                label.innerHTML = `${iconHtml} ${keyHtml}${valHtml} ${typeHtml}`;
+                label.appendChild(typeSpan);
 
                 // Actions container
                 const actions = document.createElement('div');
