@@ -43,6 +43,9 @@
         "https://*.zoho.in/*",
         "https://*.zoho.com.au/*",
         "https://*.zoho.jp/*",
+        "https://*.zoho.ca/*",
+        "https://*.zoho.uk/*",
+        "https://*.zoho.com.cn/*",
         "https://deluge.zoho.com/*",
         "https://deluge.zoho.eu/*",
         "https://deluge.zoho.in/*",
@@ -55,8 +58,9 @@
       "js": [
         "content.js"
       ],
-      "run_at": "document_idle",
-      "all_frames": true
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true
     }
   ],
   "commands": {

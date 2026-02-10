@@ -4,5 +4,6 @@ export function getZohoProduct() {
     if (h.includes('creator')) return 'creator';
     if (h.includes('books')) return 'books';
     if (h.includes('recruit')) return 'recruit';
+    if (h.includes('flow')) return 'flow';
     return 'generic';
 }
