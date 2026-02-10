@@ -2,12 +2,26 @@
 console.log('[ZohoIDE] Content script loaded');
 
 // 1. Inject the modular bridge
-if (!document.getElementById('zoho-deluge-bridge-modular')) {
+function injectBridge() {
+    if (document.getElementById('zoho-deluge-bridge-modular')) return;
     const s = document.createElement('script');
     s.id = 'zoho-deluge-bridge-modular';
     s.src = chrome.runtime.getURL('bridge.js');
-    (document.head || document.documentElement).appendChild(s);
+    const target = document.head || document.documentElement;
+    if (target) {
+        target.appendChild(s);
+        console.log('[ZohoIDE] Bridge injected');
+    }
 }
+
+// Initial injection
+injectBridge();
+
+// Retry injection if needed
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectBridge);
+}
+window.addEventListener('load', injectBridge);
 
 // 2. Listen for messages from the extension
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

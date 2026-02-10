@@ -94,8 +94,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             try {
                 const results = await chrome.scripting.executeScript({
                     target: { tabId: tabId, allFrames: true },
+                    world: 'MAIN',
                     func: () => {
-                        return !!(window.monaco || window.ace || document.querySelector('.ace_editor, .monaco-editor, .CodeMirror, [id*="delugeEditor"], .deluge-editor, [id*="script"]'));
+                        // Check for common editor objects and elements in the main world
+                        const hasMonaco = !!(window.monaco && (window.monaco.editor || window.monaco.languages));
+                        const hasAce = !!(window.ace && window.ace.edit) || !!document.querySelector('.ace_editor');
+                        const hasCodeMirror = !!document.querySelector('.CodeMirror');
+                        const hasDelugeEditor = !!document.querySelector('[id*="delugeEditor"], .deluge-editor, [id*="script"], textarea.deluge-editor, .zace-editor');
+                        const hasZEditor = !!(window.ZEditor || window.Zace || window.delugeEditor);
+
+                        return hasMonaco || hasAce || hasCodeMirror || hasDelugeEditor || hasZEditor;
                     }
                 });
 

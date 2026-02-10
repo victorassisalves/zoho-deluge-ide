@@ -4,33 +4,40 @@
 
     const Engines = {
         Monaco: {
-            isAvailable: () => !!(window.monaco && window.monaco.editor),
+            isAvailable: () => !!(window.monaco && (window.monaco.editor || window.monaco.languages)),
             getCode: () => {
                 try {
+                    if (!window.monaco || !window.monaco.editor) return null;
                     const models = window.monaco.editor.getModels();
                     if (!models || models.length === 0) return null;
+                    // Prefer models with content and relevant language
                     let model = models.find(m => m.getValue().length > 0 && (m.getLanguageId() === 'deluge' || m.getLanguageId() === 'javascript'));
                     if (!model) model = models.find(m => m.getValue().length > 0);
                     if (!model) model = models[0];
                     return model.getValue();
-                } catch(e) { return null; }
+                } catch(e) { log('Monaco getCode error:', e); return null; }
             },
             setCode: (code) => {
                 try {
+                    if (!window.monaco || !window.monaco.editor) return false;
                     const models = window.monaco.editor.getModels();
                     if (!models || models.length === 0) return false;
                     let model = models.find(m => m.getLanguageId() === 'deluge' || m.getLanguageId() === 'javascript');
                     if (!model) model = models[0];
                     model.setValue(code);
                     return true;
-                } catch(e) { return false; }
+                } catch(e) { log('Monaco setCode error:', e); return false; }
             }
         },
         Ace: {
-            isAvailable: () => !!(document.querySelector('.ace_editor') || (window.ace && window.ace.edit)),
+            isAvailable: () => !!(document.querySelector('.ace_editor, .zace-editor') || (window.ace && window.ace.edit) || window.ZEditor || window.Zace),
             getCode: () => {
                 try {
-                    const aceEls = document.querySelectorAll('.ace_editor');
+                    // Try ZEditor/Zace first (common in Zoho Creator)
+                    if (window.ZEditor && window.ZEditor.getValue) return window.ZEditor.getValue();
+                    if (window.Zace && window.Zace.getValue) return window.Zace.getValue();
+
+                    const aceEls = document.querySelectorAll('.ace_editor, .zace-editor');
                     for (let el of aceEls) {
                         if (el.env && el.env.editor) return el.env.editor.getValue();
                         if (window.ace && window.ace.edit) {
@@ -38,11 +45,14 @@
                         }
                     }
                     return null;
-                } catch(e) { return null; }
+                } catch(e) { log('Ace getCode error:', e); return null; }
             },
             setCode: (code) => {
                 try {
-                    const aceEls = document.querySelectorAll('.ace_editor');
+                    if (window.ZEditor && window.ZEditor.setValue) { window.ZEditor.setValue(code); return true; }
+                    if (window.Zace && window.Zace.setValue) { window.Zace.setValue(code); return true; }
+
+                    const aceEls = document.querySelectorAll('.ace_editor, .zace-editor');
                     let success = false;
                     for (let el of aceEls) {
                         if (el.env && el.env.editor) { el.env.editor.setValue(code); success = true; }
@@ -51,7 +61,7 @@
                         }
                     }
                     return success;
-                } catch(e) { return false; }
+                } catch(e) { log('Ace setCode error:', e); return false; }
             }
         },
         CodeMirror: {
@@ -94,13 +104,13 @@
     const Products = {
         flow: {
             match: (url) => url.includes('flow.zoho'),
-            save: ['input[value="Save"].zf-green-btn', 'input[value="Save"]', '.zf-green-btn'],
-            execute: ['input[value="Execute"].zf-green-o-btn', 'input[value="Execute"]']
+            save: ['input[value="Save"].zf-green-btn', 'input[value="Save"]', '.zf-green-btn', '.zf-mw-btn:not(.zf-btn-outline)'],
+            execute: ['input[value="Execute"].zf-green-o-btn', 'input[value="Execute"]', '.zf-btn-outline.zf-green-o-btn']
         },
         creator: {
-            match: (url) => url.includes('creator.zoho'),
-            save: ['lyte-button[data-zcqa="save"]', 'lyte-button[data-zcqa="update"]', 'lyte-button[data-id="save"]', '.zc-save-btn', '.zc-update-btn'],
-            execute: ['lyte-button[data-zcqa="execute"]', 'lyte-button[data-zcqa="run"]', 'span[data-zcqa="delgv2execPlay"]', '.zc-execute-btn']
+            match: (url) => url.includes('creator.zoho') || url.includes('creatorapp.zoho') || url.includes('creatorportal.zoho'),
+            save: ['lyte-button[data-zcqa="save"]', 'lyte-button[data-zcqa="update"]', 'lyte-button[data-id="save"]', '.zc-save-btn', '.zc-update-btn', 'button.save-btn'],
+            execute: ['lyte-button[data-zcqa="execute"]', 'lyte-button[data-zcqa="run"]', 'span[data-zcqa="delgv2execPlay"]', '.zc-execute-btn', 'button.run-btn']
         },
         crm: {
             match: (url) => url.includes('crm.zoho'),
@@ -151,6 +161,8 @@
         return false;
     }
 
+    log('Bridge initialized in frame:', window.location.href);
+
     window.addEventListener('message', (event) => {
         let data;
         try {
@@ -164,17 +176,36 @@
         if (data && (data.source === 'EXTENSION' || data._zide_msg_) && data.source !== 'PAGE') {
             let response = {};
             if (data.action === 'GET_ZOHO_CODE') {
-                for (let engine of Object.values(Engines)) {
+                log('GET_ZOHO_CODE requested');
+                for (let engineName of Object.keys(Engines)) {
+                    const engine = Engines[engineName];
                     if (engine.isAvailable()) {
+                        log('Engine available:', engineName);
                         const code = engine.getCode();
-                        if (code !== null) { response = { code }; break; }
+                        if (code !== null) {
+                            log('Code retrieved from:', engineName);
+                            response = { code };
+                            break;
+                        }
                     }
                 }
-                if (!response.code) response = { error: 'No editor found' };
+                if (!response.code) {
+                    log('No editor found in this frame');
+                    response = { error: 'No editor found' };
+                }
             } else if (data.action === 'SET_ZOHO_CODE') {
+                log('SET_ZOHO_CODE requested');
                 let success = false;
-                for (let engine of Object.values(Engines)) {
-                    if (engine.isAvailable() && engine.setCode(data.code)) { success = true; break; }
+                for (let engineName of Object.keys(Engines)) {
+                    const engine = Engines[engineName];
+                    if (engine.isAvailable()) {
+                        log('Engine available for set:', engineName);
+                        if (engine.setCode(data.code)) {
+                            log('Code set successfully using:', engineName);
+                            success = true;
+                            break;
+                        }
+                    }
                 }
                 response = { success };
             } else if (data.action === 'SAVE_ZOHO_CODE') {
