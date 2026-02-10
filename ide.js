@@ -14,22 +14,9 @@ var isConnected = false;
 var interfaceMappings = {};
 var currentResearchReport = "";
 var researchPollingInterval = null;
+var lastActionTime = 0;
 
 function initEditor() {
-    window.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
-            if (e.key === 'S' || e.key === 's') {
-                e.preventDefault();
-                pushToZoho(true);
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                pushToZoho(true, true);
-            } else if (e.key === 'P' || e.key === 'p') {
-                e.preventDefault();
-                pullFromZoho();
-            }
-        }
-    });
     if (editor) return;
 
     const container = document.getElementById('editor-container');
@@ -94,19 +81,45 @@ function initEditor() {
 
 
 
-        // Keyboard Shortcuts
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => { saveLocally(); });
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS, () => { pushToZoho(true); });
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => { pushToZoho(true, true); });
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => { pullFromZoho(); });
+        // Keyboard Shortcuts & Overrides
+        editor.addAction({
+            id: 'zide-save-local',
+            label: 'Save Locally',
+            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+            run: () => { saveLocally(); }
+        });
+        editor.addAction({
+            id: 'zide-push-zoho',
+            label: 'Push to Zoho',
+            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS],
+            run: () => { pushToZoho(true); }
+        });
+        editor.addAction({
+            id: 'zide-push-execute-zoho',
+            label: 'Push and Execute',
+            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter],
+            run: () => { pushToZoho(true, true); }
+        });
+        editor.addAction({
+            id: 'zide-pull-zoho',
+            label: 'Pull from Zoho',
+            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP],
+            run: () => {
+                console.log('[ZohoIDE] Shortcut: Pull from Zoho');
+                pullFromZoho();
+            }
+        });
 
         if (typeof chrome !== "undefined" && chrome.runtime) {
             chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (request.action === "CMD_SYNC_SAVE") {
+                    console.log('[ZohoIDE] Command: Sync & Save');
                     pushToZoho(true);
                 } else if (request.action === "CMD_SYNC_SAVE_EXECUTE") {
+                    console.log('[ZohoIDE] Command: Sync & Execute');
                     pushToZoho(true, true);
                 } else if (request.action === "CMD_PULL_CODE") {
+                    console.log('[ZohoIDE] Command: Pull Code');
                     pullFromZoho();
                 }
             });
@@ -835,6 +848,10 @@ function log(type, message) {
 }
 
 function pullFromZoho() {
+    const now = Date.now();
+    if (now - lastActionTime < 800) return;
+    lastActionTime = now;
+
     if (!isConnected) {
         log('Error', 'No Zoho tab connected. Please open a Zoho Deluge editor tab first.');
         return;
@@ -851,6 +868,10 @@ function pullFromZoho() {
 }
 
 function pushToZoho(triggerSave = false, triggerExecute = false) {
+    const now = Date.now();
+    if (now - lastActionTime < 800) return;
+    lastActionTime = now;
+
     if (!isConnected) {
         log('Error', 'No Zoho tab connected. Sync/Execute failed.');
         return;

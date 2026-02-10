@@ -40,11 +40,28 @@ export function setEditorCode(code) {
     return success;
 }
 
+export function robustClick(el) {
+    if (!el) return false;
+    try {
+        el.click();
+        // Dispatch additional events for frameworks like Lyte or React
+        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+        return true;
+    } catch(e) {
+        return false;
+    }
+}
+
 export function clickBySelectors(selectors) {
     for (let sel of selectors) {
         try {
             const el = document.querySelector(sel);
-            if (el) { el.click(); return true; }
+            if (el && el.offsetParent !== null) { // Check if visible
+                if (robustClick(el)) return true;
+            }
         } catch(e) {}
     }
     return false;
@@ -53,14 +70,15 @@ export function clickBySelectors(selectors) {
 export function clickByText(type) {
     const buttons = document.querySelectorAll('button, .lyte-button, a.btn, input[type="button"], [role="button"]');
     for (let btn of buttons) {
+        if (btn.offsetParent === null) continue; // Skip hidden
         const txt = (btn.innerText || btn.textContent || btn.value || btn.getAttribute('aria-label') || '').toLowerCase().trim();
         if (type === 'save') {
             if (txt === 'save' || txt === 'update' || txt.includes('save script') || txt.includes('update script') || txt.includes('save & close')) {
-                btn.click(); return true;
+                if (robustClick(btn)) return true;
             }
         } else if (type === 'execute') {
             if (txt === 'execute' || txt === 'run' || txt.includes('execute script') || txt.includes('run script')) {
-                btn.click(); return true;
+                if (robustClick(btn)) return true;
             }
         }
     }

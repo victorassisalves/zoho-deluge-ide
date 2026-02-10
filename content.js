@@ -46,7 +46,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 } else { return; }
             }
 
-            if (data && (data._zide_msg_ || data.source === 'PAGE' || data.type === 'FROM_PAGE')) {
+            // Only process responses from the page/bridge
+            if (data && (data.source === 'PAGE' || data.type === 'FROM_PAGE')) {
                 if (data.action === request.action) {
                     window.removeEventListener('message', handler);
                     sendResponse(data.response);

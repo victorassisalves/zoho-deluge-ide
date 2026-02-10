@@ -18,7 +18,7 @@ export const bridgeClient = {
                         } else { return; }
                     }
 
-                    if (msg && (msg.source === 'PAGE' || msg._zide_msg_) && msg.action === action) {
+                    if (msg && (msg.source === 'PAGE' || msg.type === 'FROM_PAGE') && msg.action === action) {
                         window.removeEventListener('message', handler);
                         resolve(msg.response);
                     }

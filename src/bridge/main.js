@@ -35,7 +35,7 @@ window.addEventListener('message', (e) => {
         } else { return; }
     }
 
-    if (msg && (msg.source === 'EXTENSION' || msg._zide_msg_)) {
+    if (msg && (msg.source === 'EXTENSION' || msg._zide_msg_) && msg.source !== 'PAGE') {
         let resp = {};
         if (msg.action === 'PING') {
             resp = { status: 'PONG', product: getZohoProduct() };

@@ -77,50 +77,88 @@
         return success;
     }
 
+    function getProduct() {
+        const url = window.location.href;
+        if (url.includes('creator.zoho')) return 'creator';
+        if (url.includes('crm.zoho')) return 'crm';
+        if (url.includes('analytics.zoho')) return 'analytics';
+        if (url.includes('books.zoho')) return 'books';
+        return 'unknown';
+    }
+
+    function robustClick(el) {
+        if (!el) return false;
+        try {
+            el.click();
+            // Dispatch additional events for frameworks like Lyte or React
+            el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+            el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+            el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+            return true;
+        } catch(e) {
+            return false;
+        }
+    }
+
     function triggerZohoAction(type) {
+        const product = getProduct();
+        console.log('[ZohoIDE] Triggering ' + type + ' for ' + product);
+
         let selectors = [];
         if (type === 'save') {
-            selectors = [
+            if (product === 'creator') {
+                selectors = ['lyte-button[data-zcqa="save"]', 'lyte-button[data-zcqa="update"]', 'lyte-button[data-id="save"]', 'lyte-button[data-id="update"]', '.zc-save-btn', '.zc-update-btn'];
+            } else if (product === 'crm') {
+                selectors = ['#crmsave', 'lyte-button[data-zcqa="save"]', 'lyte-button[data-id="save"]', '.crm-save-btn', 'input[value="Save"]'];
+            }
+            // Add global fallbacks
+            selectors.push(...[
                 'button[id="save_script"]', '#save_script', '#save_btn',
-                '#crmsave', 'lyte-button[data-id="save"]', 'lyte-button[data-id="update"]',
-                'lyte-button[data-zcqa="save"]', 'lyte-button[data-zcqa="update"]',
                 'lyte-button[data-zcqa="functionSavev2"]', '.dxEditorPrimaryBtn',
-                '.crm-save-btn', '.zc-save-btn', '.save-btn', '.save_btn',
-                '.zc-update-btn', 'input#saveBtn', 'input[value="Save"]', 'input[value="Update"]'
-            ];
+                '.save-btn', '.save_btn', 'input#saveBtn'
+            ]);
         } else if (type === 'execute') {
-            selectors = [
+            if (product === 'creator') {
+                selectors = ['lyte-button[data-zcqa="execute"]', 'lyte-button[data-zcqa="run"]', 'span[data-zcqa="delgv2execPlay"]', '.zc-execute-btn'];
+            } else if (product === 'crm') {
+                selectors = ['#crmexecute', 'lyte-button[data-id="execute"]', 'lyte-button[data-id="run"]'];
+            }
+            // Add global fallbacks
+            selectors.push(...[
                 'button[id="execute_script"]', '#execute_script', 'button[id="run_script"]', '#run_script',
-                '#crmexecute', 'span[data-zcqa="delgv2execPlay"]', '.dx_execute_icon',
-                '#runscript', '.zc-execute-btn', '.execute-btn',
-                'lyte-button[data-zcqa="execute"]', 'lyte-button[data-zcqa="run"]',
-                '.lyte-button[data-id="execute"]', '.lyte-button[data-id="run"]',
-                '.execute_btn', '#execute_btn', 'input#executeBtn',
-                'input[value="Execute"]', 'input[value="Run"]'
-            ];
+                '.dx_execute_icon', '#runscript', '.execute-btn', '.execute_btn', 'input#executeBtn'
+            ]);
         }
 
         for (let sel of selectors) {
             try {
                 const el = document.querySelector(sel);
-                if (el) { el.click(); return true; }
+                if (el && el.offsetParent !== null) { // Check if visible
+                    console.log('[ZohoIDE] Found button via selector: ' + sel);
+                    if (robustClick(el)) return true;
+                }
             } catch(e) {}
         }
 
         // Fallback: search by text
         const buttons = document.querySelectorAll('button, .lyte-button, a.btn, input[type="button"], [role="button"]');
         for (let btn of buttons) {
+            if (btn.offsetParent === null) continue; // Skip hidden
             const txt = (btn.innerText || btn.textContent || btn.value || btn.getAttribute('aria-label') || '').toLowerCase().trim();
             if (type === 'save') {
                 if (txt === 'save' || txt === 'update' || txt.includes('save script') || txt.includes('update script') || txt.includes('save & close')) {
-                    btn.click(); return true;
+                    console.log('[ZohoIDE] Found button via text: ' + txt);
+                    if (robustClick(btn)) return true;
                 }
             } else if (type === 'execute') {
                 if (txt === 'execute' || txt === 'run' || txt.includes('execute script') || txt.includes('run script')) {
-                    btn.click(); return true;
+                    console.log('[ZohoIDE] Found button via text: ' + txt);
+                    if (robustClick(btn)) return true;
                 }
             }
         }
+        console.warn('[ZohoIDE] No ' + type + ' button found.');
         return false;
     }
 
@@ -140,7 +178,8 @@
             }
         }
 
-        if (data && (data.type === 'FROM_EXTENSION' || data.source === 'EXTENSION' || data._zide_msg_)) {
+        // Only process requests from the extension/side-panel
+        if (data && (data.type === 'FROM_EXTENSION' || data.source === 'EXTENSION' || data._zide_msg_) && data.source !== 'PAGE') {
             const action = data.action;
             let response = {};
 
