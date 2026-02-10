@@ -279,41 +279,67 @@
                         }
 
                         if (currentObj && typeof currentObj === 'object') {
-                            let objToSuggest = currentObj;
+                            let suggestions = [];
                             let prefix = "";
+                            let type = Array.isArray(currentObj) ? 'list' : 'map';
 
-                            if (Array.isArray(currentObj)) {
+                            // 1. Key Suggestions
+                            let objForKeys = null;
+                            if (type === 'list') {
                                 if (currentObj.length > 0 && typeof currentObj[0] === 'object' && currentObj[0] !== null) {
-                                    objToSuggest = currentObj[0];
+                                    objForKeys = currentObj[0];
                                     prefix = "get(0).";
-                                } else {
-                                    return; // Nothing to suggest for empty or non-object lists
                                 }
+                            } else {
+                                objForKeys = currentObj;
                             }
 
-                            if (objToSuggest && typeof objToSuggest === 'object' && !Array.isArray(objToSuggest)) {
-                                const keys = Object.keys(objToSuggest);
-                                return {
-                                    suggestions: keys.map(key => {
-                                        const val = objToSuggest[key];
-                                        const isComplex = typeof val === 'object' && val !== null;
-                                        const method = isComplex ? 'getJSON' : 'get';
+                            if (objForKeys && typeof objForKeys === 'object' && !Array.isArray(objForKeys)) {
+                                Object.keys(objForKeys).forEach(key => {
+                                    const val = objForKeys[key];
+                                    const isComplex = typeof val === 'object' && val !== null;
+                                    const method = isComplex ? 'getJSON' : 'get';
 
-                                        return {
-                                            label: key,
-                                            kind: monaco.languages.CompletionItemKind.Property,
-                                            detail: (isComplex ? (Array.isArray(val) ? 'List' : 'Map') : typeof val) + " (Interface)",
-                                            insertText: isDot ? `${prefix}${method}("${key}")` : key,
-                                            range: isDot ? {
-                                                startLineNumber: position.lineNumber,
-                                                endLineNumber: position.lineNumber,
-                                                startColumn: match.index + match[0].lastIndexOf('.') + 2,
-                                                endColumn: position.column
-                                            } : range,
-                                            command: { id: 'editor.action.triggerSuggest', title: 'Re-trigger' }
-                                        };
-                                    })
-                                };
+                                    suggestions.push({
+                                        label: key,
+                                        kind: monaco.languages.CompletionItemKind.Property,
+                                        detail: (isComplex ? (Array.isArray(val) ? 'List' : 'Map') : typeof val) + " (Interface)",
+                                        insertText: isDot ? `${prefix}${method}("${key}")` : key,
+                                        sortText: '00' + key,
+                                        range: isDot ? {
+                                            startLineNumber: position.lineNumber,
+                                            endLineNumber: position.lineNumber,
+                                            startColumn: match.index + match[0].lastIndexOf('.') + 2,
+                                            endColumn: position.column
+                                        } : range,
+                                        command: { id: 'editor.action.triggerSuggest', title: 'Re-trigger' }
+                                    });
+                                });
+                            }
+
+                            // 2. Method Suggestions (Only if it's a dot trigger)
+                            if (isDot) {
+                                const methods = typeMethods[type] || [];
+                                const common = typeMethods.common || [];
+                                [...methods, ...common].forEach((m, index) => {
+                                    suggestions.push({
+                                        ...m,
+                                        kind: monaco.languages.CompletionItemKind.Method,
+                                        detail: m.doc + " (Method)",
+                                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                        sortText: '01' + (m.label === 'isNull()' || m.label === 'toString()' ? 'zzz' : String.fromCharCode(97 + index)),
+                                        range: {
+                                            startLineNumber: position.lineNumber,
+                                            endLineNumber: position.lineNumber,
+                                            startColumn: match.index + match[0].lastIndexOf('.') + 2,
+                                            endColumn: position.column
+                                        }
+                                    });
+                                });
+                            }
+
+                            if (suggestions.length > 0) {
+                                return { suggestions };
                             }
                         }
                     }
