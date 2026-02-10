@@ -25,18 +25,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Actions to relay to the bridge
     const relayActions = ['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE', 'PING'];
     if (relayActions.includes(request.action)) {
-        const payload = 'ZIDE_MSG:' + JSON.stringify({ source: 'EXTENSION', type: 'FROM_EXTENSION', action: request.action, ...request });
+        const payload = JSON.stringify({
+            _zide_msg_: true,
+            source: 'EXTENSION',
+            type: 'FROM_EXTENSION',
+            action: request.action,
+            ...request
+        });
         window.postMessage(payload, '*');
 
         const handler = (event) => {
-            if (typeof event.data !== 'string' || !event.data.startsWith('ZIDE_MSG:')) return;
+            let data;
             try {
-                const data = JSON.parse(event.data.substring(9));
-                if (data && (data.source === 'PAGE' || data.type === 'FROM_PAGE') && data.action === request.action) {
+                // Support both new JSON string format and potential raw objects
+                data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+            } catch (e) {
+                // Fallback for old prefixed format
+                if (typeof event.data === 'string' && event.data.startsWith('ZIDE_MSG:')) {
+                    try { data = JSON.parse(event.data.substring(9)); } catch (e2) { return; }
+                } else { return; }
+            }
+
+            // Only process responses from the page/bridge
+            if (data && (data.source === 'PAGE' || data.type === 'FROM_PAGE')) {
+                if (data.action === request.action) {
                     window.removeEventListener('message', handler);
                     sendResponse(data.response);
                 }
-            } catch (e) {}
+            }
         };
         window.addEventListener('message', handler);
         return true; // Keep channel open

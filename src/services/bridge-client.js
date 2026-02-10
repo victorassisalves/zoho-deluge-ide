@@ -4,19 +4,24 @@ export const bridgeClient = {
     send: (action, data = {}) => {
         return new Promise((resolve) => {
             const isSP = document.documentElement.classList.contains('sidepanel-mode');
-            const payload = 'ZIDE_MSG:' + JSON.stringify({ source: 'EXTENSION', action, ...data });
+            const payload = JSON.stringify({ _zide_msg_: true, source: 'EXTENSION', action, ...data });
 
             if (isSP) {
                 window.parent.postMessage(payload, '*');
                 const handler = (e) => {
-                    if (typeof e.data !== 'string' || !e.data.startsWith('ZIDE_MSG:')) return;
+                    let msg;
                     try {
-                        const msg = JSON.parse(e.data.substring(9));
-                        if (msg.source === 'PAGE' && msg.action === action) {
-                            window.removeEventListener('message', handler);
-                            resolve(msg.response);
-                        }
-                    } catch (err) {}
+                        msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                    } catch (err) {
+                        if (typeof e.data === 'string' && e.data.startsWith('ZIDE_MSG:')) {
+                            try { msg = JSON.parse(e.data.substring(9)); } catch (e2) { return; }
+                        } else { return; }
+                    }
+
+                    if (msg && (msg.source === 'PAGE' || msg.type === 'FROM_PAGE') && msg.action === action) {
+                        window.removeEventListener('message', handler);
+                        resolve(msg.response);
+                    }
                 };
                 window.addEventListener('message', handler);
             } else {
