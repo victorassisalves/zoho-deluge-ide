@@ -704,6 +704,21 @@ function updateInterfaceMappingsList() {
             }
         };
 
+        const copyJsonBtn = document.createElement('span');
+        copyJsonBtn.className = 'material-icons';
+        copyJsonBtn.innerHTML = 'data_object';
+        copyJsonBtn.title = 'Copy as Raw JSON';
+        copyJsonBtn.style.cursor = 'pointer';
+        copyJsonBtn.style.fontSize = '14px';
+        copyJsonBtn.onclick = (e) => {
+            e.stopPropagation();
+            const json = JSON.stringify(interfaceMappings[name], null, 2);
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(json);
+                showStatus('Raw JSON copied to clipboard', 'success');
+            }
+        };
+
         const deleteBtn = document.createElement('span');
         deleteBtn.className = 'delete-mapping material-icons';
         deleteBtn.innerHTML = 'close';
@@ -720,6 +735,7 @@ function updateInterfaceMappingsList() {
         };
 
         actions.appendChild(copyAllBtn);
+        actions.appendChild(copyJsonBtn);
         actions.appendChild(deleteBtn);
 
         item.appendChild(nameSpan);
@@ -788,6 +804,19 @@ function renderInterfaceTree(mappingName, obj) {
                     editor.executeEdits("tree-insert", [{ range: editor.getSelection(), text: fullPath }]);
                 };
 
+                const copyJsonBtn = document.createElement('button');
+                copyJsonBtn.className = 'tree-action-btn';
+                copyJsonBtn.innerText = 'JSON';
+                copyJsonBtn.title = 'Copy as Raw JSON to clipboard';
+                copyJsonBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    const json = JSON.stringify(val, null, 2);
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(json);
+                        showStatus('Node JSON copied to clipboard', 'success');
+                    }
+                };
+
                 const copyMapBtn = document.createElement('button');
                 copyMapBtn.className = 'tree-action-btn';
                 copyMapBtn.innerText = 'Map';
@@ -803,6 +832,7 @@ function renderInterfaceTree(mappingName, obj) {
                 };
 
                 actions.appendChild(copyPathBtn);
+                actions.appendChild(copyJsonBtn);
                 if (isObject) actions.appendChild(copyMapBtn);
                 label.appendChild(actions);
 
