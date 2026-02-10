@@ -942,13 +942,13 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
                             log('Success', 'Zoho Save triggered.');
 
                             if (triggerExecute) {
-                                log('System', 'Waiting 500ms before execution...');
+                                log('System', 'Waiting 700ms before execution...');
                                 setTimeout(() => {
                                     chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (execRes) => {
                                         if (execRes && execRes.success) log('Success', 'Zoho Execute triggered.');
                                         else log('Warning', 'Zoho Execute trigger failed.');
                                     });
-                                }, 500);
+                                }, 700);
                             }
                         } else {
                             log('Warning', 'Zoho Save trigger failed. Try clicking manually.');
@@ -958,7 +958,7 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
                                     chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (execRes) => {
                                         if (execRes && execRes.success) log('Success', 'Zoho Execute triggered.');
                                     });
-                                }, 500);
+                                }, 700);
                             }
                         }
                     });

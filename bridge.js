@@ -142,9 +142,6 @@
         try {
             log('Clicking element:', el.tagName, el.id, el.className);
 
-            // Try regular click first
-            el.click();
-
             // Dispatch a sequence of events to mimic real user interaction
             const events = [
                 { type: 'mousedown', cls: MouseEvent },
