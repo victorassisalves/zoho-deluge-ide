@@ -46,13 +46,20 @@
                     [/[a-zA-Z_]\w*(?=\s*:)/, 'key'],
 
                     // Constants (UPPERCASE)
-                    [/[A-Z][A-Z_0-9]*/, 'identifier'],
+                    [/[A-Z][A-Z_0-9]*/, {
+                        cases: {
+                            'GET|POST|PUT|DELETE|PATCH': 'keyword',
+                            '@default': 'identifier'
+                        }
+                    }],
 
                     // Identifiers and Keywords
                     [/[a-z_$][\w$]*/, {
                         cases: {
-                            'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|void|string|int|decimal|boolean|map|list': 'keyword',
-                            'zoho|thisapp|standalone|input': 'type', 'invokeurl': 'identifier', '@default': 'variable'
+                            'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|void|string|int|decimal|boolean|map|list|collection': 'keyword',
+                            'zoho|thisapp|standalone|input': 'type',
+                            'invokeurl': 'identifier',
+                            '@default': 'variable'
                         }
                     }],
 
@@ -88,7 +95,7 @@
             { label: 'for each', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'for each ${1:var} in ${2:list}\n{\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
             { label: 'try catch', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'try\n{\n\t$1\n}\ncatch (${2:err})\n{\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
             { label: 'void function', kind: monaco.languages.CompletionItemKind.Function, insertText: 'void ${1:name}($2)\n{\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-            { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Function, insertText: 'invokeurl\n[\n\turl: "$1"\n\ttype: ${2|GET,POST,PUT,DELETE|}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+            { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Function, insertText: 'invokeurl\n[\n\turl: "$1"\n\ttype: ${2|GET,POST,PUT,DELETE,PATCH|}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
             { label: 'sendmail', kind: monaco.languages.CompletionItemKind.Snippet, insertText: 'sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: "$1"\n\tsubject: "$2"\n\tmessage: "$3"\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
             { label: 'daysBetween', kind: monaco.languages.CompletionItemKind.Function, insertText: 'daysBetween(${1:d1}, ${2:d2})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }
         ];
@@ -400,7 +407,12 @@
 
         // Validation logic
         function extractVariables(code) {
-            const cleanCode = code.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
+            // Robustly remove comments while preserving strings (to avoid strings with // breaking things)
+            const cleanCode = code.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\/\*[\s\S]*?\*\/|\/\/.*/g, (match, group1) => {
+                if (group1) return group1; // Keep the string
+                return ""; // Remove the comment
+            });
+
             const varMap = {
                 'input': { type: 'Map' },
                 'zoho': { type: 'Namespace' },
@@ -417,7 +429,7 @@
                 }
             }
 
-            const keywords = new Set(['if', 'else', 'for', 'each', 'in', 'return', 'info', 'true', 'false', 'null', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'zoho', 'thisapp', 'standalone', 'input', 'today', 'now', 'invokeurl']);
+            const keywords = new Set(['if', 'else', 'for', 'each', 'in', 'return', 'info', 'true', 'false', 'null', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'collection', 'zoho', 'thisapp', 'standalone', 'input', 'today', 'now', 'invokeurl', 'GET', 'POST', 'PUT', 'DELETE', 'PATCH']);
 
             // 1. Explicit Declarations: string name = "..."
             const declRegex = /\b(string|int|decimal|boolean|map|list)\s+([a-zA-Z_]\w*)/gi;
@@ -439,6 +451,7 @@
                 else if (val.toLowerCase().startsWith('map()')) varMap[name] = { type: 'Map' };
                 else if (val.toLowerCase().startsWith('list()')) varMap[name] = { type: 'List' };
                 else if (val.toLowerCase().startsWith('collection()')) varMap[name] = { type: 'List' };
+                else if (val.toLowerCase().startsWith('invokeurl')) varMap[name] = { type: 'Map' };
                 else if (val.startsWith('{')) {
                     varMap[name] = { type: 'Map', isLiteral: true };
                     // Basic literal key extraction for dynamic autocomplete
@@ -580,12 +593,12 @@
                 openParens += (trimmed.match(/\(/g) || []).length;
                 openParens -= (trimmed.match(/\)/g) || []).length;
 
-                const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'break', 'continue', 'return', 'info', 'invokeurl'];
+                const skipKeywords = ['if', 'for', 'each', 'in', 'else', 'try', 'catch', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'break', 'continue', 'return', 'info', 'invokeurl', 'GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'true', 'false', 'null'];
                 const startsWithKeyword = skipKeywords.some(kw => {
                     const regex = new RegExp('^' + kw + '(\\s|\\(|$)', 'i');
                     return regex.test(trimmed);
                 });
-                const endsWithSpecial = trimmed.endsWith('{') || trimmed.endsWith('}') || trimmed.endsWith(';') || trimmed.endsWith(':') || trimmed.endsWith(',') || trimmed.endsWith('(') || trimmed.endsWith('[');
+                const endsWithSpecial = trimmed.endsWith('{') || trimmed.endsWith('}') || trimmed.endsWith(';') || trimmed.endsWith(':') || trimmed.endsWith(',') || trimmed.endsWith('(') || trimmed.endsWith('[') || trimmed.toLowerCase().endsWith('invokeurl') || trimmed.toLowerCase().endsWith('sendmail');
 
                 // Semicolon check
                 if (!endsWithSpecial && !startsWithKeyword && openBrackets === 0 && openBraces === 0 && openParens === 0) {
@@ -599,28 +612,31 @@
                 }
 
                 // Undefined variable check (Simple heuristic)
-                const words = trimmed.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
-                words.forEach(word => {
-                    if (skipKeywords.includes(word)) return;
-                    if (varMap[word]) return;
+                // Use a regex that respects word boundaries and ignores matches inside strings
+                const wordRegex = /\b[a-zA-Z_][a-zA-Z0-9_\-]*\b/g;
+                let wordMatch;
+                while ((wordMatch = wordRegex.exec(line)) !== null) {
+                    const word = wordMatch[0];
+                    const index = wordMatch.index;
 
-                    // Check if it's followed by ( or . (might be a function/namespace)
-                    const index = line.indexOf(word);
-                    const restOfLine = line.substring(index + word.length).trim();
-                    if (restOfLine.startsWith('(') || restOfLine.startsWith('.') || restOfLine.startsWith(':')) return;
+                    if (skipKeywords.includes(word)) continue;
+                    if (varMap[word]) continue;
 
                     // Check if it's part of a string
-                    // (Simplified check: if it's between quotes on same line)
                     const before = line.substring(0, index);
                     const after = line.substring(index + word.length);
-                    if ((before.match(/"/g) || []).length % 2 === 1 && (after.match(/"/g) || []).length % 2 === 1) return;
-                    if ((before.match(/'/g) || []).length % 2 === 1 && (after.match(/'/g) || []).length % 2 === 1) return;
+                    if ((before.match(/"/g) || []).length % 2 === 1 && (after.match(/"/g) || []).length % 2 === 1) continue;
+                    if ((before.match(/'/g) || []).length % 2 === 1 && (after.match(/'/g) || []).length % 2 === 1) continue;
+
+                    // Check if it's followed by ( or . (might be a function/namespace) or : (a key)
+                    const restOfLine = after.trim();
+                    if (restOfLine.startsWith('(') || restOfLine.startsWith('.') || restOfLine.startsWith(':')) continue;
 
                     // If it's on the left of =, it's being defined now
-                    if (after.trim().startsWith('=')) return;
+                    if (restOfLine.startsWith('=')) continue;
 
                     // If it's part of a mapping name, it's valid
-                    if (window.interfaceMappings && window.interfaceMappings[word]) return;
+                    if (window.interfaceMappings && window.interfaceMappings[word]) continue;
 
                     markers.push({
                         message: `Undefined variable: '${word}'`,
@@ -628,7 +644,7 @@
                         startLineNumber: i + 1, startColumn: index + 1,
                         endLineNumber: i + 1, endColumn: index + word.length + 1
                     });
-                });
+                }
 
                 // Mandatory Parameter Check
                 for (const [fn, count] of Object.entries(mandatoryParams)) {
