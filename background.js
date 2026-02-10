@@ -123,11 +123,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'GET_ZOHO_CODE') {
         const handleResponse = (tabId) => {
             lastZohoTabId = tabId;
+            // Try main frame first
             chrome.tabs.sendMessage(tabId, { action: 'GET_ZOHO_CODE' }, (response) => {
-                if (chrome.runtime.lastError) {
-                    sendResponse({ error: 'Tab not responding' });
+                if (!chrome.runtime.lastError && response && response.code) {
+                    sendResponse(response);
                 } else {
-                    sendResponse(response || { error: 'No response from tab' });
+                    // Try all frames if main frame fails
+                    chrome.scripting.executeScript({
+                        target: { tabId: tabId, allFrames: true },
+                        func: () => {
+                            // This runs in the context of the page, but we want to trigger the bridge
+                            // Since we can't easily get the return value from a postMessage asyncly here,
+                            // we just hope the content script in the right frame picks up the next message.
+                            return !!(document.querySelector('.ace_editor, .monaco-editor, .CodeMirror, [id*="delugeEditor"]'));
+                        }
+                    }, (results) => {
+                        const frameWithEditor = results?.find(r => r.result === true);
+                        if (frameWithEditor && frameWithEditor.frameId !== 0) {
+                            chrome.tabs.sendMessage(tabId, { action: 'GET_ZOHO_CODE' }, { frameId: frameWithEditor.frameId }, (res) => {
+                                sendResponse(res || { error: 'No response from subframe' });
+                            });
+                        } else {
+                            sendResponse(response || { error: 'No editor found' });
+                        }
+                    });
                 }
             });
         };
@@ -148,8 +167,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.action === 'SET_ZOHO_CODE' || request.action === 'SAVE_ZOHO_CODE' || request.action === 'EXECUTE_ZOHO_CODE') {
         const handleAction = (tabId) => {
+            // Try main frame first
             chrome.tabs.sendMessage(tabId, request, (response) => {
-                sendResponse(response || { error: 'Failed to perform action.' });
+                if (!chrome.runtime.lastError && response && response.success) {
+                    sendResponse(response);
+                } else {
+                    // Try all frames
+                    chrome.scripting.executeScript({
+                        target: { tabId: tabId, allFrames: true },
+                        func: () => {
+                            return !!(document.querySelector('.ace_editor, .monaco-editor, .CodeMirror, [id*="delugeEditor"]'));
+                        }
+                    }, (results) => {
+                        const frameWithEditor = results?.find(r => r.result === true);
+                        if (frameWithEditor && frameWithEditor.frameId !== 0) {
+                            chrome.tabs.sendMessage(tabId, request, { frameId: frameWithEditor.frameId }, (res) => {
+                                sendResponse(res || { error: 'No response from subframe' });
+                            });
+                        } else {
+                            sendResponse(response || { error: 'Failed to perform action.' });
+                        }
+                    });
+                }
             });
         };
 
@@ -205,6 +244,7 @@ function findZohoTab(callback) {
         const editorTab = zohoTabs.find(t =>
             t.url.includes('creator') ||
             t.url.includes('crm') ||
+            t.url.includes('flow') ||
             t.url.includes('recruit') ||
             t.url.includes('books') ||
             t.title.toLowerCase().includes('deluge') ||
