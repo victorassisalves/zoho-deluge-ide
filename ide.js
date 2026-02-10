@@ -562,6 +562,14 @@ function setupEventHandlers() {
         validateModalJson();
     });
 
+    bind('modal-fix-json', 'click', () => {
+        const input = document.getElementById('interface-input');
+        if (input) {
+            input.value = tryFixJson(input.value);
+            validateModalJson();
+        }
+    });
+
     bind('modal-convert', 'click', () => {
         const varName = document.getElementById('interface-var-name').value || 'payload';
         let jsonStr = document.getElementById('interface-input').value;
@@ -616,7 +624,7 @@ function tryFixJson(str) {
     fixed = fixed.replace(/([:\[,]\s*)'([^'\\]*(?:\\.[^'\\]*)*)'/g, '$1"$2"');
 
     // 3. Quote unquoted keys
-    fixed = fixed.replace(/([{,]\s*)([a-zA-Z0-9_-]+)\s*:/g, '$1"$2":');
+    fixed = fixed.replace(/([{,]\s*)([a-zA-Z0-9_.\-@$!]+)\s*:/g, '$1"$2":');
 
     // 4. Remove trailing commas
     fixed = fixed.replace(/,\s*([}\]])/g, '$1');
@@ -634,9 +642,11 @@ function validateModalJson() {
     const status = document.getElementById('modal-json-status');
     const btnConvert = document.getElementById('modal-convert');
     const btnSave = document.getElementById('modal-map-only');
+    const btnFix = document.getElementById('modal-fix-json');
 
     if (!input || !input.value.trim()) {
         if (status) status.innerHTML = '';
+        if (btnFix) btnFix.style.display = 'none';
         return;
     }
 
@@ -647,6 +657,7 @@ function validateModalJson() {
         }
         if (btnConvert) btnConvert.disabled = false;
         if (btnSave) btnSave.disabled = false;
+        if (btnFix) btnFix.style.display = 'none';
     } catch (e) {
         // Try fixing it
         const fixed = tryFixJson(input.value);
@@ -655,6 +666,7 @@ function validateModalJson() {
             if (status) {
                 status.innerHTML = '<span style="color: #ffb86c;">⚠ Invalid JSON (Autofix available)</span>';
             }
+            if (btnFix) btnFix.style.display = 'inline-flex';
             // We allow clicking even if invalid if autofix works
             if (btnConvert) btnConvert.disabled = false;
             if (btnSave) btnSave.disabled = false;
@@ -662,6 +674,7 @@ function validateModalJson() {
             if (status) {
                 status.innerHTML = `<span style="color: #ff5555;">✗ Invalid JSON: ${e.message}</span>`;
             }
+            if (btnFix) btnFix.style.display = 'none';
             // if (btnConvert) btnConvert.disabled = true;
             // if (btnSave) btnSave.disabled = true;
         }
