@@ -252,12 +252,12 @@ function loadProjectData() {
     });
 }
 
-function setupEventHandlers() {
-    const bind = (id, event, fn) => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener(event, fn);
-    };
+const bind = (id, event, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(event, fn);
+};
 
+function setupEventHandlers() {
     bind('new-btn', 'click', () => {
         if (confirm('Start a new script?')) {
             editor.setValue('// New Zoho Deluge Script\n\n');
@@ -522,6 +522,10 @@ function setupEventHandlers() {
 
     bind('interface-btn', 'click', () => {
         document.getElementById('modal-title').innerText = 'Convert JSON to Deluge Map';
+        document.getElementById('interface-var-name').value = 'payload';
+        document.getElementById('interface-input').value = '';
+        document.getElementById('modal-json-status').innerHTML = '';
+
         document.getElementById('modal-var-container').style.display = 'block';
         document.getElementById('modal-convert').style.display = 'block';
         document.getElementById('modal-map-only').style.display = 'none';
@@ -530,28 +534,61 @@ function setupEventHandlers() {
 
     bind('add-interface-btn', 'click', () => {
         document.getElementById('modal-title').innerText = 'Add JSON Mapping for Autocomplete';
+        document.getElementById('interface-var-name').value = 'payload';
+        document.getElementById('interface-input').value = '';
+        document.getElementById('modal-json-status').innerHTML = '';
+
         document.getElementById('modal-var-container').style.display = 'block';
         document.getElementById('modal-convert').style.display = 'none';
         document.getElementById('modal-map-only').style.display = 'block';
+        document.getElementById('modal-map-only').innerText = 'Save Mapping';
         document.getElementById('interface-modal').style.display = 'flex';
     });
 
     bind('modal-cancel', 'click', () => { document.getElementById('interface-modal').style.display = 'none'; });
+    bind('modal-close', 'click', () => { document.getElementById('interface-modal').style.display = 'none'; });
 
     bind('modal-paste', 'click', async () => {
         try {
-            const text = await navigator.clipboard.readText();
-            document.getElementById('interface-input').value = text;
+            let text = await navigator.clipboard.readText();
+            document.getElementById('interface-input').value = tryFixJson(text);
+            validateModalJson();
         } catch (err) {
             console.error('Failed to read clipboard:', err);
         }
     });
 
+    bind('interface-input', 'input', () => {
+        validateModalJson();
+    });
+
+    bind('interface-input', 'paste', () => {
+        setTimeout(() => {
+            const input = document.getElementById('interface-input');
+            if (input) {
+                input.value = tryFixJson(input.value);
+                validateModalJson();
+            }
+        }, 0);
+    });
+
+    bind('modal-fix-json', 'click', () => {
+        const input = document.getElementById('interface-input');
+        if (input) {
+            input.value = tryFixJson(input.value);
+            validateModalJson();
+        }
+    });
+
     bind('modal-convert', 'click', () => {
         const varName = document.getElementById('interface-var-name').value || 'payload';
-        const jsonStr = document.getElementById('interface-input').value;
-        const style = document.getElementById('gen-style').value;
-        const update = document.getElementById('gen-update').checked;
+        let jsonStr = document.getElementById('interface-input').value;
+
+        // Final attempt to fix before processing
+        jsonStr = tryFixJson(jsonStr);
+
+        const style = document.getElementById('gen-style') ? document.getElementById('gen-style').value : 'step';
+        const update = document.getElementById('gen-update') ? document.getElementById('gen-update').checked : false;
         try {
             const code = convertInterfaceToDeluge(varName, jsonStr, { style, update });
             editor.executeEdits('json-convert', [{ range: editor.getSelection(), text: code }]);
@@ -564,7 +601,8 @@ function setupEventHandlers() {
 
     bind('modal-map-only', 'click', () => {
         const name = document.getElementById('interface-var-name').value || 'mapping';
-        const jsonStr = document.getElementById('interface-input').value;
+        let jsonStr = document.getElementById('interface-input').value;
+        jsonStr = tryFixJson(jsonStr);
         saveInterfaceMapping(name, jsonStr);
         document.getElementById('interface-modal').style.display = 'none';
     });
@@ -583,6 +621,101 @@ function setupEventHandlers() {
     initResources();
 
 
+}
+
+function tryFixJson(str) {
+    if (!str) return str;
+    let fixed = str.trim();
+
+    // 0. Try to extract JSON if it's wrapped in other text
+    const firstBrace = fixed.indexOf('{');
+    const firstBracket = fixed.indexOf('[');
+    let startPos = -1;
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) startPos = firstBrace;
+    else if (firstBracket !== -1) startPos = firstBracket;
+
+    if (startPos !== -1) {
+        const lastBrace = fixed.lastIndexOf('}');
+        const lastBracket = fixed.lastIndexOf(']');
+        let endPos = -1;
+        if (lastBrace !== -1 && (lastBracket === -1 || lastBrace > lastBracket)) endPos = lastBrace;
+        else if (lastBracket !== -1) endPos = lastBracket;
+
+        if (endPos !== -1 && endPos > startPos) {
+            fixed = fixed.substring(startPos, endPos + 1);
+        }
+    }
+
+    // 1. Remove comments
+    fixed = fixed.replace(/\/\/.*$/gm, '');
+    fixed = fixed.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // 2. Replace single quotes with double quotes for keys
+    fixed = fixed.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'\s*:/g, '"$1":');
+
+    // 3. Replace single quotes with double quotes for values
+    fixed = fixed.replace(/([:\[,]\s*)'([^'\\]*(?:\\.[^'\\]*)*)'/g, '$1"$2"');
+
+    // 4. Quote unquoted keys
+    const keyPattern = /([{,]\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/g;
+    fixed = fixed.replace(keyPattern, '$1"$2":');
+
+    // Also handle keys at the start of a line (missing commas or object body)
+    fixed = fixed.replace(/^(\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/gm, '$1"$2":');
+
+    // 5. Remove trailing commas
+    fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
+
+    try {
+        const obj = JSON.parse(fixed);
+        return JSON.stringify(obj, null, 2);
+    } catch (e) {
+        return fixed;
+    }
+}
+
+function validateModalJson() {
+    const input = document.getElementById('interface-input');
+    const status = document.getElementById('modal-json-status');
+    const btnConvert = document.getElementById('modal-convert');
+    const btnSave = document.getElementById('modal-map-only');
+    const btnFix = document.getElementById('modal-fix-json');
+
+    if (!input || !input.value.trim()) {
+        if (status) status.innerHTML = '';
+        if (btnFix) btnFix.style.display = 'none';
+        return;
+    }
+
+    try {
+        JSON.parse(input.value);
+        if (status) {
+            status.innerHTML = '<span style="color: #50fa7b;">✓ Valid JSON</span>';
+        }
+        if (btnConvert) btnConvert.disabled = false;
+        if (btnSave) btnSave.disabled = false;
+        if (btnFix) btnFix.style.display = 'none';
+    } catch (e) {
+        // Try fixing it
+        const fixed = tryFixJson(input.value);
+        try {
+            JSON.parse(fixed);
+            if (status) {
+                status.innerHTML = '<span style="color: #ffb86c;">⚠ Invalid JSON (Autofix available)</span>';
+            }
+            if (btnFix) btnFix.style.display = 'inline-flex';
+            // We allow clicking even if invalid if autofix works
+            if (btnConvert) btnConvert.disabled = false;
+            if (btnSave) btnSave.disabled = false;
+        } catch (e2) {
+            if (status) {
+                status.innerHTML = `<span style="color: #ff5555;">✗ Invalid JSON: ${e.message}</span>`;
+            }
+            if (btnFix) btnFix.style.display = 'none';
+            // if (btnConvert) btnConvert.disabled = true;
+            // if (btnSave) btnSave.disabled = true;
+        }
+    }
 }
 
 function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
@@ -675,26 +808,41 @@ function saveCurrentMappings() {
 
 function updateInterfaceMappingsList() {
     const list = document.getElementById('interface-mappings-list');
+    const countEl = document.getElementById('mapping-count');
     if (!list) return;
+
+    const mappings = Object.keys(interfaceMappings);
+    if (countEl) countEl.innerText = mappings.length;
+
     list.innerHTML = '';
-    Object.keys(interfaceMappings).forEach(name => {
+    mappings.forEach(name => {
         const item = document.createElement('div');
         item.className = 'mapping-item';
+        if (window.activeMappingName === name) item.classList.add('active');
 
         const nameSpan = document.createElement('span');
         nameSpan.innerText = name;
         nameSpan.style.flex = '1';
+        nameSpan.style.overflow = 'hidden';
+        nameSpan.style.textOverflow = 'ellipsis';
+        nameSpan.style.whiteSpace = 'nowrap';
 
         const actions = document.createElement('div');
-        actions.style.display = 'flex';
-        actions.style.gap = '8px';
+        actions.className = 'mapping-actions';
+
+        const editBtn = document.createElement('span');
+        editBtn.className = 'material-icons';
+        editBtn.innerHTML = 'edit';
+        editBtn.title = 'Edit Mapping';
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            openEditMappingModal(name);
+        };
 
         const copyAllBtn = document.createElement('span');
         copyAllBtn.className = 'material-icons';
         copyAllBtn.innerHTML = 'content_copy';
         copyAllBtn.title = 'Copy as Deluge Map';
-        copyAllBtn.style.cursor = 'pointer';
-        copyAllBtn.style.fontSize = '14px';
         copyAllBtn.onclick = (e) => {
             e.stopPropagation();
             const code = convertInterfaceToDeluge(name, JSON.stringify(interfaceMappings[name]));
@@ -708,8 +856,6 @@ function updateInterfaceMappingsList() {
         copyJsonBtn.className = 'material-icons';
         copyJsonBtn.innerHTML = 'data_object';
         copyJsonBtn.title = 'Copy as Raw JSON';
-        copyJsonBtn.style.cursor = 'pointer';
-        copyJsonBtn.style.fontSize = '14px';
         copyJsonBtn.onclick = (e) => {
             e.stopPropagation();
             const json = JSON.stringify(interfaceMappings[name], null, 2);
@@ -722,18 +868,21 @@ function updateInterfaceMappingsList() {
         const deleteBtn = document.createElement('span');
         deleteBtn.className = 'delete-mapping material-icons';
         deleteBtn.innerHTML = 'close';
-        deleteBtn.style.opacity = '1';
-        deleteBtn.style.fontSize = '16px';
         deleteBtn.onclick = (e) => {
             e.stopPropagation();
             if (confirm(`Delete mapping "${name}"?`)) {
                 delete interfaceMappings[name];
                 window.interfaceMappings = interfaceMappings;
+                if (window.activeMappingName === name) {
+                    window.activeMappingName = null;
+                    document.getElementById('interface-tree-view').innerHTML = '<div style="font-size:11px; opacity:0.5; text-align:center; margin-top:20px;">Select a mapping to explore its structure</div>';
+                }
                 saveCurrentMappings();
                 updateInterfaceMappingsList();
             }
         };
 
+        actions.appendChild(editBtn);
         actions.appendChild(copyAllBtn);
         actions.appendChild(copyJsonBtn);
         actions.appendChild(deleteBtn);
@@ -742,6 +891,7 @@ function updateInterfaceMappingsList() {
         item.appendChild(actions);
 
         item.onclick = () => {
+            window.activeMappingName = name;
             document.querySelectorAll('.mapping-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
             renderInterfaceTree(name, interfaceMappings[name]);
@@ -750,10 +900,58 @@ function updateInterfaceMappingsList() {
     });
 }
 
+function openEditMappingModal(name) {
+    const mapping = interfaceMappings[name];
+    if (!mapping) return;
+
+    document.getElementById('modal-title').innerText = 'Edit JSON Mapping';
+    document.getElementById('interface-var-name').value = name;
+    document.getElementById('interface-input').value = JSON.stringify(mapping, null, 2);
+
+    document.getElementById('modal-var-container').style.display = 'block';
+    document.getElementById('modal-convert').style.display = 'none';
+    document.getElementById('modal-map-only').style.display = 'block';
+    document.getElementById('modal-map-only').innerText = 'Update Mapping';
+
+    document.getElementById('interface-modal').style.display = 'flex';
+    validateModalJson();
+}
+
 function renderInterfaceTree(mappingName, obj) {
     const tree = document.getElementById('interface-tree-view');
     if (!tree) return;
     tree.innerHTML = '';
+
+    // Header for the tree view
+    const treeHeader = document.createElement('div');
+    treeHeader.className = 'tree-view-header';
+    treeHeader.innerHTML = `
+        <div class="tree-header-info">
+            <span class="material-icons" style="font-size: 16px; color: #8be9fd;">account_tree</span>
+            <span class="tree-header-title">${mappingName}</span>
+        </div>
+        <div class="tree-header-actions">
+            <button id="tree-expand-all" title="Expand All"><span class="material-icons">unfold_more</span></button>
+            <button id="tree-collapse-all" title="Collapse All"><span class="material-icons">unfold_less</span></button>
+        </div>
+    `;
+    tree.appendChild(treeHeader);
+
+    const treeContent = document.createElement('div');
+    treeContent.className = 'tree-content';
+    tree.appendChild(treeContent);
+
+    bind('tree-expand-all', 'click', () => {
+        treeContent.querySelectorAll('.tree-sub.collapsed').forEach(sub => sub.classList.remove('collapsed'));
+        treeContent.querySelectorAll('.toggle-icon.collapsed').forEach(icon => icon.classList.remove('collapsed'));
+        treeContent.querySelectorAll('.tree-footer').forEach(f => f.style.display = 'block');
+    });
+
+    bind('tree-collapse-all', 'click', () => {
+        treeContent.querySelectorAll('.tree-sub').forEach(sub => sub.classList.add('collapsed'));
+        treeContent.querySelectorAll('.toggle-icon').forEach(icon => icon.classList.add('collapsed'));
+        treeContent.querySelectorAll('.tree-footer').forEach(f => f.style.display = 'none');
+    });
 
     function buildTree(data, container, path = "", depth = 0) {
         if (typeof data === 'object' && data !== null) {
@@ -866,7 +1064,7 @@ function renderInterfaceTree(mappingName, obj) {
             });
         }
     }
-    buildTree(obj, tree);
+    buildTree(obj, treeContent);
 }
 
 
