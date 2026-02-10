@@ -247,6 +247,7 @@ function loadProjectData() {
 
         const projectMappings = result.project_mappings || {};
         interfaceMappings = projectMappings[zideProjectUrl] || {};
+        window.interfaceMappings = interfaceMappings;
         updateInterfaceMappingsList();
     });
 }
@@ -649,6 +650,7 @@ function saveInterfaceMapping(name, jsonStr) {
     try {
         const obj = JSON.parse(jsonStr);
         interfaceMappings[name] = obj;
+        window.interfaceMappings = interfaceMappings;
         saveCurrentMappings();
         updateInterfaceMappingsList();
     } catch (e) {
@@ -711,6 +713,7 @@ function updateInterfaceMappingsList() {
             e.stopPropagation();
             if (confirm(`Delete mapping "${name}"?`)) {
                 delete interfaceMappings[name];
+                window.interfaceMappings = interfaceMappings;
                 saveCurrentMappings();
                 updateInterfaceMappingsList();
             }

@@ -394,6 +394,13 @@
                 'now': { type: 'DateTime' }
             };
 
+            // 0. Interface Mappings
+            if (window.interfaceMappings) {
+                for (const name in window.interfaceMappings) {
+                    varMap[name] = { type: 'Map', mapping: name, path: [] };
+                }
+            }
+
             const keywords = new Set(['if', 'else', 'for', 'each', 'in', 'return', 'info', 'true', 'false', 'null', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'zoho', 'thisapp', 'standalone', 'input', 'today', 'now', 'invokeurl']);
 
             // 1. Explicit Declarations: string name = "..."
