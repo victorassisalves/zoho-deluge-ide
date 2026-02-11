@@ -301,6 +301,7 @@ function renameFunction(metadata) {
 }
 
 function selectTabFile(tab) {
+    console.log('[ZohoIDE] Selecting tab:', tab.tabId, tab.functionName);
     AppState.currentFile = { id: tab.functionId, type: 'tab', tabId: tab.tabId, data: tab };
     zideProjectUrl = tab.url;
     window.zideProjectUrl = zideProjectUrl;
@@ -312,13 +313,24 @@ function selectTabFile(tab) {
 }
 
 function pullFromSpecificTab(tabId) {
-    log('System', 'Pulling code from tab ' + tabId);
+    log('System', 'Pulling code from tab ' + tabId + '...');
+    // Optional: show a loading indicator in the editor
+    editor.setValue('// Loading code from Zoho tab ' + tabId + '...\n// Please wait...');
+
     chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE', tabId: tabId }, (response) => {
+        console.log('[ZohoIDE] Pull response from tab', tabId, ':', response);
         if (response && response.code) {
             editor.setValue(response.code);
-            log('Success', 'Code pulled.');
+            log('Success', 'Code pulled from tab ' + tabId);
+            showStatus('Code pulled from tab ' + tabId, 'success');
         } else {
-            log('Error', response?.error || 'Failed to pull code.');
+            const error = response?.error || 'Failed to pull code.';
+            log('Error', error);
+            showStatus('Pull failed: ' + error, 'error');
+            // Optionally clear editor or show message if it's a hard error
+            if (response?.error === 'No editor found in any frame') {
+                 // editor.setValue('// [No editor found in this tab]');
+            }
         }
     });
 }

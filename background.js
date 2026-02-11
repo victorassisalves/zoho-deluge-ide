@@ -123,6 +123,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.action === 'GET_ZOHO_CODE' || request.action === 'SET_ZOHO_CODE' || request.action === 'SAVE_ZOHO_CODE' || request.action === 'EXECUTE_ZOHO_CODE') {
         const handleAction = async (tabId) => {
+            console.log('[ZohoIDE] handleAction:', request.action, 'for tab:', tabId);
             if (!tabId) {
                 sendResponse({ error: 'No target tab specified' });
                 return;
@@ -155,15 +156,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     return a.result ? -1 : 1;
                 });
 
+                console.log('[ZohoIDE] Frames found in tab', tabId, ':', sortedFrames.length);
+
                 let lastErr = null;
                 for (const frame of sortedFrames) {
                     try {
+                        console.log('[ZohoIDE] Relaying to tab', tabId, 'frame', frame.frameId);
                         const response = await new Promise((resolve, reject) => {
                             chrome.tabs.sendMessage(tabId, request, { frameId: frame.frameId }, (res) => {
-                                if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+                                if (chrome.runtime.lastError) {
+                                    console.warn('[ZohoIDE] sendMessage runtime error:', chrome.runtime.lastError);
+                                    reject(chrome.runtime.lastError);
+                                }
                                 else resolve(res);
                             });
                         });
+                        console.log('[ZohoIDE] Response from frame', frame.frameId, ':', response);
                         if (response && (request.action === 'GET_ZOHO_CODE' ? !!response.code : !!response.success)) {
                             sendResponse(response);
                             return;
@@ -173,6 +181,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         console.warn(`[ZohoIDE] Frame ${frame.frameId} fail:`, e);
                     }
                 }
+                console.log('[ZohoIDE] No valid response from any frame in tab', tabId);
                 sendResponse({ error: lastErr || 'No editor found in any frame' });
             } catch (err) {
                 sendResponse({ error: 'Frame traversal failed: ' + err.message });

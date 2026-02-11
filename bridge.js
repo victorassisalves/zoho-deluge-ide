@@ -182,11 +182,18 @@
                 let titleName = document.title.replace('Zoho CRM', '').replace('Functions', '').replace('-', '').trim();
                 if (titleName === "" || titleName === "Zoho CRM") titleName = null;
 
+                let functionId = urlParams.get('id') || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown';
+                if (functionId === 'unknown') {
+                    // Try searching for script IDs in the page
+                    const scriptEl = document.querySelector('[id*="scriptId"], [name*="scriptId"]');
+                    if (scriptEl) functionId = scriptEl.value || scriptEl.innerText;
+                }
+
                 return {
                     system: 'CRM',
                     orgId: orgName.toString().toLowerCase(),
-                    functionId: urlParams.get('id') || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown',
-                    functionName: codeName || document.querySelector('.custom_fn_name, [data-zcqa="function-name"]')?.innerText || titleName || 'Untitled CRM',
+                    functionId: functionId,
+                    functionName: codeName || document.querySelector('.custom_fn_name, [data-zcqa="function-name"], .fnName')?.innerText || titleName || 'Untitled CRM',
                     folder: document.querySelector('.breadcrumb-item.active')?.innerText || 'Functions'
                 };
             }
@@ -304,18 +311,26 @@
 
         if (action === 'GET_ZOHO_CODE') {
             log('GET_ZOHO_CODE requested');
+            let found = false;
             for (let engineName of Object.keys(Engines)) {
                 const engine = Engines[engineName];
                 if (engine.isAvailable()) {
+                    log('Engine available:', engineName);
                     const code = engine.getCode();
                     if (code !== null) {
-                        log('Code retrieved from:', engineName);
+                        log('Code retrieved from:', engineName, 'Length:', code.length);
                         response = { code };
+                        found = true;
                         break;
+                    } else {
+                        log('Engine', engineName, 'returned null code');
                     }
                 }
             }
-            if (!response.code) response = { error: 'No editor found' };
+            if (!found) {
+                log('No editor engine found or returned code');
+                response = { error: 'No editor found' };
+            }
         } else if (action === 'SET_ZOHO_CODE') {
             log('SET_ZOHO_CODE requested');
             let success = false;
