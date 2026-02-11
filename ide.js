@@ -16,6 +16,13 @@ var currentResearchReport = "";
 var researchPollingInterval = null;
 var lastActionTime = 0;
 
+var AppState = {
+    activeTabs: [], // { id, name, model, originalCode }
+    models: {}, // id -> { model, originalCode }
+    currentFileId: null
+};
+window.AppState = AppState;
+
 function initEditor() {
     if (editor) return;
 
@@ -31,6 +38,7 @@ function initEditor() {
             base: 'vs-dark',
             inherit: true,
             rules: [
+                { token: '', foreground: 'f8f8f2' },
                 { token: 'comment', foreground: '6272a4' },
                 { token: 'keyword', foreground: 'ff79c6' },
                 { token: 'number', foreground: 'bd93f9' },
@@ -43,7 +51,10 @@ function initEditor() {
                 { token: 'method', foreground: '50fa7b' },
                 { token: 'variable', foreground: 'ffb86c' },
                 { token: 'key', foreground: '8be9fd' },
-                { token: 'brackets', foreground: 'f8f8f2' }
+                { token: 'brackets', foreground: 'f8f8f2' },
+                { token: 'tag', foreground: 'ff79c6' },
+                { token: 'attribute.name', foreground: '50fa7b' },
+                { token: 'attribute.value', foreground: 'f1fa8c' }
             ],
             colors: {
                 'editor.background': '#282a36',
@@ -129,11 +140,20 @@ function initEditor() {
         }
 
         editor.onDidChangeModelContent(() => {
-            const code = editor.getValue();
+            const model = editor.getModel();
+            const code = model.getValue();
+
+            if (AppState.currentFileId) {
+                const state = AppState.models[AppState.currentFileId];
+                if (state) {
+                    renderTabs(); // Refresh modified dots
+                }
+            }
+
             if (typeof chrome !== "undefined" && chrome.storage) {
                 chrome.storage.local.set({ 'saved_deluge_code': code });
             }
-            if (window.validateDelugeModel) window.validateDelugeModel(editor.getModel());
+            if (window.validateDelugeModel) window.validateDelugeModel(model);
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
@@ -245,6 +265,7 @@ function checkConnection() {
 
 async function loadProjectData() {
     if (!currentFileId) return;
+    AppState.currentFileId = currentFileId;
 
     // 1. Load File from VFS
     const file = await FileManager.getFile(currentFileId);
@@ -255,14 +276,34 @@ async function loadProjectData() {
 
     if (file) {
         zideProjectName = file.name || "Untitled Project";
+
+        // Handle Monaco Model
+        if (!AppState.models[currentFileId]) {
+            const model = monaco.editor.createModel(file.code, 'deluge');
+            AppState.models[currentFileId] = { model, originalCode: file.code };
+        }
+
         if (editor) {
-            const currentVal = editor.getValue();
-            if (!currentVal || currentVal.trim() === "" || currentVal.startsWith("// Start coding")) {
-                editor.setValue(file.code);
-            }
+            editor.setModel(AppState.models[currentFileId].model);
+        }
+
+        // Add to tabs
+        if (!AppState.activeTabs.find(t => t.id === currentFileId)) {
+            AppState.activeTabs.push({ id: currentFileId, name: zideProjectName });
         }
     } else {
         zideProjectName = (window.currentTargetTab && window.currentTargetTab.name) || "Untitled Project";
+        // Handle "New" or unsaved tab
+        if (!AppState.models[currentFileId]) {
+            const defaultCode = '// Start coding in Zoho Deluge...\n\n';
+            const model = monaco.editor.createModel(defaultCode, 'deluge');
+            AppState.models[currentFileId] = { model, originalCode: defaultCode };
+        }
+        if (editor) editor.setModel(AppState.models[currentFileId].model);
+
+        if (!AppState.activeTabs.find(t => t.id === currentFileId)) {
+            AppState.activeTabs.push({ id: currentFileId, name: zideProjectName });
+        }
     }
 
     window.zideProjectName = zideProjectName;
@@ -278,6 +319,70 @@ async function loadProjectData() {
     });
     window.interfaceMappings = interfaceMappings;
     updateInterfaceMappingsList();
+
+    renderTabs();
+    performDriftCheck();
+}
+
+function renderTabs() {
+    const container = document.getElementById('tabs-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+    AppState.activeTabs.forEach(tab => {
+        const tabEl = document.createElement('div');
+        tabEl.className = 'tab-item' + (tab.id === currentFileId ? ' active' : '');
+
+        const state = AppState.models[tab.id];
+        const isModified = state && state.model.getValue() !== state.originalCode;
+        if (isModified) tabEl.classList.add('modified');
+
+        tabEl.innerHTML = `
+            <span class="tab-status"></span>
+            <span class="tab-title">${tab.name}</span>
+            <span class="tab-close material-icons">close</span>
+        `;
+
+        tabEl.onclick = async () => {
+            currentFileId = tab.id;
+            window.currentFileId = currentFileId;
+            await loadProjectData();
+        };
+
+        tabEl.querySelector('.tab-close').onclick = (e) => {
+            e.stopPropagation();
+            closeTab(tab.id);
+        };
+
+        container.appendChild(tabEl);
+    });
+}
+
+function closeTab(id) {
+    const index = AppState.activeTabs.findIndex(t => t.id === id);
+    if (index === -1) return;
+
+    const state = AppState.models[id];
+    if (state && state.model.getValue() !== state.originalCode) {
+        if (!confirm('You have unsaved changes. Close anyway?')) return;
+    }
+
+    AppState.activeTabs.splice(index, 1);
+
+    if (currentFileId === id) {
+        if (AppState.activeTabs.length > 0) {
+            const nextTab = AppState.activeTabs[Math.max(0, index - 1)];
+            currentFileId = nextTab.id;
+            window.currentFileId = currentFileId;
+            loadProjectData();
+        } else {
+            currentFileId = 'global';
+            window.currentFileId = currentFileId;
+            loadProjectData();
+        }
+    } else {
+        renderTabs();
+    }
 }
 
 const bind = (id, event, fn) => {
@@ -305,6 +410,12 @@ function setupEventHandlers() {
             if (file) {
                 file.name = zideProjectName;
                 await FileManager.saveFile(file);
+
+                // Update tab name
+                const tab = AppState.activeTabs.find(t => t.id === currentFileId);
+                if (tab) tab.name = zideProjectName;
+                renderTabs();
+
                 const allMetadata = await FileManager.getAllFilesMetadata();
                 updateSavedFilesList(allMetadata);
             }
@@ -1133,7 +1244,11 @@ function pullFromZoho() {
         chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, (response) => {
             if (response && response.code) {
                 editor.setValue(response.code);
+                if (currentFileId && AppState.models[currentFileId]) {
+                    AppState.models[currentFileId].originalCode = response.code;
+                }
                 log('Success', 'Code pulled.');
+                renderTabs();
             } else { log('Error', response?.error || 'No code found.'); }
         });
     }
@@ -1164,6 +1279,10 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
         chrome.runtime.sendMessage({ action: 'SET_ZOHO_CODE', code: code }, (response) => {
             if (response && response.success) {
                 log('Success', 'Code pushed.');
+                if (currentFileId && AppState.models[currentFileId]) {
+                    AppState.models[currentFileId].originalCode = code;
+                }
+                renderTabs();
 
                 if (triggerSave || triggerExecute) {
                     // Logic: Save first. If Execute is requested, wait 500ms then Execute.
@@ -1223,6 +1342,10 @@ async function saveLocally() {
     try {
         await FileManager.saveFile(fileData);
         log('Success', 'Saved to VFS.');
+
+        if (AppState.models[currentFileId]) {
+            AppState.models[currentFileId].originalCode = code;
+        }
 
         const allMetadata = await FileManager.getAllFilesMetadata();
         updateSavedFilesList(allMetadata);

@@ -1,5 +1,5 @@
 (function() {
-    function registerDeluge() {
+    function registerDelugeLanguage() {
         if (window.delugeRegistered) return;
         window.delugeRegistered = true;
 
@@ -45,18 +45,11 @@
                     // Map Keys
                     [/[a-zA-Z_]\w*(?=\s*:)/, 'key'],
 
-                    // Constants (UPPERCASE)
-                    [/[A-Z][A-Z_0-9]*/, {
-                        cases: {
-                            'GET|POST|PUT|DELETE|PATCH': 'keyword',
-                            '@default': 'identifier'
-                        }
-                    }],
-
                     // Identifiers and Keywords
-                    [/[a-z_$][\w$]*/, {
+                    [/[a-zA-Z_$][\w$]*/, {
                         cases: {
                             'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|void|string|int|decimal|boolean|map|list|collection': 'keyword',
+                            'GET|POST|PUT|DELETE|PATCH': 'keyword',
                             'zoho|thisapp|standalone|input': 'type',
                             'invokeurl': 'identifier',
                             '@default': 'variable'
@@ -864,9 +857,11 @@
         });
     }
 
+    window.registerDelugeLanguage = registerDelugeLanguage;
+
     if (typeof monaco !== 'undefined') {
-        registerDeluge();
+        registerDelugeLanguage();
     } else {
-        window.addEventListener('monacoReady', registerDeluge);
+        window.addEventListener('monacoReady', registerDelugeLanguage);
     }
 })();

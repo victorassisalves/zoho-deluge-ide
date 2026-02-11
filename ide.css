@@ -128,6 +128,76 @@ body, html {
     min-width: 0;
 }
 
+#tabs-container {
+    height: 35px;
+    background-color: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0;
+}
+
+#tabs-container::-webkit-scrollbar {
+    height: 2px;
+}
+
+.tab-item {
+    padding: 0 15px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-right: 1px solid var(--border-color);
+    cursor: pointer;
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
+    max-width: 200px;
+    position: relative;
+    transition: background 0.2s, color 0.2s;
+}
+
+.tab-item:hover {
+    background-color: #2d2d2d;
+    color: #ccc;
+}
+
+.tab-item.active {
+    background-color: var(--bg-dark);
+    color: white;
+    border-bottom: 2px solid var(--accent-color);
+}
+
+.tab-item .tab-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tab-item .tab-close {
+    font-size: 14px;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.tab-item .tab-close:hover {
+    opacity: 1;
+    color: #f44747;
+}
+
+.tab-item .tab-status {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: none;
+}
+
+.tab-item.modified .tab-status {
+    display: block;
+    background-color: #ffb86c;
+}
+
 #bottom-panel {
     height: var(--footer-height);
     background-color: var(--bg-dark);
