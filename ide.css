@@ -564,6 +564,117 @@ html.sidepanel-mode .status-right {
     font-size: 10px;
 }
 
+/* Explorer & Open Editors Styles */
+.explorer-section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 2px;
+}
+
+.explorer-header {
+    background-color: #2d2d2d;
+    color: #ccc;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 5px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    user-select: none;
+    border-bottom: 1px solid #333;
+}
+
+.explorer-header .material-icons {
+    font-size: 14px;
+    transition: transform 0.2s;
+}
+
+.explorer-header.collapsed .material-icons {
+    transform: rotate(-90deg);
+}
+
+.explorer-list, .explorer-tree {
+    padding: 0;
+    overflow-y: auto;
+}
+
+.explorer-item {
+    padding: 6px 15px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-left: 2px solid transparent;
+}
+
+.explorer-item:hover {
+    background-color: #2a2d2e;
+}
+
+.explorer-item.active {
+    background-color: #37373d;
+    color: white;
+    border-left-color: var(--accent-color);
+}
+
+.explorer-item.offline {
+    opacity: 0.5;
+}
+
+.explorer-node {
+    margin-left: 10px;
+    border-left: 1px solid #333;
+}
+
+.node-label {
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.node-label:hover {
+    background-color: #2a2d2e;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-dot.active { background-color: #50fa7b; }
+.status-dot.offline { background-color: #888; }
+
+.system-icon {
+    font-size: 14px;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    font-weight: bold;
+    color: white;
+}
+
+.system-icon.crm { background-color: #f44336; }
+.system-icon.creator { background-color: #2196f3; }
+.system-icon.flow { background-color: #4caf50; }
+.system-icon.generic { background-color: #9e9e9e; }
+
 /* Hide sidebars in sidepanel mode if needed */
 html.sidepanel-mode .sidebar-panel,
 html.sidepanel-mode #right-sidebar {

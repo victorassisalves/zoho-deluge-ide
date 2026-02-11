@@ -118,22 +118,63 @@
         flow: {
             match: (url) => url.includes('flow.zoho'),
             save: ['input[value="Save"].zf-green-btn', 'input[value="Save"]'],
-            execute: ['input[value="Execute"].zf-green-o-btn', 'input[value="Execute"]']
+            execute: ['input[value="Execute"].zf-green-o-btn', 'input[value="Execute"]'],
+            getMetadata: () => {
+                const url = window.location.href;
+                const flowId = url.split('/flow/')[1]?.split('/')[0];
+                return {
+                    system: 'Flow',
+                    orgId: window.zf_org_id || 'unknown',
+                    functionId: flowId || 'unknown',
+                    functionName: document.querySelector('.zf-flow-name')?.innerText || 'Untitled Flow',
+                    folder: 'My Flows'
+                };
+            }
         },
         creator: {
             match: (url) => url.includes('creator.zoho') || url.includes('creatorapp.zoho') || url.includes('creatorportal.zoho'),
             save: ['input#saveFuncBtn', 'input[elename="saveFunction"]', 'lyte-button[data-zcqa="save"]', '.zc-save-btn', 'button.save-btn'],
-            execute: ['input#executeFuncBtn', 'input[elename="executeFunction"]', 'lyte-button[data-zcqa="execute"]', '.zc-execute-btn', 'button.run-btn']
+            execute: ['input#executeFuncBtn', 'input[elename="executeFunction"]', 'lyte-button[data-zcqa="execute"]', '.zc-execute-btn', 'button.run-btn'],
+            getMetadata: () => {
+                const appName = window.ZCApp?.appName || window.location.pathname.split('/')[2];
+                const ownerName = window.ZCApp?.ownerName || window.location.pathname.split('/')[1];
+                return {
+                    system: 'Creator',
+                    orgId: ownerName || 'unknown',
+                    functionId: window.location.hash || 'unknown',
+                    functionName: document.querySelector('.zc-func-name, .zc-workflow-name')?.innerText || document.title.split('-')[0].trim(),
+                    folder: appName || 'General'
+                };
+            }
         },
         crm: {
             match: (url) => url.includes('crm.zoho'),
             save: ['lyte-button[data-zcqa="functionSavev2"]', 'lyte-button[data-zcqa="functionSavev2"] button', '#crmsave', 'lyte-button[data-zcqa="save"]', '.crm-save-btn'],
-            execute: ['span[data-zcqa="delgv2execPlay"]', '#crmexecute', 'lyte-button[data-id="execute"]']
+            execute: ['span[data-zcqa="delgv2execPlay"]', '#crmexecute', 'lyte-button[data-id="execute"]'],
+            getMetadata: () => {
+                const urlParams = new URLSearchParams(window.location.search);
+                return {
+                    system: 'CRM',
+                    orgId: window.ZCRMSession?.orgId || 'unknown',
+                    functionId: urlParams.get('id') || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown',
+                    functionName: document.querySelector('.custom_fn_name, [data-zcqa="function-name"]')?.innerText || document.title.replace('Zoho CRM', '').trim(),
+                    folder: document.querySelector('.breadcrumb-item.active')?.innerText || 'Functions'
+                };
+            }
         },
         generic: {
             match: () => true,
             save: ['#save_script', '#save_btn', 'input[value="Save"]', 'input[value="Update"]'],
-            execute: ['#execute_script', '#run_script', 'input[value="Execute"]', 'input[value="Run"]']
+            execute: ['#execute_script', '#run_script', 'input[value="Execute"]', 'input[value="Run"]'],
+            getMetadata: () => {
+                return {
+                    system: 'Zoho',
+                    orgId: 'global',
+                    functionId: window.location.pathname,
+                    functionName: document.title,
+                    folder: 'General'
+                };
+            }
         }
     };
 
@@ -257,6 +298,14 @@
         } else if (action === 'EXECUTE_ZOHO_CODE') {
             log('EXECUTE_ZOHO_CODE requested');
             response = { success: triggerAction('execute') };
+        } else if (action === 'GET_ZOHO_METADATA') {
+            log('GET_ZOHO_METADATA requested');
+            const url = window.location.href;
+            let productMatch = Object.entries(Products).find(([name, p]) => p.match && p.match(url));
+            let product = productMatch ? productMatch[1] : Products.generic;
+            response = product.getMetadata ? product.getMetadata() : Products.generic.getMetadata();
+            response.url = url;
+            response.title = document.title;
         } else if (action === 'PING') {
             response = { status: 'PONG' };
         }
