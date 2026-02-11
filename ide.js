@@ -18,6 +18,7 @@ var lastActionTime = 0;
 
 var AppState = {
     activeTabs: [],
+    ignoredTabIds: new Set(),
     savedFunctions: {}, // Tree structure
     history: [],
     currentFile: null, // { id, type: 'tab'|'saved', data: metadata }
@@ -218,10 +219,13 @@ function syncAppTabs() {
 
                     // Auto-switch IDE to active browser tab if it changed
                     if (activeTab.tabId !== oldTabId && activeTab.active) {
-                        console.log('[ZohoIDE] Browser tab changed, auto-switching IDE:', activeTab.tabId);
-                        // Only auto-switch if we are already in 'tab' mode or if nothing is open
-                        if (!AppState.currentFile || AppState.currentFile.type === 'tab') {
-                            selectTabFile(activeTab);
+                        // Don't auto-switch if the tab is ignored
+                        if (!AppState.ignoredTabIds.has(activeTab.tabId)) {
+                            console.log('[ZohoIDE] Browser tab changed, auto-switching IDE:', activeTab.tabId);
+                            // Only auto-switch if we are already in 'tab' mode or if nothing is open
+                            if (!AppState.currentFile || AppState.currentFile.type === 'tab') {
+                                selectTabFile(activeTab);
+                            }
                         }
                     }
 
@@ -243,12 +247,16 @@ function renderOpenEditors() {
     if (!list) return;
 
     list.innerHTML = '';
-    if (AppState.activeTabs.length === 0) {
+
+    // Filter out ignored tabs
+    const visibleTabs = AppState.activeTabs.filter(tab => !AppState.ignoredTabIds.has(tab.tabId));
+
+    if (visibleTabs.length === 0) {
         list.innerHTML = '<div class="log-entry" style="font-size:11px; opacity:0.6; padding: 10px;">No active Zoho tabs.</div>';
         return;
     }
 
-    AppState.activeTabs.forEach((tab, index) => {
+    visibleTabs.forEach((tab, index) => {
         const item = document.createElement('div');
         item.className = 'explorer-item';
         if (AppState.currentFile && AppState.currentFile.tabId === tab.tabId) item.classList.add('active');
@@ -266,19 +274,42 @@ function renderOpenEditors() {
             <span class="status-dot active"></span>
         `;
 
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '4px';
+        actions.style.alignItems = 'center';
+
         const renameBtn = document.createElement('span');
         renameBtn.className = 'material-icons';
         renameBtn.innerHTML = 'edit';
         renameBtn.style.fontSize = '12px';
         renameBtn.style.color = '#888';
         renameBtn.style.cursor = 'pointer';
-        renameBtn.style.marginLeft = '5px';
         renameBtn.title = 'Rename';
         renameBtn.onclick = (e) => {
             e.stopPropagation();
             renameFunction(tab);
         };
-        item.appendChild(renameBtn);
+        actions.appendChild(renameBtn);
+
+        const closeBtn = document.createElement('span');
+        closeBtn.className = 'material-icons';
+        closeBtn.innerHTML = 'close';
+        closeBtn.style.fontSize = '14px';
+        closeBtn.style.color = '#888';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.title = 'Close / Stop following this tab';
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            AppState.ignoredTabIds.add(tab.tabId);
+            if (AppState.currentFile && AppState.currentFile.tabId === tab.tabId) {
+                AppState.currentFile = null;
+            }
+            renderOpenEditors();
+        };
+        actions.appendChild(closeBtn);
+
+        item.appendChild(actions);
 
         item.onclick = () => {
             selectTabFile(tab);
@@ -347,8 +378,7 @@ function selectTabFile(tab) {
     zideProjectUrl = tab.url;
     window.zideProjectUrl = zideProjectUrl;
 
-    // Pull code from this specific tab
-    pullFromSpecificTab(tab.tabId);
+    // Auto-pull disabled per user request. Use manual Pull button.
     renderOpenEditors();
     updateExplorerActiveState();
 }
@@ -627,7 +657,8 @@ function setupEventHandlers() {
 
     bind('sync-tabs-btn', 'click', (e) => {
         e.stopPropagation();
-        showStatus("Syncing tabs...");
+        showStatus("Syncing tabs & Resetting ignored list...");
+        AppState.ignoredTabIds.clear();
         syncAppTabs();
     });
 
