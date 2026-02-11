@@ -229,7 +229,7 @@
         };
 
         monaco.languages.registerCompletionItemProvider('deluge', {
-            triggerCharacters: ['.', '"', "'"],
+            triggerCharacters: ['.', '"', "'", '/'],
             provideCompletionItems: (model, position) => {
                 const lineUntilPos = model.getValueInRange({
                     startLineNumber: position.lineNumber,
@@ -411,7 +411,39 @@
                     }
                 }
 
-                // 4. Default suggestions
+                // 4. My Snippets (handle / trigger)
+                const mySnippetMatch = lineUntilPos.match(/(?:^|\s)\/([a-zA-Z0-9_]*)$/);
+                if (mySnippetMatch) {
+                    const triggerText = mySnippetMatch[1];
+                    const slashIndex = lineUntilPos.lastIndexOf('/' + triggerText);
+                    const textBeforeSlash = lineUntilPos.substring(0, slashIndex);
+
+                    // Avoid triggering inside comments or strings (naive but effective for common cases)
+                    const isComment = textBeforeSlash.includes('//') || textBeforeSlash.includes('/*');
+                    const isString = (textBeforeSlash.match(/"/g) || []).length % 2 !== 0 || (textBeforeSlash.match(/'/g) || []).length % 2 !== 0;
+
+                    if (!isComment && !isString) {
+                        const snippets = window.mySnippets || [];
+                        return {
+                            suggestions: snippets.map(s => ({
+                                label: '/' + s.trigger,
+                                kind: monaco.languages.CompletionItemKind.Snippet,
+                                detail: s.name + (s.comments ? ` - ${s.comments}` : ""),
+                                documentation: { value: "```deluge\n" + s.code + "\n```" },
+                                insertText: s.code,
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                range: {
+                                    startLineNumber: position.lineNumber,
+                                    endLineNumber: position.lineNumber,
+                                    startColumn: slashIndex + 1,
+                                    endColumn: position.column
+                                }
+                            }))
+                        };
+                    }
+                }
+
+                // 5. Default suggestions
                 const varMap = extractVariables(code);
                 const varSuggestions = Object.keys(varMap).map(v => ({
                     label: v,

@@ -100,6 +100,7 @@
         "firebase-config.js",
         "deluge-lang.js",
         "ide.js",
+        "my_snippets.js",
         "snippet_logic.js",
         "api_data.js",
         "loader-init.js",
