@@ -23,6 +23,10 @@ var AppState = {
 };
 window.AppState = AppState;
 
+// Robust service access
+const getFileManager = () => window.FileManager || { getFile: async () => null, getAllFilesMetadata: async () => [], saveFile: async () => {} };
+const getInterfaceManager = () => window.InterfaceManager || { getInterfacesByOwner: async () => [], resolveInterface: async () => null };
+
 function initEditor() {
     if (editor) return;
 
@@ -38,6 +42,7 @@ function initEditor() {
             base: 'vs-dark',
             inherit: true,
             rules: [
+                { token: '', foreground: 'f8f8f2' },
                 { token: 'comment', foreground: '6272a4' },
                 { token: 'keyword', foreground: 'ff79c6' },
                 { token: 'number', foreground: 'bd93f9' },
@@ -84,6 +89,15 @@ function initEditor() {
             glyphMargin: true
         });
         window.editor = editor;
+
+        // Force language and theme after a short delay to ensure registry is ready
+        setTimeout(() => {
+            if (editor) {
+                monaco.editor.setModelLanguage(editor.getModel(), 'deluge');
+                monaco.editor.setTheme('dracula');
+            }
+        }, 1000);
+
         if (typeof validateDelugeModel === "function") validateDelugeModel(editor.getModel());
         window.addEventListener('resize', () => { if (editor) editor.layout(); });
     // Ensure editor layouts correctly after initialization
@@ -201,6 +215,7 @@ function initEditor() {
 
 
         setupEventHandlers();
+        renderOpenEditors();
         checkConnection();
 
     } catch (e) {
@@ -267,6 +282,11 @@ function checkConnection() {
 async function loadProjectData() {
     if (!currentFileId) return;
     AppState.currentFileId = currentFileId;
+
+    const FileManager = getFileManager();
+    const InterfaceManager = getInterfaceManager();
+
+    console.log('[ZohoIDE] Loading project data for:', currentFileId);
 
     // 1. Load File from VFS
     const file = await FileManager.getFile(currentFileId);
@@ -1358,6 +1378,7 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 
 async function saveLocally() {
     if (!currentFileId) return;
+    const FileManager = getFileManager();
 
     // Check for errors
     const markers = monaco.editor.getModelMarkers({ resource: editor.getModel().uri });
@@ -1794,6 +1815,9 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
     window.performDriftCheck = performDriftCheck;
 
     async function handleDeleteFile(fileId, fileName) {
+        const InterfaceManager = getInterfaceManager();
+        const FileManager = getFileManager();
+
         const sharedIfaces = await InterfaceManager.getSharedInterfacesByFile(fileId);
         if (sharedIfaces.length > 0) {
             const ifaceNames = sharedIfaces.map(i => i.name).join(', ');
