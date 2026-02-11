@@ -99,6 +99,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.action === 'GET_ZOHO_CODE' || request.action === 'SET_ZOHO_CODE' || request.action === 'SAVE_ZOHO_CODE' || request.action === 'EXECUTE_ZOHO_CODE') {
         const handleAction = async (tabId) => {
+            if (!tabId) {
+                sendResponse({ error: 'No target tab specified' });
+                return;
+            }
             lastZohoTabId = tabId;
             try {
                 const results = await chrome.scripting.executeScript({
@@ -151,8 +155,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
         };
 
-        if (targetTabId) handleAction(targetTabId);
-        else if (request.tabId) handleAction(request.tabId);
+        // Priority: Explicit tabId > sender tab (sidepanel) > find active tab
+        const activeTabId = request.tabId || targetTabId;
+        if (activeTabId) handleAction(activeTabId);
         else findZohoTab(tab => tab ? handleAction(tab.id) : sendResponse({ error: 'No Zoho tab found' }));
         return true;
     }

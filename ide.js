@@ -295,7 +295,7 @@ function loadExplorerData() {
             }
 
             // Load mappings for current session
-            const currentOrg = AppState.currentFile?.data?.orgId || 'global';
+        const currentOrg = (AppState.currentFile?.data?.orgId || 'global').toString().toLowerCase();
             const projectMappings = result.project_mappings || {};
             interfaceMappings = projectMappings[currentOrg] || {};
             window.interfaceMappings = interfaceMappings;
@@ -1005,7 +1005,7 @@ function saveInterfaceMapping(name, jsonStr) {
 
 function saveCurrentMappings() {
     if (typeof chrome !== "undefined" && chrome.storage) {
-        const currentOrg = AppState.currentFile?.data?.orgId || 'global';
+        const currentOrg = (AppState.currentFile?.data?.orgId || 'global').toString().toLowerCase();
         chrome.storage.local.get(['project_mappings'], (result) => {
             const projectMappings = result.project_mappings || {};
             projectMappings[currentOrg] = interfaceMappings;
@@ -1392,7 +1392,7 @@ function saveLocally() {
         const name = prompt('Enter a name for this script:', 'Untitled Script');
         if (!name) return;
         meta = {
-            orgId: 'Global',
+            orgId: 'global',
             system: 'Generic',
             folder: 'Manual Saves',
             functionName: name,
@@ -1401,7 +1401,7 @@ function saveLocally() {
         };
     }
 
-    const orgId = meta.orgId || 'Global';
+    const orgId = (meta.orgId || 'global').toString().toLowerCase();
     const system = meta.system || 'Zoho';
     const folder = meta.folder || 'General';
     const name = meta.functionName || 'Untitled';

@@ -122,11 +122,14 @@
             getMetadata: () => {
                 const url = window.location.href;
                 const flowId = url.split('/flow/')[1]?.split('/')[0];
+                const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
+                const codeName = extractNameFromCode(code);
+
                 return {
                     system: 'Flow',
-                    orgId: window.zf_org_id || 'unknown',
+                    orgId: (window.zf_org_id || 'global').toString().toLowerCase(),
                     functionId: flowId || 'unknown',
-                    functionName: document.querySelector('.zf-flow-name')?.innerText || 'Untitled Flow',
+                    functionName: codeName || document.querySelector('.zf-flow-name')?.innerText || 'Untitled Flow',
                     folder: 'My Flows'
                 };
             }
@@ -138,11 +141,17 @@
             getMetadata: () => {
                 const appName = window.ZCApp?.appName || window.location.pathname.split('/')[2];
                 const ownerName = window.ZCApp?.ownerName || window.location.pathname.split('/')[1];
+                const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
+                const codeName = extractNameFromCode(code);
+
+                let titleName = document.title.replace(/^\(\d+\)\s*/, '').split('-')[0].trim();
+                if (titleName === "Zoho Creator") titleName = null;
+
                 return {
                     system: 'Creator',
-                    orgId: ownerName || 'unknown',
-                    functionId: window.location.hash || 'unknown',
-                    functionName: document.querySelector('.zc-func-name, .zc-workflow-name')?.innerText || document.title.split('-')[0].trim(),
+                    orgId: (ownerName || 'global').toLowerCase(),
+                    functionId: (appName ? appName + ":" : "") + (window.location.hash || 'unknown'),
+                    functionName: codeName || document.querySelector('.zc-func-name, .zc-workflow-name')?.innerText || titleName || 'Untitled Creator',
                     folder: appName || 'General'
                 };
             }
@@ -153,11 +162,17 @@
             execute: ['span[data-zcqa="delgv2execPlay"]', '#crmexecute', 'lyte-button[data-id="execute"]'],
             getMetadata: () => {
                 const urlParams = new URLSearchParams(window.location.search);
+                const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
+                const codeName = extractNameFromCode(code);
+
+                let titleName = document.title.replace('Zoho CRM', '').replace('Functions', '').replace('-', '').trim();
+                if (titleName === "" || titleName === "Zoho CRM") titleName = null;
+
                 return {
                     system: 'CRM',
-                    orgId: window.ZCRMSession?.orgId || 'unknown',
+                    orgId: (window.ZCRMSession?.orgId || 'global').toString().toLowerCase(),
                     functionId: urlParams.get('id') || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown',
-                    functionName: document.querySelector('.custom_fn_name, [data-zcqa="function-name"]')?.innerText || document.title.replace('Zoho CRM', '').trim(),
+                    functionName: codeName || document.querySelector('.custom_fn_name, [data-zcqa="function-name"]')?.innerText || titleName || 'Untitled CRM',
                     folder: document.querySelector('.breadcrumb-item.active')?.innerText || 'Functions'
                 };
             }
@@ -177,6 +192,17 @@
             }
         }
     };
+
+    function extractNameFromCode(code) {
+        if (!code) return null;
+        // Match common Deluge function patterns: type name(params) { ... }
+        const match = code.match(/(?:void|string|int|decimal|list|map|bool|date|datetime|json|file)\s+([a-zA-Z0-9_.]+)\s*\(/i);
+        if (match) return match[1];
+
+        // Try simple assignment name = { ... } if it looks like a named script
+        const simpleMatch = code.match(/^\s*([a-zA-Z0-9_]+)\s*=\s*/);
+        return simpleMatch ? simpleMatch[1] : null;
+    }
 
     function robustClick(el) {
         if (!el) return false;
