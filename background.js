@@ -175,18 +175,33 @@ async function getAllZohoTabs(callback) {
             try {
                 // Check if this tab has an editor and get its metadata
                 const metadata = await getTabMetadata(tab.id);
-                if (metadata) {
-                    results.push({
-                        tabId: tab.id,
-                        windowId: tab.windowId,
-                        active: tab.active,
-                        title: tab.title,
-                        url: tab.url,
-                        ...metadata
-                    });
-                }
+                results.push({
+                    tabId: tab.id,
+                    windowId: tab.windowId,
+                    active: tab.active,
+                    title: tab.title,
+                    url: tab.url,
+                    ...(metadata || {
+                        system: 'Zoho',
+                        orgId: 'global',
+                        functionId: 'unknown',
+                        functionName: tab.title,
+                        folder: 'General'
+                    })
+                });
             } catch (e) {
-                // console.warn(`Failed to get metadata for tab ${tab.id}:`, e);
+                results.push({
+                    tabId: tab.id,
+                    windowId: tab.windowId,
+                    active: tab.active,
+                    title: tab.title,
+                    url: tab.url,
+                    system: 'Zoho',
+                    orgId: 'global',
+                    functionId: 'unknown',
+                    functionName: tab.title,
+                    folder: 'General'
+                });
             }
         }
         callback(results);
