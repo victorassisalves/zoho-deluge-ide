@@ -212,11 +212,20 @@ function syncAppTabs() {
                 if (isConnected) {
                     const activeTab = tabs.find(t => t.active) || tabs[0];
                     showStatus(`Connected: ${tabs.length} tabs`, "success");
+
+                    const oldTabId = window.currentTargetTab?.tabId;
                     window.currentTargetTab = activeTab;
 
-                    // Auto-sync active tab if it's new
+                    // Auto-switch IDE to active browser tab if it changed
+                    if (activeTab.tabId !== oldTabId && activeTab.active) {
+                        console.log('[ZohoIDE] Browser tab changed, auto-switching IDE:', activeTab.tabId);
+                        // Only auto-switch if we are already in 'tab' mode or if nothing is open
+                        if (!AppState.currentFile || AppState.currentFile.type === 'tab') {
+                            selectTabFile(activeTab);
+                        }
+                    }
+
                     if (activeTab.url !== zideProjectUrl) {
-                         // We could auto-pull here if desired, but let's be safe
                          zideProjectUrl = activeTab.url;
                          window.zideProjectUrl = zideProjectUrl;
                     }
@@ -249,9 +258,14 @@ function renderOpenEditors() {
 
         const displayName = getDisplayName(tab);
 
+        // Clean up display name to remove redundant system info
+        let cleanDisplayName = displayName;
+        if (cleanDisplayName.startsWith('Functions - ')) cleanDisplayName = cleanDisplayName.replace('Functions - ', '');
+        if (cleanDisplayName.startsWith('Zoho CRM - ')) cleanDisplayName = cleanDisplayName.replace('Zoho CRM - ', '');
+
         item.innerHTML = `
             <span class="system-icon ${iconClass}">${iconLetter}</span>
-            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis;">(${tab.tabSequence || '?'}) ${tab.system} - ${displayName}</span>
+            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">(${tab.tabSequence || '?'}) ${cleanDisplayName}</span>
             <span class="status-dot active"></span>
         `;
 
@@ -279,7 +293,26 @@ function renderOpenEditors() {
 function getDisplayName(metadata) {
     const renames = AppState.renames || {};
     const key = `${metadata.orgId}:${metadata.system}:${metadata.folder}:${metadata.functionId}`;
-    return renames[key] || metadata.functionName || metadata.title || 'Untitled';
+    let name = renames[key] || metadata.functionName || metadata.title || 'Untitled';
+
+    // Clean up name to remove redundant system info
+    const cleaners = [
+        /^Functions - Zoho CRM - /,
+        /^Functions - /,
+        /^Zoho CRM - /,
+        / - Zoho CRM$/,
+        / - Zoho Creator$/,
+        / - Zoho Flow$/,
+        /^Zoho Creator - /,
+        /^Zoho Flow - /
+    ];
+
+    let cleanName = name;
+    cleaners.forEach(c => {
+        cleanName = cleanName.replace(c, '');
+    });
+
+    return cleanName.trim() || name || 'Untitled';
 }
 
 function renameFunction(metadata) {
@@ -387,6 +420,27 @@ function renderExplorer() {
 
     orgs.forEach(orgId => {
         const orgNode = createTreeNode(`Client: ${orgId}`, 'business', 'org-' + orgId);
+
+        // Add delete button for Client/Org
+        const orgHeader = orgNode.querySelector('.explorer-header');
+        const deleteBtn = document.createElement('span');
+        deleteBtn.className = 'material-icons';
+        deleteBtn.innerHTML = 'close';
+        deleteBtn.style.fontSize = '14px';
+        deleteBtn.style.color = '#888';
+        deleteBtn.style.cursor = 'pointer';
+        deleteBtn.style.marginLeft = 'auto';
+        deleteBtn.style.marginRight = '5px';
+        deleteBtn.title = 'Delete Client and all its functions';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete entire client "${orgId}" and all its saved functions?`)) {
+                delete AppState.savedFunctions[orgId];
+                chrome.storage.local.set({ 'saved_functions_tree': AppState.savedFunctions }, renderExplorer);
+            }
+        };
+        orgHeader.appendChild(deleteBtn);
+
         const systems = tree[orgId];
 
         Object.keys(systems).forEach(system => {
@@ -476,7 +530,7 @@ function createTreeNode(label, icon, id) {
     header.innerHTML = `
         <span class="material-icons">expand_more</span>
         <span class="material-icons" style="font-size:14px; color:#888;">${icon}</span>
-        <span>${label}</span>
+        <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${label}</span>
     `;
 
     const sub = document.createElement('div');

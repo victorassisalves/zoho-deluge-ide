@@ -151,13 +151,18 @@
                 const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
                 const codeName = extractNameFromCode(code);
 
-                let titleName = document.title.replace(/^\(\d+\)\s*/, '').split('-')[0].trim();
-                if (titleName === "Zoho Creator") titleName = null;
+                let titleName = document.title.replace(/^\(\d+\)\s*/, '').split(' - ')[0].trim();
+                if (titleName.toLowerCase().includes("zoho creator")) titleName = null;
+
+                let functionId = (appName ? appName + ":" : "") + (window.location.hash || 'unknown');
+                if (functionId.endsWith('unknown') && codeName) {
+                    functionId = (appName ? appName + ":" : "") + 'name:' + codeName;
+                }
 
                 return {
                     system: 'Creator',
                     orgId: (ownerName || 'global').toLowerCase(),
-                    functionId: (appName ? appName + ":" : "") + (window.location.hash || 'unknown'),
+                    functionId: functionId,
                     functionName: codeName || document.querySelector('.zc-func-name, .zc-workflow-name')?.innerText || titleName || 'Untitled Creator',
                     folder: appName || 'General'
                 };
@@ -179,7 +184,7 @@
                     orgName = pathParts[2];
                 }
 
-                let titleName = document.title.replace('Zoho CRM', '').replace('Functions', '').replace('-', '').trim();
+                let titleName = document.title.replace(/Zoho CRM/g, '').replace(/Functions/g, '').replace(/-/g, '').trim();
                 if (titleName === "" || titleName === "Zoho CRM") titleName = null;
 
                 let functionId = urlParams.get('id') || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown';
@@ -187,6 +192,11 @@
                     // Try searching for script IDs in the page
                     const scriptEl = document.querySelector('[id*="scriptId"], [name*="scriptId"]');
                     if (scriptEl) functionId = scriptEl.value || scriptEl.innerText;
+                }
+
+                // Fallback to code name if ID is still unknown to differentiate between different functions on same URL
+                if (functionId === 'unknown' && codeName) {
+                    functionId = 'name:' + codeName;
                 }
 
                 return {
@@ -217,12 +227,17 @@
     function extractNameFromCode(code) {
         if (!code) return null;
         // Match common Deluge function patterns: type name(params) { ... }
+        // Support namespaces like standalone.test
         const match = code.match(/(?:void|string|int|decimal|list|map|bool|date|datetime|json|file)\s+([a-zA-Z0-9_.]+)\s*\(/i);
         if (match) return match[1];
 
-        // Try simple assignment name = { ... } if it looks like a named script
-        const simpleMatch = code.match(/^\s*([a-zA-Z0-9_]+)\s*=\s*/);
-        return simpleMatch ? simpleMatch[1] : null;
+        // Try to match function name from a line starting with the name followed by = {
+        const simpleMatch = code.match(/^\s*([a-zA-Z0-9_.]+)\s*=\s*(?:Map|List|\{)/);
+        if (simpleMatch) return simpleMatch[1];
+
+        // Fallback for simple assignment
+        const assignmentMatch = code.match(/^\s*([a-zA-Z0-9_.]+)\s*=\s*/);
+        return assignmentMatch ? assignmentMatch[1] : null;
     }
 
     function robustClick(el) {
