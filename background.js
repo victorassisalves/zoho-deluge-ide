@@ -2,6 +2,16 @@
 
 let lastZohoTabId = null;
 
+function isZohoUrl(url) {
+    if (!url) return false;
+    const domains = ["zoho.com", "zoho.eu", "zoho.in", "zoho.com.au", "zoho.jp", "zoho.ca", "zoho.uk", "zoho.com.cn"];
+    return domains.some(d => url.includes(d));
+}
+
+function broadcastToIDE(message) {
+    chrome.runtime.sendMessage(message);
+}
+
 function openIDETab() {
     const ideUrl = chrome.runtime.getURL('ide.html');
     chrome.tabs.query({}, (tabs) => {
@@ -37,10 +47,6 @@ function openIDESidePanel() {
     });
 }
 
-function broadcastToIDE(message) {
-    chrome.runtime.sendMessage(message);
-}
-
 chrome.commands.onCommand.addListener((command) => {
     if (command === "sync-save") broadcastToIDE({ action: "CMD_SYNC_SAVE" });
     else if (command === "sync-save-execute") broadcastToIDE({ action: "CMD_SYNC_SAVE_EXECUTE" });
@@ -69,6 +75,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
     broadcastToIDE({ action: 'SYNC_TABS' });
+});
+
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    chrome.tabs.get(activeInfo.tabId, (tab) => {
+        if (tab && tab.url && isZohoUrl(tab.url)) {
+            broadcastToIDE({ action: 'SYNC_TABS' });
+        }
+    });
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -185,44 +199,29 @@ async function getAllZohoTabs(callback) {
     chrome.tabs.query({}, async (allTabs) => {
         // Sort tabs by ID to ensure consistent sequence numbering
         const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url)).sort((a, b) => a.id - b.id);
-        const results = [];
 
-        let sequence = 1;
-        for (const tab of zohoTabs) {
-            try {
-                // Check if this tab has an editor and get its metadata
-                const metadata = await getTabMetadata(tab.id);
-                results.push({
-                    tabId: tab.id,
-                    windowId: tab.windowId,
-                    active: tab.active,
-                    title: tab.title,
-                    url: tab.url,
-                    tabSequence: sequence++,
-                    ...(metadata || {
-                        system: 'Zoho',
-                        orgId: 'global',
-                        functionId: 'unknown',
-                        functionName: tab.title,
-                        folder: 'General'
-                    })
-                });
-            } catch (e) {
-                results.push({
-                    tabId: tab.id,
-                    windowId: tab.windowId,
-                    active: tab.active,
-                    title: tab.title,
-                    url: tab.url,
-                    tabSequence: sequence++,
+        const metadataPromises = zohoTabs.map(tab => getTabMetadata(tab.id).catch(() => null));
+        const allMetadata = await Promise.all(metadataPromises);
+
+        const results = zohoTabs.map((tab, index) => {
+            const metadata = allMetadata[index];
+            return {
+                tabId: tab.id,
+                windowId: tab.windowId,
+                active: tab.active,
+                title: tab.title,
+                url: tab.url,
+                tabSequence: index + 1,
+                ...(metadata || {
                     system: 'Zoho',
                     orgId: 'global',
                     functionId: 'unknown',
                     functionName: tab.title,
                     folder: 'General'
-                });
-            }
-        }
+                })
+            };
+        });
+
         callback(results);
     });
 }
@@ -268,8 +267,3 @@ function findZohoTab(callback) {
     });
 }
 
-function isZohoUrl(url) {
-    if (!url) return false;
-    const domains = ["zoho.com", "zoho.eu", "zoho.in", "zoho.com.au", "zoho.jp", "zoho.ca", "zoho.uk", "zoho.com.cn"];
-    return domains.some(d => url.includes(d));
-}
