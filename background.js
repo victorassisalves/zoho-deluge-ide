@@ -61,6 +61,16 @@ chrome.commands.onCommand.addListener((command) => {
     }
 });
 
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && isZohoUrl(tab.url)) {
+        broadcastToIDE({ action: 'SYNC_TABS' });
+    }
+});
+
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+    broadcastToIDE({ action: 'SYNC_TABS' });
+});
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
     let targetTabId = isSidePanel ? sender.tab.id : null;

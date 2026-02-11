@@ -37,7 +37,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     // Actions to relay to the bridge using CustomEvent to avoid Zoho's onmessage listeners
-    const relayActions = ['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE', 'PING'];
+    const relayActions = ['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE', 'GET_ZOHO_METADATA', 'PING'];
     if (relayActions.includes(request.action)) {
         const eventId = Math.random().toString(36).substring(2);
         const detail = {

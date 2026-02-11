@@ -130,6 +130,8 @@ function initEditor() {
                 } else if (request.action === "CMD_PULL_CODE") {
                     console.log('[ZohoIDE] Command: Pull Code');
                     pullFromZoho();
+                } else if (request.action === "SYNC_TABS") {
+                    syncAppTabs();
                 }
             });
         }
@@ -372,6 +374,12 @@ function renderExplorer() {
                             delete AppState.savedFunctions[orgId][system][folder][funcId];
                             if (Object.keys(AppState.savedFunctions[orgId][system][folder]).length === 0) {
                                 delete AppState.savedFunctions[orgId][system][folder];
+                                if (Object.keys(AppState.savedFunctions[orgId][system]).length === 0) {
+                                    delete AppState.savedFunctions[orgId][system];
+                                    if (Object.keys(AppState.savedFunctions[orgId]).length === 0) {
+                                        delete AppState.savedFunctions[orgId];
+                                    }
+                                }
                             }
                             chrome.storage.local.set({ 'saved_functions_tree': AppState.savedFunctions }, renderExplorer);
                         }
