@@ -248,7 +248,7 @@ function renderOpenEditors() {
         return;
     }
 
-    AppState.activeTabs.forEach(tab => {
+    AppState.activeTabs.forEach((tab, index) => {
         const item = document.createElement('div');
         item.className = 'explorer-item';
         if (AppState.currentFile && AppState.currentFile.tabId === tab.tabId) item.classList.add('active');
@@ -258,14 +258,11 @@ function renderOpenEditors() {
 
         const displayName = getDisplayName(tab);
 
-        // Clean up display name to remove redundant system info
-        let cleanDisplayName = displayName;
-        if (cleanDisplayName.startsWith('Functions - ')) cleanDisplayName = cleanDisplayName.replace('Functions - ', '');
-        if (cleanDisplayName.startsWith('Zoho CRM - ')) cleanDisplayName = cleanDisplayName.replace('Zoho CRM - ', '');
+        const sequenceNum = tab.tabSequence || (index + 1);
 
         item.innerHTML = `
             <span class="system-icon ${iconClass}">${iconLetter}</span>
-            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">(${tab.tabSequence || '?'}) ${cleanDisplayName}</span>
+            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">(${sequenceNum}) ${displayName}</span>
             <span class="status-dot active"></span>
         `;
 
@@ -291,15 +288,20 @@ function renderOpenEditors() {
 }
 
 function getDisplayName(metadata) {
+    if (!metadata) return 'Untitled';
     const renames = AppState.renames || {};
-    const key = `${metadata.orgId}:${metadata.system}:${metadata.folder}:${metadata.functionId}`;
+    // Folder is omitted from key to make renames more stable across view changes
+    const key = `${metadata.orgId}:${metadata.system}:${metadata.functionId}`;
     let name = renames[key] || metadata.functionName || metadata.title || 'Untitled';
 
-    // Clean up name to remove redundant system info
     const cleaners = [
+        /^Zoho - Functions - Zoho CRM - /,
+        /^Zoho - CRM - Functions - /,
         /^Functions - Zoho CRM - /,
         /^Functions - /,
         /^Zoho CRM - /,
+        /^Zoho - /,
+        /^CRM - /,
         / - Zoho CRM$/,
         / - Zoho Creator$/,
         / - Zoho Flow$/,
@@ -319,7 +321,7 @@ function renameFunction(metadata) {
     const currentName = getDisplayName(metadata);
     const newName = prompt('Rename function:', currentName);
     if (newName && newName !== currentName) {
-        const key = `${metadata.orgId}:${metadata.system}:${metadata.folder}:${metadata.functionId}`;
+        const key = `${metadata.orgId}:${metadata.system}:${metadata.functionId}`;
         AppState.renames[key] = newName;
         if (typeof chrome !== "undefined" && chrome.storage) {
             chrome.storage.local.set({ 'user_renames': AppState.renames }, () => {
@@ -421,34 +423,39 @@ function renderExplorer() {
     orgs.forEach(orgId => {
         const orgNode = createTreeNode(`Client: ${orgId}`, 'business', 'org-' + orgId);
 
-        // Add delete button for Client/Org
+        // Delete button for Client
         const orgHeader = orgNode.querySelector('.explorer-header');
-        const deleteBtn = document.createElement('span');
-        deleteBtn.className = 'material-icons';
-        deleteBtn.innerHTML = 'close';
-        deleteBtn.style.fontSize = '14px';
-        deleteBtn.style.color = '#888';
-        deleteBtn.style.cursor = 'pointer';
-        deleteBtn.style.marginLeft = 'auto';
-        deleteBtn.style.marginRight = '5px';
-        deleteBtn.title = 'Delete Client and all its functions';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (confirm(`Delete entire client "${orgId}" and all its saved functions?`)) {
-                delete AppState.savedFunctions[orgId];
-                chrome.storage.local.set({ 'saved_functions_tree': AppState.savedFunctions }, renderExplorer);
-            }
-        };
-        orgHeader.appendChild(deleteBtn);
+        const orgDel = createDeleteBtn(`client "${orgId}"`, () => {
+            delete AppState.savedFunctions[orgId];
+            chrome.storage.local.set({ 'saved_functions_tree': AppState.savedFunctions }, renderExplorer);
+        });
+        orgHeader.appendChild(orgDel);
 
         const systems = tree[orgId];
 
         Object.keys(systems).forEach(system => {
             const systemNode = createTreeNode(system, 'settings', `sys-${orgId}-${system}`);
+            const sysHeader = systemNode.querySelector('.explorer-header');
+            const sysDel = createDeleteBtn(`system "${system}" in client "${orgId}"`, () => {
+                delete AppState.savedFunctions[orgId][system];
+                if (Object.keys(AppState.savedFunctions[orgId]).length === 0) delete AppState.savedFunctions[orgId];
+                chrome.storage.local.set({ 'saved_functions_tree': AppState.savedFunctions }, renderExplorer);
+            });
+            sysHeader.appendChild(sysDel);
+
             const folders = systems[system];
 
             Object.keys(folders).forEach(folder => {
                 const folderNode = createTreeNode(folder, 'folder', `folder-${orgId}-${system}-${folder}`);
+                const foldHeader = folderNode.querySelector('.explorer-header');
+                const foldDel = createDeleteBtn(`folder "${folder}" in ${system}`, () => {
+                    delete AppState.savedFunctions[orgId][system][folder];
+                    if (Object.keys(AppState.savedFunctions[orgId][system]).length === 0) delete AppState.savedFunctions[orgId][system];
+                    if (Object.keys(AppState.savedFunctions[orgId]).length === 0) delete AppState.savedFunctions[orgId];
+                    chrome.storage.local.set({ 'saved_functions_tree': AppState.savedFunctions }, renderExplorer);
+                });
+                foldHeader.appendChild(foldDel);
+
                 const functions = folders[folder];
 
                 Object.keys(functions).forEach(funcId => {
@@ -521,6 +528,26 @@ function renderExplorer() {
     });
 }
 
+function createDeleteBtn(targetDesc, onDelete) {
+    const deleteBtn = document.createElement('span');
+    deleteBtn.className = 'material-icons explorer-action-btn';
+    deleteBtn.innerHTML = 'close';
+    deleteBtn.style.fontSize = '14px';
+    deleteBtn.style.color = '#888';
+    deleteBtn.style.cursor = 'pointer';
+    deleteBtn.style.marginLeft = 'auto';
+    deleteBtn.style.marginRight = '5px';
+    deleteBtn.style.flexShrink = '0';
+    deleteBtn.title = `Delete ${targetDesc} and all its functions`;
+    deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete entire ${targetDesc} and all its saved functions?`)) {
+            onDelete();
+        }
+    };
+    return deleteBtn;
+}
+
 function createTreeNode(label, icon, id) {
     const node = document.createElement('div');
     node.className = 'explorer-section';
@@ -530,7 +557,7 @@ function createTreeNode(label, icon, id) {
     header.innerHTML = `
         <span class="material-icons">expand_more</span>
         <span class="material-icons" style="font-size:14px; color:#888;">${icon}</span>
-        <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${label}</span>
+        <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 5px;">${label}</span>
     `;
 
     const sub = document.createElement('div');
@@ -1874,6 +1901,8 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
     window.showStatus = showStatus;
     window.renderExplorer = renderExplorer;
     window.renderOpenEditors = renderOpenEditors;
+    window.renameFunction = renameFunction;
+    window.selectTabFile = selectTabFile;
 
     function syncProblemsPanel() {
         const list = document.getElementById('problems-list');

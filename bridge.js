@@ -179,32 +179,42 @@
                 const codeName = extractNameFromCode(code);
 
                 let orgName = window.ZCRMSession?.orgId || 'global';
-                // Try to extract human readable name from URL: /crm/DRAKEN/settings/...
                 if (pathParts[1] === 'crm' && pathParts[2] && pathParts[2] !== 'org' && isNaN(pathParts[2])) {
                     orgName = pathParts[2];
                 }
 
-                let titleName = document.title.replace(/Zoho CRM/g, '').replace(/Functions/g, '').replace(/-/g, '').trim();
+                let titleName = document.title.replace(/Zoho CRM - |Functions - |Zoho - |CRM - /g, '').replace(/-/g, '').trim();
                 if (titleName === "" || titleName === "Zoho CRM") titleName = null;
 
                 let functionId = urlParams.get('id') || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown';
                 if (functionId === 'unknown') {
-                    // Try searching for script IDs in the page
                     const scriptEl = document.querySelector('[id*="scriptId"], [name*="scriptId"]');
                     if (scriptEl) functionId = scriptEl.value || scriptEl.innerText;
                 }
 
-                // Fallback to code name if ID is still unknown to differentiate between different functions on same URL
-                if (functionId === 'unknown' && codeName) {
-                    functionId = 'name:' + codeName;
+                // Advanced Name Detection
+                const nameSelectors = [
+                    '.custom_fn_name', '[data-zcqa="function-name"]', '.fnName', '.fn_name', '#function_name',
+                    '.bread-crumb-current', '.lyteBreadcrumbItem.active', '.crm-fn-name'
+                ];
+                let domName = null;
+                for (const sel of nameSelectors) {
+                    const el = document.querySelector(sel);
+                    if (el && el.innerText.trim()) { domName = el.innerText.trim(); break; }
+                }
+
+                const finalName = codeName || domName || titleName || 'Untitled CRM';
+
+                if (functionId === 'unknown' && finalName !== 'Untitled CRM') {
+                    functionId = 'name:' + finalName;
                 }
 
                 return {
                     system: 'CRM',
                     orgId: orgName.toString().toLowerCase(),
                     functionId: functionId,
-                    functionName: codeName || document.querySelector('.custom_fn_name, [data-zcqa="function-name"], .fnName')?.innerText || titleName || 'Untitled CRM',
-                    folder: document.querySelector('.breadcrumb-item.active')?.innerText || 'Functions'
+                    functionName: finalName,
+                    folder: document.querySelector('.breadcrumb-item.active, .lyteBreadcrumbItem.active')?.innerText || 'Functions'
                 };
             }
         },
