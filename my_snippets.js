@@ -1,6 +1,7 @@
 (function() {
     let mySnippets = [];
     let editingSnippetId = null;
+    let snippetEditor = null;
 
     const snippetsList = document.getElementById('my-snippets-list');
     const searchInput = document.getElementById('my-snippets-search');
@@ -12,6 +13,31 @@
     function init() {
         loadSnippets();
         setupEventListeners();
+        initSnippetEditor();
+    }
+
+    function initSnippetEditor() {
+        const container = document.getElementById('snippet-code-editor');
+        if (!container || snippetEditor) return;
+
+        // Ensure monaco is available
+        if (typeof monaco === 'undefined') {
+            setTimeout(initSnippetEditor, 100);
+            return;
+        }
+
+        snippetEditor = monaco.editor.create(container, {
+            value: '',
+            language: 'deluge',
+            theme: 'dracula',
+            automaticLayout: true,
+            minimap: { enabled: false },
+            lineNumbers: 'on',
+            scrollBeyondLastLine: false,
+            fontSize: 13,
+            roundedSelection: false,
+            cursorStyle: 'line'
+        });
     }
 
     function loadSnippets() {
@@ -264,10 +290,16 @@
         document.getElementById('snippet-name').value = snippet ? snippet.name : '';
         document.getElementById('snippet-trigger').value = snippet ? snippet.trigger : '';
         document.getElementById('snippet-category').value = snippet ? snippet.category : '';
-        document.getElementById('snippet-code').value = snippet ? snippet.code : '';
         document.getElementById('snippet-comments').value = snippet ? snippet.comments : '';
 
+        if (snippetEditor) {
+            snippetEditor.setValue(snippet ? snippet.code : '');
+        }
+
         modal.style.display = 'flex';
+        setTimeout(() => {
+            if (snippetEditor) snippetEditor.layout();
+        }, 100);
     }
 
     function closeModal() {
@@ -279,7 +311,7 @@
         const name = document.getElementById('snippet-name').value.trim();
         const trigger = document.getElementById('snippet-trigger').value.trim().replace(/^\//, ''); // Strip leading /
         const category = document.getElementById('snippet-category').value.trim() || 'Uncategorized';
-        const code = document.getElementById('snippet-code').value;
+        const code = snippetEditor ? snippetEditor.getValue() : '';
         const comments = document.getElementById('snippet-comments').value.trim();
 
         if (!name || !trigger || !code) {

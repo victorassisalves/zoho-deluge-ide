@@ -1648,3 +1648,13 @@ html.sidepanel-mode .resizer {
     padding-bottom: 2px;
     font-weight: bold;
 }
+
+/* Snippet Code Editor Styles */
+#snippet-code-editor {
+    margin-top: 5px;
+    background-color: #282a36; /* Dracula background */
+}
+
+.input-group label {
+    font-weight: 500;
+}
