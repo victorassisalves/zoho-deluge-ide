@@ -121,13 +121,19 @@
             execute: ['input[value="Execute"].zf-green-o-btn', 'input[value="Execute"]'],
             getMetadata: () => {
                 const url = window.location.href;
+                const pathParts = window.location.pathname.split('/');
                 const flowId = url.split('/flow/')[1]?.split('/')[0];
                 const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
                 const codeName = extractNameFromCode(code);
 
+                let orgName = window.zf_org_id || 'global';
+                if (pathParts[1] === 'flow' && pathParts[2] && isNaN(pathParts[2])) {
+                    orgName = pathParts[2];
+                }
+
                 return {
                     system: 'Flow',
-                    orgId: (window.zf_org_id || 'global').toString().toLowerCase(),
+                    orgId: orgName.toString().toLowerCase(),
                     functionId: flowId || 'unknown',
                     functionName: codeName || document.querySelector('.zf-flow-name')?.innerText || 'Untitled Flow',
                     folder: 'My Flows'
@@ -139,8 +145,9 @@
             save: ['input#saveFuncBtn', 'input[elename="saveFunction"]', 'lyte-button[data-zcqa="save"]', '.zc-save-btn', 'button.save-btn'],
             execute: ['input#executeFuncBtn', 'input[elename="executeFunction"]', 'lyte-button[data-zcqa="execute"]', '.zc-execute-btn', 'button.run-btn'],
             getMetadata: () => {
-                const appName = window.ZCApp?.appName || window.location.pathname.split('/')[2];
-                const ownerName = window.ZCApp?.ownerName || window.location.pathname.split('/')[1];
+                const pathParts = window.location.pathname.split('/');
+                const ownerName = window.ZCApp?.ownerName || pathParts[1];
+                const appName = window.ZCApp?.appName || pathParts[2];
                 const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
                 const codeName = extractNameFromCode(code);
 
@@ -162,15 +169,22 @@
             execute: ['span[data-zcqa="delgv2execPlay"]', '#crmexecute', 'lyte-button[data-id="execute"]'],
             getMetadata: () => {
                 const urlParams = new URLSearchParams(window.location.search);
+                const pathParts = window.location.pathname.split('/');
                 const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
                 const codeName = extractNameFromCode(code);
+
+                let orgName = window.ZCRMSession?.orgId || 'global';
+                // Try to extract human readable name from URL: /crm/DRAKEN/settings/...
+                if (pathParts[1] === 'crm' && pathParts[2] && pathParts[2] !== 'org' && isNaN(pathParts[2])) {
+                    orgName = pathParts[2];
+                }
 
                 let titleName = document.title.replace('Zoho CRM', '').replace('Functions', '').replace('-', '').trim();
                 if (titleName === "" || titleName === "Zoho CRM") titleName = null;
 
                 return {
                     system: 'CRM',
-                    orgId: (window.ZCRMSession?.orgId || 'global').toString().toLowerCase(),
+                    orgId: orgName.toString().toLowerCase(),
                     functionId: urlParams.get('id') || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown',
                     functionName: codeName || document.querySelector('.custom_fn_name, [data-zcqa="function-name"]')?.innerText || titleName || 'Untitled CRM',
                     folder: document.querySelector('.breadcrumb-item.active')?.innerText || 'Functions'

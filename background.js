@@ -183,9 +183,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function getAllZohoTabs(callback) {
     chrome.tabs.query({}, async (allTabs) => {
-        const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url));
+        // Sort tabs by ID to ensure consistent sequence numbering
+        const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url)).sort((a, b) => a.id - b.id);
         const results = [];
 
+        let sequence = 1;
         for (const tab of zohoTabs) {
             try {
                 // Check if this tab has an editor and get its metadata
@@ -196,6 +198,7 @@ async function getAllZohoTabs(callback) {
                     active: tab.active,
                     title: tab.title,
                     url: tab.url,
+                    tabSequence: sequence++,
                     ...(metadata || {
                         system: 'Zoho',
                         orgId: 'global',
@@ -211,6 +214,7 @@ async function getAllZohoTabs(callback) {
                     active: tab.active,
                     title: tab.title,
                     url: tab.url,
+                    tabSequence: sequence++,
                     system: 'Zoho',
                     orgId: 'global',
                     functionId: 'unknown',

@@ -21,7 +21,8 @@ var AppState = {
     savedFunctions: {}, // Tree structure
     history: [],
     currentFile: null, // { id, type: 'tab'|'saved', data: metadata }
-    openEditors: [] // Files currently "open" in tabs/IDE
+    openEditors: [], // Files currently "open" in tabs/IDE
+    renames: {} // Manual renames: { key: newName }
 };
 window.AppState = AppState;
 
@@ -232,8 +233,6 @@ function renderOpenEditors() {
     const list = document.getElementById('open-editors-list');
     if (!list) return;
 
-    // Merge active tabs with existing open editors in AppState
-    // For now, let's just show the active tabs
     list.innerHTML = '';
     if (AppState.activeTabs.length === 0) {
         list.innerHTML = '<div class="log-entry" style="font-size:11px; opacity:0.6; padding: 10px;">No active Zoho tabs.</div>';
@@ -248,17 +247,57 @@ function renderOpenEditors() {
         const iconClass = (tab.system || 'generic').toLowerCase();
         const iconLetter = (tab.system || 'Z')[0].toUpperCase();
 
+        const displayName = getDisplayName(tab);
+
         item.innerHTML = `
             <span class="system-icon ${iconClass}">${iconLetter}</span>
-            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis;">${tab.functionName || tab.title}</span>
+            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis;">(${tab.tabSequence || '?'}) ${tab.system} - ${displayName}</span>
             <span class="status-dot active"></span>
         `;
+
+        const renameBtn = document.createElement('span');
+        renameBtn.className = 'material-icons';
+        renameBtn.innerHTML = 'edit';
+        renameBtn.style.fontSize = '12px';
+        renameBtn.style.color = '#888';
+        renameBtn.style.cursor = 'pointer';
+        renameBtn.style.marginLeft = '5px';
+        renameBtn.title = 'Rename';
+        renameBtn.onclick = (e) => {
+            e.stopPropagation();
+            renameFunction(tab);
+        };
+        item.appendChild(renameBtn);
 
         item.onclick = () => {
             selectTabFile(tab);
         };
         list.appendChild(item);
     });
+}
+
+function getDisplayName(metadata) {
+    const renames = AppState.renames || {};
+    const key = `${metadata.orgId}:${metadata.system}:${metadata.folder}:${metadata.functionId}`;
+    return renames[key] || metadata.functionName || metadata.title || 'Untitled';
+}
+
+function renameFunction(metadata) {
+    const currentName = getDisplayName(metadata);
+    const newName = prompt('Rename function:', currentName);
+    if (newName && newName !== currentName) {
+        const key = `${metadata.orgId}:${metadata.system}:${metadata.folder}:${metadata.functionId}`;
+        AppState.renames[key] = newName;
+        if (typeof chrome !== "undefined" && chrome.storage) {
+            chrome.storage.local.set({ 'user_renames': AppState.renames }, () => {
+                renderExplorer();
+                renderOpenEditors();
+            });
+        } else {
+            renderExplorer();
+            renderOpenEditors();
+        }
+    }
 }
 
 function selectTabFile(tab) {
@@ -286,7 +325,8 @@ function pullFromSpecificTab(tabId) {
 
 function loadExplorerData() {
     if (typeof chrome !== "undefined" && chrome.storage) {
-        chrome.storage.local.get(["saved_functions_tree", "saved_files", "project_mappings"], (result) => {
+        chrome.storage.local.get(["saved_functions_tree", "saved_files", "project_mappings", "user_renames"], (result) => {
+            if (result.user_renames) AppState.renames = result.user_renames;
             if (result.saved_functions_tree) {
                 AppState.savedFunctions = result.saved_functions_tree;
                 renderExplorer();
@@ -355,11 +395,27 @@ function renderExplorer() {
                     const isOnline = AppState.activeTabs.some(t => t.functionId === funcId || (t.functionName === func.name && t.orgId === orgId));
                     const statusClass = isOnline ? 'active' : 'offline';
 
+                    const displayName = getDisplayName(func.metadata);
+
                     funcItem.innerHTML = `
                         <span class="material-icons" style="font-size:14px; color:#ce9178;">description</span>
-                        <span style="flex:1; overflow:hidden; text-overflow:ellipsis;">${func.name}</span>
+                        <span style="flex:1; overflow:hidden; text-overflow:ellipsis;" class="func-name-text">${displayName}</span>
                         <span class="status-dot ${statusClass}" style="margin-right: 5px;"></span>
                     `;
+
+                    const renameBtn = document.createElement('span');
+                    renameBtn.className = 'material-icons';
+                    renameBtn.innerHTML = 'edit';
+                    renameBtn.style.fontSize = '12px';
+                    renameBtn.style.color = '#888';
+                    renameBtn.style.cursor = 'pointer';
+                    renameBtn.style.marginRight = '5px';
+                    renameBtn.title = 'Rename Function';
+                    renameBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        renameFunction(func.metadata);
+                    };
+                    funcItem.appendChild(renameBtn);
 
                     const deleteBtn = document.createElement('span');
                     deleteBtn.className = 'material-icons';
@@ -462,11 +518,18 @@ function setupEventHandlers() {
         }
     });
 
-    bind('open-editors-header', 'click', () => {
+    bind('open-editors-header', 'click', (e) => {
+        if (e.target.id === 'sync-tabs-btn') return;
         const header = document.getElementById('open-editors-header');
         const list = document.getElementById('open-editors-list');
         const isCollapsed = header.classList.toggle('collapsed');
         list.style.display = isCollapsed ? 'none' : 'block';
+    });
+
+    bind('sync-tabs-btn', 'click', (e) => {
+        e.stopPropagation();
+        showStatus("Syncing tabs...");
+        syncAppTabs();
     });
 
     bind('project-explorer-header', 'click', () => {
