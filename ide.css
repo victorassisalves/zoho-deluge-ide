@@ -210,6 +210,21 @@ body, html {
 .status-left, .status-right {
     display: flex;
     gap: 15px;
+    align-items: center;
+}
+
+.mini-status-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    cursor: pointer;
+    border-radius: 2px;
+}
+
+.mini-status-btn:hover {
+    background: rgba(255,255,255,0.3);
 }
 
 .log-entry {
@@ -547,10 +562,17 @@ html.sidepanel-mode .status-right {
     border-radius: 4px;
     cursor: pointer;
     font-size: 11px;
+    position: relative;
 }
 
 .file-card:hover {
     border-color: var(--accent-color);
+}
+
+.file-card.active {
+    border-color: var(--accent-color);
+    box-shadow: inset 3px 0 0 var(--accent-color);
+    background: #37373d;
 }
 
 .file-card .file-title {
@@ -562,6 +584,24 @@ html.sidepanel-mode .status-right {
 .file-card .file-meta {
     color: #888;
     font-size: 10px;
+}
+
+.file-delete-btn {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    font-size: 16px !important;
+    color: #888;
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.file-card:hover .file-delete-btn {
+    opacity: 1;
+}
+
+.file-delete-btn:hover {
+    color: #f44747;
 }
 
 /* Hide sidebars in sidepanel mode if needed */

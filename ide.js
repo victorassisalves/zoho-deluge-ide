@@ -121,6 +121,9 @@ function initEditor() {
                 } else if (request.action === "CMD_PULL_CODE") {
                     console.log('[ZohoIDE] Command: Pull Code');
                     pullFromZoho();
+                } else if (request.action === "CONTEXT_SWITCH") {
+                    console.log('[ZohoIDE] Event: Context Switch', request.tabId);
+                    checkConnection();
                 }
             });
         }
@@ -178,7 +181,6 @@ function initEditor() {
 
         setupEventHandlers();
         checkConnection();
-        setInterval(checkConnection, 5000);
 
     } catch (e) {
         console.error("[ZohoIDE] initEditor Error:", e);
@@ -186,70 +188,96 @@ function initEditor() {
     }
 }
 
+let currentFileId = null;
+
 function checkConnection() {
     if (typeof chrome !== "undefined" && chrome.runtime) {
-        chrome.runtime.sendMessage({ action: "CHECK_CONNECTION" }, (response) => {
-            let nextProjectUrl = "global";
+        chrome.runtime.sendMessage({ action: "CHECK_CONNECTION" }, async (response) => {
             if (response && response.connected) {
                 isConnected = true;
-                const msg = (response.isStandalone ? "Connected to Target: " : "Connected Local: ") + (response.tabTitle || "Zoho Tab");
+                const msg = (response.isStandalone ? "Connected to Target: " : "Connected Local: ") + (response.name || response.tabTitle || "Zoho Tab");
                 showStatus(msg, "success");
                 window.currentTargetTab = response;
-                nextProjectUrl = response.url;
+
+                // Identify stable ID: OrgID:System:FunctionID
+                let stableId = "global";
+                if (response.orgId && response.system && response.functionId && response.orgId !== 'unknown' && response.functionId !== 'unknown') {
+                    stableId = `${response.orgId}:${response.system}:${response.functionId}`;
+                } else {
+                    stableId = response.url || "global";
+                }
+
+                if (stableId !== currentFileId) {
+                    // Context switch detected
+                    if (currentFileId && editor && editor.getValue().trim() !== "" && !editor.getValue().startsWith("// Start coding")) {
+                        await saveLocally();
+                    }
+                    currentFileId = stableId;
+                    window.currentFileId = currentFileId;
+                    zideProjectUrl = response.url;
+                    window.zideProjectUrl = zideProjectUrl;
+
+                    await loadProjectData();
+                    await performDriftCheck();
+
+                    // Cloud Auto-Detection
+                    if (typeof CloudUI !== 'undefined' && CloudUI.activeOrgId && zideProjectUrl !== 'global') {
+                        CloudUI.checkForCloudFiles(zideProjectUrl);
+                    }
+                } else {
+                    // Same file, but maybe content changed in Zoho
+                    await performDriftCheck();
+                }
             } else {
                 isConnected = false;
                 showStatus("Disconnected from Zoho", "info");
-                nextProjectUrl = "global";
-            }
-
-            if (nextProjectUrl !== zideProjectUrl) {
-                // Context switch detected
-                if (zideProjectUrl && editor && editor.getValue().trim() !== "" && !editor.getValue().startsWith("// Start coding")) {
-                    saveLocally();
-                }
-                                zideProjectUrl = nextProjectUrl;
-                window.zideProjectUrl = zideProjectUrl;
-                loadProjectData();
-
-                // Cloud Auto-Detection
-                if (typeof CloudUI !== 'undefined' && CloudUI.activeOrgId && zideProjectUrl !== 'global') {
-                    CloudUI.checkForCloudFiles(zideProjectUrl);
+                if (currentFileId !== "global") {
+                    currentFileId = "global";
+                    window.currentFileId = currentFileId;
+                    zideProjectUrl = "global";
+                    window.zideProjectUrl = zideProjectUrl;
+                    await loadProjectData();
                 }
             }
         });
     }
 }
 
-function loadProjectData() {
-    if (!zideProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
-    chrome.storage.local.get(["saved_files", "project_notes", "last_project_code", "project_names", "project_mappings"], (result) => {
-        const allFiles = result.saved_files || [];
-        const projectFiles = allFiles.filter(f => f.projectUrl === zideProjectUrl || (!f.projectUrl && zideProjectUrl === "global"));
-        updateSavedFilesList(projectFiles);
+async function loadProjectData() {
+    if (!currentFileId) return;
 
-        const projectNames = result.project_names || {};
-        zideProjectName = projectNames[zideProjectUrl] || "Untitled Project";
-        window.zideProjectName = zideProjectName;
-        const nameInput = document.getElementById("project-name-input");
-        if (nameInput) nameInput.value = zideProjectName;
+    // 1. Load File from VFS
+    const file = await FileManager.getFile(currentFileId);
 
-        const notes = result.project_notes || {};
-        const notesEl = document.getElementById("project-notes");
-        if (notesEl) notesEl.value = notes[zideProjectUrl] || "";
+    // 2. Load all files metadata for explorer
+    const allMetadata = await FileManager.getAllFilesMetadata();
+    updateSavedFilesList(allMetadata);
 
+    if (file) {
+        zideProjectName = file.name || "Untitled Project";
         if (editor) {
-            const lastCodes = result.last_project_code || {};
             const currentVal = editor.getValue();
-            if (lastCodes[zideProjectUrl] && (!currentVal || currentVal.trim() === "" || currentVal.startsWith("// Start coding"))) {
-                editor.setValue(lastCodes[zideProjectUrl]);
+            if (!currentVal || currentVal.trim() === "" || currentVal.startsWith("// Start coding")) {
+                editor.setValue(file.code);
             }
         }
+    } else {
+        zideProjectName = (window.currentTargetTab && window.currentTargetTab.name) || "Untitled Project";
+    }
 
-        const projectMappings = result.project_mappings || {};
-        interfaceMappings = projectMappings[zideProjectUrl] || {};
-        window.interfaceMappings = interfaceMappings;
-        updateInterfaceMappingsList();
+    window.zideProjectName = zideProjectName;
+    const nameInput = document.getElementById("project-name-input");
+    if (nameInput) nameInput.value = zideProjectName;
+
+    // 3. Load Interfaces
+    const interfaces = await InterfaceManager.getInterfacesByOwner(currentFileId);
+    // Transform to mapping format for ide.js legacy compatibility if needed
+    interfaceMappings = {};
+    interfaces.forEach(i => {
+        interfaceMappings[i.name] = i.structure;
     });
+    window.interfaceMappings = interfaceMappings;
+    updateInterfaceMappingsList();
 }
 
 const bind = (id, event, fn) => {
@@ -269,14 +297,17 @@ function setupEventHandlers() {
     bind('execute-btn', 'click', () => pushToZoho(true, true));
     bind('save-btn', 'click', saveLocally);
 
-    bind('project-name-input', 'input', (e) => {
+    bind('project-name-input', 'input', async (e) => {
         zideProjectName = e.target.value;
-        if (zideProjectUrl) {
-            chrome.storage.local.get(['project_names'], (result) => {
-                const names = result.project_names || {};
-                names[zideProjectUrl] = zideProjectName;
-                chrome.storage.local.set({ 'project_names': names });
-            });
+        window.zideProjectName = zideProjectName;
+        if (currentFileId && currentFileId !== 'global') {
+            const file = await FileManager.getFile(currentFileId);
+            if (file) {
+                file.name = zideProjectName;
+                await FileManager.saveFile(file);
+                const allMetadata = await FileManager.getAllFilesMetadata();
+                updateSavedFilesList(allMetadata);
+            }
         }
     });
 
@@ -779,30 +810,26 @@ function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
     return code;
 }
 
-function saveInterfaceMapping(name, jsonStr) {
+async function saveInterfaceMapping(name, jsonStr) {
     try {
         const obj = JSON.parse(jsonStr);
+
+        const interfaceData = {
+            name: name,
+            structure: obj,
+            ownerId: currentFileId || 'global',
+            ownerType: currentFileId === 'global' ? 'GLOBAL' : 'FILE',
+            sharedScope: 'LOCAL' // Default to local, user can promote later
+        };
+
+        await InterfaceManager.saveInterface(interfaceData);
+
         interfaceMappings[name] = obj;
         window.interfaceMappings = interfaceMappings;
-        saveCurrentMappings();
         updateInterfaceMappingsList();
     } catch (e) {
         console.error("[ZohoIDE] saveInterfaceMapping Error:", e);
         alert('Invalid JSON: ' + e.message);
-    }
-}
-
-function saveCurrentMappings() {
-    if (typeof chrome !== "undefined" && chrome.storage) {
-        if (zideProjectUrl) {
-            chrome.storage.local.get(['project_mappings'], (result) => {
-                const projectMappings = result.project_mappings || {};
-                projectMappings[zideProjectUrl] = interfaceMappings;
-                chrome.storage.local.set({ 'project_mappings': projectMappings });
-            });
-        } else {
-            chrome.storage.local.set({ 'json_mappings': interfaceMappings });
-        }
     }
 }
 
@@ -868,16 +895,21 @@ function updateInterfaceMappingsList() {
         const deleteBtn = document.createElement('span');
         deleteBtn.className = 'delete-mapping material-icons';
         deleteBtn.innerHTML = 'close';
-        deleteBtn.onclick = (e) => {
+        deleteBtn.onclick = async (e) => {
             e.stopPropagation();
             if (confirm(`Delete mapping "${name}"?`)) {
+                const ifaces = await InterfaceManager.getInterfacesByOwner(currentFileId);
+                const iface = ifaces.find(i => i.name === name);
+                if (iface) {
+                    await InterfaceManager.deleteInterface(iface.id);
+                }
+
                 delete interfaceMappings[name];
                 window.interfaceMappings = interfaceMappings;
                 if (window.activeMappingName === name) {
                     window.activeMappingName = null;
                     document.getElementById('interface-tree-view').innerHTML = '<div style="font-size:11px; opacity:0.5; text-align:center; margin-top:20px;">Select a mapping to explore its structure</div>';
                 }
-                saveCurrentMappings();
                 updateInterfaceMappingsList();
             }
         };
@@ -1168,52 +1200,51 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
     }
 }
 
-function saveLocally() {
+async function saveLocally() {
+    if (!currentFileId) return;
+
     // Check for errors
     const markers = monaco.editor.getModelMarkers({ resource: editor.getModel().uri });
     const errors = markers.filter(m => m.severity === monaco.MarkerSeverity.Error);
     if (errors.length > 0) {
-        showStatus('Cloud Sync Paused: Errors', 'warning');
-        // We still allow local storage save but maybe skip cloud sync if it's a hard error
+        showStatus('Sync Warning: Errors present', 'warning');
     }
 
     const code = editor.getValue();
-    const timestamp = new Date().toLocaleString();
-    const title = 'Script ' + new Date().toLocaleTimeString();
-    const source = window.currentTargetTab?.tabTitle || 'Local Editor';
-    const vars = extractVarsFromCode(code);
-    const projectUrl = zideProjectUrl || 'global';
-    // Cloud Sync
-    if (window.activeCloudFileId && typeof CloudService !== 'undefined') {
-        CloudService.saveFile(window.activeCloudFileId, {
-            code: code,
-            interfaceMappings: window.interfaceMappings || {},
-            url: zideProjectUrl
-        }).then(() => {
-            showStatus('Synced to Cloud', 'success');
-        }).catch(err => {
-            console.error('Cloud Sync failed:', err);
-        });
-    }
+    const name = zideProjectName || 'Untitled Project';
 
+    const fileData = {
+        id: currentFileId,
+        name: name,
+        code: code,
+        url: zideProjectUrl || ''
+    };
 
-    if (typeof chrome !== "undefined" && chrome.storage) {
-        chrome.storage.local.get(['saved_files', 'last_project_code'], (result) => {
-            const files = result.saved_files || [];
-            files.unshift({ title, code, timestamp, source, vars, projectUrl });
-            const limitedFiles = files.slice(0, 500);
+    try {
+        await FileManager.saveFile(fileData);
+        log('Success', 'Saved to VFS.');
 
-            const lastCodes = result.last_project_code || {};
-            lastCodes[projectUrl] = code;
+        const allMetadata = await FileManager.getAllFilesMetadata();
+        updateSavedFilesList(allMetadata);
 
-            chrome.storage.local.set({ 'saved_deluge_code': code, 'saved_files': limitedFiles, 'last_project_code': lastCodes }, () => {
-                log('Success', 'Saved to Explorer.');
-                const filtered = limitedFiles.filter(f => f.projectUrl === projectUrl || (!f.projectUrl && projectUrl === 'global'));
-                updateSavedFilesList(filtered);
-                const syncEl = document.getElementById('sync-status');
-                if (syncEl) syncEl.innerText = 'Saved ' + new Date().toLocaleTimeString();
+        const syncEl = document.getElementById('sync-status');
+        if (syncEl) syncEl.innerText = 'Saved ' + new Date().toLocaleTimeString();
+
+        // Cloud Sync (Legacy compatibility)
+        if (window.activeCloudFileId && typeof CloudService !== 'undefined') {
+            CloudService.saveFile(window.activeCloudFileId, {
+                code: code,
+                interfaceMappings: window.interfaceMappings || {},
+                url: zideProjectUrl
+            }).then(() => {
+                showStatus('Synced to Cloud', 'success');
+            }).catch(err => {
+                console.error('Cloud Sync failed:', err);
             });
-        });
+        }
+    } catch (err) {
+        console.error('[ZohoIDE] saveLocally error:', err);
+        log('Error', 'Save failed: ' + err.message);
     }
 }
 
@@ -1228,9 +1259,32 @@ function updateSavedFilesList(files) {
     files.forEach(file => {
         const card = document.createElement('div');
         card.className = 'file-card';
-        const varsText = file.vars && file.vars.length ? `<br>Vars: ${file.vars.slice(0, 3).join(', ')}${file.vars.length > 3 ? '...' : ''}` : '';
-        card.innerHTML = `<div class="file-title">${file.title}</div><div class="file-meta">${file.source} • ${file.timestamp}${varsText}</div>`;
-        card.onclick = () => { if (confirm('Load this saved version?')) { editor.setValue(file.code); } };
+        if (file.id === currentFileId) card.classList.add('active');
+
+        const timestamp = new Date(file.updatedAt).toLocaleString();
+        card.innerHTML = `
+            <div class="file-title">${file.name || 'Untitled'}</div>
+            <div class="file-meta">${file.url.substring(0, 30)}... • ${timestamp}</div>
+            <span class="material-icons file-delete-btn" title="Delete File">delete</span>
+        `;
+
+        const deleteBtn = card.querySelector('.file-delete-btn');
+        deleteBtn.onclick = async (e) => {
+            e.stopPropagation();
+            await handleDeleteFile(file.id, file.name);
+        };
+
+        card.onclick = async () => {
+            if (confirm(`Load file "${file.name}"?`)) {
+                const fullFile = await FileManager.getFile(file.id);
+                if (fullFile) {
+                    currentFileId = file.id;
+                    window.currentFileId = currentFileId;
+                    editor.setValue(fullFile.code);
+                    await loadProjectData();
+                }
+            }
+        };
         list.appendChild(card);
     });
 }
@@ -1499,6 +1553,107 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
     // Expose internal functions to window for Cloud UI
     window.updateInterfaceMappingsList = updateInterfaceMappingsList;
     window.showStatus = showStatus;
+
+    async function performDriftCheck() {
+        if (!currentFileId || currentFileId === 'global' || !isConnected) {
+            updateSyncUI('SYNCED');
+            return;
+        }
+
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+            chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, async (response) => {
+                if (response && response.code) {
+                    const file = await FileManager.getFile(currentFileId);
+                    if (!file) {
+                        updateSyncUI('NEW');
+                        return;
+                    }
+
+                    const domHash = await FileManager.calculateHash(response.code);
+                    if (file.hash === domHash) {
+                        updateSyncUI('SYNCED');
+                    } else {
+                        updateSyncUI('DRIFT', response.code);
+                    }
+                }
+            });
+        }
+    }
+
+    function updateSyncUI(status, domCode = null) {
+        const statusEl = document.getElementById('sync-status');
+        const actionsEl = document.getElementById('sync-actions');
+        const editorContainer = document.getElementById('editor-container');
+
+        if (status === 'SYNCED') {
+            if (statusEl) {
+                statusEl.innerText = 'Synced';
+                statusEl.style.color = 'white';
+            }
+            if (actionsEl) actionsEl.style.display = 'none';
+            if (editorContainer) editorContainer.style.outline = 'none';
+        } else if (status === 'DRIFT') {
+            if (statusEl) {
+                statusEl.innerText = 'Drift Detected';
+                statusEl.style.color = '#ffb86c';
+            }
+            if (actionsEl) actionsEl.style.display = 'flex';
+            if (editorContainer) editorContainer.style.outline = '2px solid #ffb86c';
+            if (editorContainer) editorContainer.style.outlineOffset = '-2px';
+
+            const pullBtn = document.getElementById('resolve-pull-btn');
+            const pushBtn = document.getElementById('resolve-push-btn');
+
+            if (pullBtn) {
+                pullBtn.onclick = async () => {
+                    if (confirm('Overwrite local code with latest from Zoho?')) {
+                        editor.setValue(domCode);
+                        await saveLocally();
+                        updateSyncUI('SYNCED');
+                    }
+                };
+            }
+            if (pushBtn) {
+                pushBtn.onclick = async () => {
+                    if (confirm('Overwrite Zoho with local code?')) {
+                        await pushToZoho(true);
+                        updateSyncUI('SYNCED');
+                    }
+                };
+            }
+        } else if (status === 'NEW') {
+            if (statusEl) {
+                statusEl.innerText = 'Offline Mode';
+                statusEl.style.color = '#888';
+            }
+            if (actionsEl) actionsEl.style.display = 'none';
+            if (editorContainer) editorContainer.style.outline = 'none';
+        }
+    }
+
+    window.performDriftCheck = performDriftCheck;
+
+    async function handleDeleteFile(fileId, fileName) {
+        const sharedIfaces = await InterfaceManager.getSharedInterfacesByFile(fileId);
+        if (sharedIfaces.length > 0) {
+            const ifaceNames = sharedIfaces.map(i => i.name).join(', ');
+            if (confirm(`File "${fileName}" owns shared interfaces (${ifaceNames}). Promote them to Global level before deleting?`)) {
+                await InterfaceManager.adoptInterfaces(sharedIfaces.map(i => i.id), 'global', 'GLOBAL');
+            } else if (!confirm('Are you sure you want to delete the file and all its interfaces?')) {
+                return;
+            }
+        } else {
+            if (!confirm(`Delete file "${fileName}"?`)) return;
+        }
+
+        await FileManager.deleteFile(fileId);
+        if (currentFileId === fileId) {
+            currentFileId = 'global';
+            window.currentFileId = currentFileId;
+            editor.setValue('// Start coding in Zoho Deluge...\n\n');
+        }
+        await loadProjectData();
+    }
 
     function syncProblemsPanel() {
         const list = document.getElementById('problems-list');

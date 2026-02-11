@@ -33,6 +33,7 @@ require(['vs/editor/editor.main'], async function() {
         const originalDefine = window.define;
         window.define = undefined;
 
+        await loadScript('assets/dexie.min.js');
         await loadScript('assets/firebase-app-compat.js');
         await loadScript('assets/firebase-auth-compat.js');
         await loadScript('assets/firebase-firestore-compat.js');

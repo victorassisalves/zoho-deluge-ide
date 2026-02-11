@@ -66,14 +66,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let targetTabId = isSidePanel ? sender.tab.id : null;
 
     if (request.action === 'CHECK_CONNECTION') {
-        if (targetTabId) {
-            chrome.tabs.get(targetTabId, (tab) => sendResponse({ connected: true, tabTitle: tab.title, url: tab.url }));
-        } else {
-            findZohoTab((tab) => {
-                if (tab) sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone: true });
-                else sendResponse({ connected: false });
+        const handleCheck = (tabId, isStandalone) => {
+            // Ask the tab for metadata
+            chrome.tabs.sendMessage(tabId, { action: 'GET_METADATA' }, (response) => {
+                if (chrome.runtime.lastError || !response) {
+                    chrome.tabs.get(tabId, tab => {
+                        sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone });
+                    });
+                } else {
+                    sendResponse({ connected: true, ...response, isStandalone });
+                }
             });
-        }
+        };
+
+        if (targetTabId) handleCheck(targetTabId, false);
+        else findZohoTab(tab => {
+            if (tab) handleCheck(tab.id, true);
+            else sendResponse({ connected: false });
+        });
         return true;
     }
 
@@ -154,6 +164,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sourceTabId: sender.tab ? sender.tab.id : null
         });
     }
+
+    if (request.action === 'ZOHO_TAB_FOCUS') {
+        if (sender.tab) {
+            broadcastToIDE({ action: 'CONTEXT_SWITCH', tabId: sender.tab.id, url: sender.tab.url });
+        }
+    }
 });
 
 function findZohoTab(callback) {
@@ -172,3 +188,18 @@ function isZohoUrl(url) {
     const domains = ["zoho.com", "zoho.eu", "zoho.in", "zoho.com.au", "zoho.jp", "zoho.ca", "zoho.uk", "zoho.com.cn"];
     return domains.some(d => url.includes(d));
 }
+
+// Multi-Tab Hygiene: Event-driven context switching
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    chrome.tabs.get(activeInfo.tabId, (tab) => {
+        if (tab && isZohoUrl(tab.url)) {
+            broadcastToIDE({ action: 'CONTEXT_SWITCH', tabId: activeInfo.tabId, url: tab.url });
+        }
+    });
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && isZohoUrl(tab.url)) {
+        broadcastToIDE({ action: 'CONTEXT_SWITCH', tabId: tabId, url: tab.url });
+    }
+});

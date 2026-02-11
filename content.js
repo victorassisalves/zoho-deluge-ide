@@ -17,6 +17,11 @@ function injectBridge() {
 // Initial injection
 injectBridge();
 
+// Multi-Tab Hygiene: Notify focus
+window.addEventListener('focus', () => {
+    chrome.runtime.sendMessage({ action: 'ZOHO_TAB_FOCUS' });
+});
+
 // Retry injection if needed
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', injectBridge);

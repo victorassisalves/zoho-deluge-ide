@@ -212,6 +212,49 @@
         return false;
     }
 
+    const Metadata = {
+        extract: () => {
+            const url = window.location.href;
+            const meta = {
+                url: url,
+                product: 'generic',
+                orgId: 'unknown',
+                functionId: 'unknown',
+                system: 'unknown',
+                name: document.title || 'Untitled'
+            };
+
+            if (url.includes('crm.zoho')) {
+                meta.product = 'crm';
+                meta.system = 'CRM';
+            } else if (url.includes('creator.zoho')) {
+                meta.product = 'creator';
+                meta.system = 'Creator';
+            } else if (url.includes('flow.zoho')) {
+                meta.product = 'flow';
+                meta.system = 'Flow';
+            }
+
+            const orgMatch = url.match(/\/org\/([0-9]+)/);
+            if (orgMatch) meta.orgId = orgMatch[1];
+            else if (window.ZCRMSession && window.ZCRMSession.orgId) meta.orgId = window.ZCRMSession.orgId;
+
+            const funcMatch = url.match(/\/(edit|workflow|function|script)\/([0-9a-zA-Z_-]+)/) || url.match(/#workflow:([0-9a-zA-Z_-]+)/);
+            if (funcMatch) meta.functionId = funcMatch[2];
+
+            const idInput = document.querySelector('input[name="id"], input[id*="scriptId"], [data-id]');
+            if ((!meta.functionId || meta.functionId === 'unknown') && idInput) {
+                meta.functionId = idInput.value || idInput.getAttribute('data-id');
+            }
+
+            // Extract name from UI if possible
+            const nameEl = document.querySelector('.script-name, #scriptName, [data-zcqa="functionName"]');
+            if (nameEl) meta.name = nameEl.innerText || nameEl.value;
+
+            return meta;
+        }
+    };
+
     log('Bridge initialized in frame:', window.location.href);
 
     window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
@@ -257,6 +300,9 @@
         } else if (action === 'EXECUTE_ZOHO_CODE') {
             log('EXECUTE_ZOHO_CODE requested');
             response = { success: triggerAction('execute') };
+        } else if (action === 'GET_METADATA') {
+            log('GET_METADATA requested');
+            response = Metadata.extract();
         } else if (action === 'PING') {
             response = { status: 'PONG' };
         }

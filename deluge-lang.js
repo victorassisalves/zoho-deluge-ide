@@ -230,7 +230,7 @@
 
         monaco.languages.registerCompletionItemProvider('deluge', {
             triggerCharacters: ['.', '"', "'", '/'],
-            provideCompletionItems: (model, position) => {
+            provideCompletionItems: async (model, position) => {
                 const lineUntilPos = model.getValueInRange({
                     startLineNumber: position.lineNumber,
                     startColumn: 1,
@@ -264,8 +264,25 @@
                     let mappingName = (varInfo && typeof varInfo === 'object' && varInfo.mapping) ? varInfo.mapping : (mappings[varName] ? varName : null);
                     let initialPath = (varInfo && typeof varInfo === 'object' && varInfo.path) ? varInfo.path : [];
 
-                    if (mappingName && mappings[mappingName]) {
-                        let currentObj = mappings[mappingName];
+                    let currentObj = null;
+
+                    if (mappingName) {
+                        // Check memory-cached mappings first
+                        if (mappings[mappingName]) {
+                            currentObj = mappings[mappingName];
+                        } else if (window.InterfaceManager && window.currentFileId) {
+                            // Fallback to async InterfaceManager
+                            const iface = await window.InterfaceManager.resolveInterface(mappingName, window.currentFileId);
+                            if (iface) {
+                                currentObj = iface.structure;
+                                // Cache it in window for subsequent sync hits
+                                if (!window.interfaceMappings) window.interfaceMappings = {};
+                                window.interfaceMappings[mappingName] = currentObj;
+                            }
+                        }
+                    }
+
+                    if (currentObj) {
                         for (const p of initialPath) {
                             if (currentObj) currentObj = currentObj[p];
                         }
@@ -480,10 +497,19 @@
                 'now': { type: 'DateTime' }
             };
 
-            // 0. Interface Mappings
+            // 0. Interface Mappings from // @type annotations
+            const typeAnnotationRegex = /\/\/\s*@type\s+([a-zA-Z_]\w*)\s*:\s*([a-zA-Z_]\w*)/g;
+            let match;
+            while ((match = typeAnnotationRegex.exec(code)) !== null) {
+                const varName = match[1];
+                const interfaceName = match[2];
+                varMap[varName] = { type: 'Map', mapping: interfaceName, path: [] };
+            }
+
+            // 1. Implicit Interface Mappings (legacy fallback)
             if (window.interfaceMappings) {
                 for (const name in window.interfaceMappings) {
-                    varMap[name] = { type: 'Map', mapping: name, path: [] };
+                    if (!varMap[name]) varMap[name] = { type: 'Map', mapping: name, path: [] };
                 }
             }
 
