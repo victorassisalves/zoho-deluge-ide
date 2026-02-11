@@ -1734,6 +1734,7 @@ html.sidepanel-mode .resizer {
 }
 
 .status-dot.active { background-color: #4ec9b0; }
+.status-dot.modified { background-color: #ffb86c; }
 .status-dot.offline { background-color: #888; }
 
 .system-icon {

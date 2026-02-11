@@ -156,6 +156,10 @@
                 if (titleName.toLowerCase().includes("zoho creator")) titleName = null;
 
                 let functionId = (appName ? appName + ":" : "") + (window.location.hash || 'unknown');
+                if (functionId.endsWith('unknown')) {
+                    const workflowId = document.querySelector('[data-workflowid], [data-id]')?.getAttribute('data-workflowid') || document.querySelector('[data-id]')?.getAttribute('data-id');
+                    if (workflowId) functionId = (appName ? appName + ":" : "") + workflowId;
+                }
                 if (functionId.endsWith('unknown') && codeName) {
                     functionId = (appName ? appName + ":" : "") + 'name:' + codeName;
                 }
@@ -188,11 +192,12 @@
                 let titleName = document.title.replace(/Zoho CRM - |Functions - |Zoho - |CRM - /g, '').replace(/-/g, '').trim();
                 if (titleName === "" || titleName === "Zoho CRM") titleName = null;
 
-                let functionId = urlParams.get('id') || window.location.href.match(/edit\/(\d+)/)?.[1] || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown';
+                let functionId = urlParams.get('id') || urlParams.get('wfId') || window.location.href.match(/edit\/(\d+)/)?.[1] || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown';
                 if (functionId === 'unknown') {
-                    const scriptEl = document.querySelector('[id*="scriptId"], [name*="scriptId"], input[name="id"]');
+                    const scriptEl = document.querySelector('[id*="scriptId"], [name*="scriptId"], input[name="id"], input#id, input#funcId');
                     if (scriptEl) functionId = scriptEl.value || scriptEl.innerText;
                 }
+                if (functionId === 'unknown' && window.ZCRMSession?.functionId) functionId = window.ZCRMSession.functionId;
 
                 // Advanced Name Detection
                 const nameSelectors = [
