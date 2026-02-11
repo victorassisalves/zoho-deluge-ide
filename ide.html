@@ -30,6 +30,7 @@
                 <div class="sidebar-item" data-view="ai-agent" title="AI Agent"><span class="material-icons">psychology</span></div>
                 <div class="sidebar-item" data-view="zoho-apis" title="Zoho APIs"><span class="material-icons">api</span></div>
                 <div class="sidebar-item" data-view="snippets" title="Snippets"><span class="material-icons">description</span></div>
+                <div class="sidebar-item" data-view="my-snippets" title="My Snippets"><span class="material-icons">bookmarks</span></div>
                 <div class="sidebar-item" data-view="extensions" title="Extensions" style="display: none;"><span class="material-icons">extension</span></div>
                 <div class="sidebar-item" data-view="settings" title="Settings"><span class="material-icons">settings</span></div>
             </aside>
@@ -259,6 +260,24 @@
 </div>
                 </div>
 
+                <!-- My Snippets View -->
+                <div id="view-my-snippets" class="view-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h4>My Snippets</h4>
+                        <div style="display:flex; gap:5px;">
+                            <button id="add-my-snippet-btn" class="mini-btn" title="Add Snippet" style="background:#007acc; width:24px; height:24px;"><span class="material-icons" style="font-size:16px;">add</span></button>
+                            <button id="export-snippets-btn" class="mini-btn" title="Export Snippets" style="background:#444; width:24px; height:24px;"><span class="material-icons" style="font-size:16px;">file_download</span></button>
+                            <button id="import-snippets-btn" class="mini-btn" title="Import Snippets" style="background:#444; width:24px; height:24px;"><span class="material-icons" style="font-size:16px;">file_upload</span></button>
+                        </div>
+                    </div>
+                    <div class="search-container" style="margin-bottom:10px;">
+                        <input type="text" id="my-snippets-search" placeholder="Search snippets..." style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px; font-size:12px;">
+                    </div>
+                    <div id="my-snippets-list" class="snippets-container">
+                        <div style="font-size:11px; opacity:0.5; text-align:center; margin-top:20px;">No snippets found. Click the + icon to add your first snippet.</div>
+                    </div>
+                </div>
+
                 <!-- Extensions View -->
                 <div id="view-extensions" class="view-content" style="display: none;">
                     <h4>Extensions</h4>
@@ -444,7 +463,45 @@
         </div>
     </div>
 
+    <!-- Snippet Management Modal -->
+    <div id="snippet-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="snippet-modal-title">Add Snippet</h3>
+                <span id="snippet-modal-close" class="material-icons" style="cursor:pointer; opacity:0.6;">close</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Snippet Name:</label>
+                    <input type="text" id="snippet-name" placeholder="e.g. My Custom Loop">
+                </div>
+                <div class="input-group">
+                    <label>Trigger Name (trigger via /name):</label>
+                    <input type="text" id="snippet-trigger" placeholder="e.g. myloop">
+                </div>
+                <div class="input-group">
+                    <label>Category:</label>
+                    <input type="text" id="snippet-category" placeholder="e.g. Loops" list="category-list">
+                    <datalist id="category-list"></datalist>
+                </div>
+                <div class="input-group">
+                    <label>Code (Supports ${1:placeholder}):</label>
+                    <textarea id="snippet-code" style="height:150px; font-family: 'Cascadia Code', 'Fira Code', monospace;" placeholder="for each item in list\n{\n\t$0\n}"></textarea>
+                </div>
+                <div class="input-group">
+                    <label>Comments:</label>
+                    <input type="text" id="snippet-comments" placeholder="Optional notes about this snippet">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="snippet-modal-cancel" class="text-btn">Cancel</button>
+                <button id="snippet-modal-save" class="primary-btn">Save Snippet</button>
+            </div>
+        </div>
+    </div>
+
     <script src="assets/monaco-editor/min/vs/loader.js"></script>
+    <script src="my_snippets.js"></script>
     <script src="loader-init.js"></script>
 </body>
 </html>
