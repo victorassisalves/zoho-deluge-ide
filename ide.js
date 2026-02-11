@@ -38,7 +38,6 @@ function initEditor() {
             base: 'vs-dark',
             inherit: true,
             rules: [
-                { token: '', foreground: 'f8f8f2' },
                 { token: 'comment', foreground: '6272a4' },
                 { token: 'keyword', foreground: 'ff79c6' },
                 { token: 'number', foreground: 'bd93f9' },
@@ -46,6 +45,7 @@ function initEditor() {
                 { token: 'delimiter', foreground: 'f8f8f2' },
                 { token: 'operator', foreground: 'ff79c6' },
                 { token: 'identifier', foreground: 'f8f8f2' },
+                { token: 'variable', foreground: 'f8f8f2' },
                 { token: 'type', foreground: '8be9fd', fontStyle: 'italic' },
                 { token: 'function', foreground: '50fa7b' },
                 { token: 'method', foreground: '50fa7b' },
@@ -154,6 +154,7 @@ function initEditor() {
                 chrome.storage.local.set({ 'saved_deluge_code': code });
             }
             if (window.validateDelugeModel) window.validateDelugeModel(model);
+        renderOpenEditors();
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
@@ -321,6 +322,7 @@ async function loadProjectData() {
     updateInterfaceMappingsList();
 
     renderTabs();
+    renderOpenEditors();
     performDriftCheck();
 }
 
@@ -349,12 +351,47 @@ function renderTabs() {
             await loadProjectData();
         };
 
-        tabEl.querySelector('.tab-close').onclick = (e) => {
-            e.stopPropagation();
-            closeTab(tab.id);
-        };
+        const closeBtn = tabEl.querySelector('.tab-close');
+        if (closeBtn) {
+            closeBtn.onclick = (e) => {
+                e.stopPropagation();
+                closeTab(tab.id);
+            };
+        }
 
         container.appendChild(tabEl);
+    });
+    renderOpenEditors();
+}
+
+function renderOpenEditors() {
+    const list = document.getElementById('open-editors-list');
+    const countEl = document.getElementById('open-editors-count');
+    if (!list) return;
+
+    list.innerHTML = '';
+    if (countEl) countEl.innerText = AppState.activeTabs.length;
+
+    AppState.activeTabs.forEach(tab => {
+        const item = document.createElement('div');
+        item.className = 'file-card' + (tab.id === currentFileId ? ' active' : '');
+
+        const state = AppState.models[tab.id];
+        const isModified = state && state.model.getValue() !== state.originalCode;
+        const statusIcon = isModified ? '<span style="color:#ffb86c; font-size:14px; margin-right:5px;">●</span>' : '';
+
+        item.innerHTML = `
+            <div class="file-title">${statusIcon}${tab.name}</div>
+            <div class="file-meta">Open Editor</div>
+        `;
+
+        item.onclick = async () => {
+            currentFileId = tab.id;
+            window.currentFileId = currentFileId;
+            await loadProjectData();
+        };
+
+        list.appendChild(item);
     });
 }
 

@@ -37,9 +37,15 @@
             <div id="left-panel-content" class="sidebar-panel">
                 <!-- Explorer View -->
                 <div id="view-explorer" class="view-content active">
-                    <h4>Explorer</h4>
-                    <div id="saved-files-list">
-                        <div class="log-entry" style="font-size:11px; opacity:0.6;">No saved files yet.</div>
+                    <div class="explorer-section">
+                        <h4 class="section-header">Open Editors <span id="open-editors-count" class="badge">0</span></h4>
+                        <div id="open-editors-list" class="explorer-list"></div>
+                    </div>
+                    <div class="explorer-section" style="margin-top: 20px;">
+                        <h4 class="section-header">Saved Files</h4>
+                        <div id="saved-files-list" class="explorer-list">
+                            <div class="log-entry" style="font-size:11px; opacity:0.6;">No saved files yet.</div>
+                        </div>
                     </div>
                 </div>
 

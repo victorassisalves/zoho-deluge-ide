@@ -645,6 +645,22 @@ html.sidepanel-mode .status-right {
     background: #37373d;
 }
 
+.section-header {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.explorer-list {
+    display: flex;
+    flex-direction: column;
+}
+
 .file-card .file-title {
     font-weight: bold;
     margin-bottom: 4px;

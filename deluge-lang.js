@@ -32,7 +32,17 @@
         });
 
 
+        console.log('[ZohoIDE] Registering Deluge tokenizer');
         monaco.languages.setMonarchTokensProvider('deluge', {
+            keywords: [
+                'if', 'else', 'for', 'each', 'in', 'return', 'info', 'true', 'false', 'null',
+                'break', 'continue', 'try', 'catch', 'finally', 'throw', 'void', 'string',
+                'int', 'decimal', 'boolean', 'map', 'list', 'collection',
+                'GET', 'POST', 'PUT', 'DELETE', 'PATCH'
+            ],
+            typeKeywords: [
+                'zoho', 'thisapp', 'standalone', 'input'
+            ],
             tokenizer: {
                 root: [
                     // Comments
@@ -48,9 +58,8 @@
                     // Identifiers and Keywords
                     [/[a-zA-Z_$][\w$]*/, {
                         cases: {
-                            'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|void|string|int|decimal|boolean|map|list|collection': 'keyword',
-                            'GET|POST|PUT|DELETE|PATCH': 'keyword',
-                            'zoho|thisapp|standalone|input': 'type',
+                            '@keywords': 'keyword',
+                            '@typeKeywords': 'type',
                             'invokeurl': 'identifier',
                             '@default': 'variable'
                         }
