@@ -146,8 +146,9 @@
             execute: ['input#executeFuncBtn', 'input[elename="executeFunction"]', 'lyte-button[data-zcqa="execute"]', '.zc-execute-btn', 'button.run-btn'],
             getMetadata: () => {
                 const pathParts = window.location.pathname.split('/');
-                const ownerName = window.ZCApp?.ownerName || pathParts[1];
-                const appName = window.ZCApp?.appName || pathParts[2];
+                let appIdx = pathParts.indexOf('app');
+                const ownerName = window.ZCApp?.ownerName || (appIdx !== -1 ? pathParts[appIdx-1] : pathParts[1]);
+                const appName = window.ZCApp?.appName || (appIdx !== -1 ? pathParts[appIdx+1] : pathParts[2]);
                 const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
                 const codeName = extractNameFromCode(code);
 
@@ -178,17 +179,18 @@
                 const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
                 const codeName = extractNameFromCode(code);
 
-                let orgName = window.ZCRMSession?.orgId || 'global';
-                if (pathParts[1] === 'crm' && pathParts[2] && pathParts[2] !== 'org' && isNaN(pathParts[2])) {
-                    orgName = pathParts[2];
+                let orgName = window.ZCRMSession?.orgName || window.ZCRMSession?.orgId || 'global';
+                if (pathParts[1] === 'crm') {
+                    if (pathParts[2] && pathParts[2] !== 'org') orgName = pathParts[2];
+                    else if (pathParts[2] === 'org' && pathParts[3]) orgName = pathParts[3];
                 }
 
                 let titleName = document.title.replace(/Zoho CRM - |Functions - |Zoho - |CRM - /g, '').replace(/-/g, '').trim();
                 if (titleName === "" || titleName === "Zoho CRM") titleName = null;
 
-                let functionId = urlParams.get('id') || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown';
+                let functionId = urlParams.get('id') || window.location.href.match(/edit\/(\d+)/)?.[1] || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown';
                 if (functionId === 'unknown') {
-                    const scriptEl = document.querySelector('[id*="scriptId"], [name*="scriptId"]');
+                    const scriptEl = document.querySelector('[id*="scriptId"], [name*="scriptId"], input[name="id"]');
                     if (scriptEl) functionId = scriptEl.value || scriptEl.innerText;
                 }
 

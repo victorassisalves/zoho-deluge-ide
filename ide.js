@@ -287,11 +287,17 @@ function renderOpenEditors() {
     });
 }
 
+function getRenameKey(metadata) {
+    if (!metadata) return 'unknown';
+    // Use functionId if available, otherwise fallback to URL for uniqueness
+    const id = (metadata.functionId && metadata.functionId !== 'unknown') ? metadata.functionId : (metadata.url || 'global');
+    return `${metadata.orgId}:${metadata.system}:${id}`;
+}
+
 function getDisplayName(metadata) {
     if (!metadata) return 'Untitled';
     const renames = AppState.renames || {};
-    // Folder is omitted from key to make renames more stable across view changes
-    const key = `${metadata.orgId}:${metadata.system}:${metadata.functionId}`;
+    const key = getRenameKey(metadata);
     let name = renames[key] || metadata.functionName || metadata.title || 'Untitled';
 
     const cleaners = [
@@ -321,7 +327,7 @@ function renameFunction(metadata) {
     const currentName = getDisplayName(metadata);
     const newName = prompt('Rename function:', currentName);
     if (newName && newName !== currentName) {
-        const key = `${metadata.orgId}:${metadata.system}:${metadata.functionId}`;
+        const key = getRenameKey(metadata);
         AppState.renames[key] = newName;
         if (typeof chrome !== "undefined" && chrome.storage) {
             chrome.storage.local.set({ 'user_renames': AppState.renames }, () => {

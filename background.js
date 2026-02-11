@@ -249,14 +249,35 @@ function getOrgFromUrl(url) {
     try {
         const u = new URL(url);
         const parts = u.pathname.split('/');
-        if (u.host.includes('crm') && parts[1] === 'crm' && parts[2] && parts[2] !== 'org' && isNaN(parts[2])) {
-            return parts[2];
+
+        if (u.host.includes('crm')) {
+            // Patterns: /crm/MyClient/..., /crm/org123/..., /crm/org/MyClient/...
+            if (parts[1] === 'crm') {
+                if (parts[2] && parts[2] !== 'org') return parts[2];
+                if (parts[2] === 'org' && parts[3]) return parts[3];
+            }
         }
-        if (u.host.includes('creator') && parts[1] === 'app' && parts[2]) {
-            return parts[2];
+
+        if (u.host.includes('creator')) {
+            // Patterns: /admin/app/AppName, /builder/app/AppName, /owner/AppName
+            let appIdx = parts.indexOf('app');
+            if (appIdx !== -1 && parts[appIdx+1]) return parts[appIdx+1];
+
+            // Fallback for /owner/AppName
+            if (parts[1] && !['admin', 'builder', 'zp'].includes(parts[1])) {
+                return parts[2] || parts[1];
+            }
         }
-        return u.host.split('.')[0];
-    } catch(e) { return null; }
+
+        if (u.host.includes('flow')) {
+            if (parts[1] === 'flow' && parts[2] && isNaN(parts[2])) return parts[2];
+        }
+
+        const sub = u.host.split('.')[0];
+        if (sub && !['www', 'app', 'creator', 'crm', 'flow', 'books'].includes(sub)) return sub;
+
+        return sub || 'Zoho';
+    } catch(e) { return 'Zoho'; }
 }
 
 async function getTabMetadata(tabId) {
