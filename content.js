@@ -62,9 +62,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Timeout if no response
         setTimeout(() => {
             window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
-            // Don't sendResponse here to avoid duplicate or late responses,
-            // the original sendResponse might still be valid if it hasn't timed out.
-        }, 5000);
+            try {
+                sendResponse({ error: 'Bridge timeout' });
+            } catch (e) {
+                // Channel might be closed
+            }
+        }, 2000);
 
         return true; // Keep channel open
     }

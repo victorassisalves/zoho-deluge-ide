@@ -227,15 +227,20 @@ async function getAllZohoTabs(callback) {
 }
 
 async function getTabMetadata(tabId) {
+    const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms));
+
     try {
-        const results = await chrome.scripting.executeScript({
-            target: { tabId: tabId, allFrames: true },
-            world: 'MAIN',
-            func: () => {
-                const hasEditor = !!(window.monaco?.editor || window.ace?.edit || document.querySelector('.ace_editor, .zace-editor, lyte-ace-editor, .CodeMirror, [id*="delugeEditor"]'));
-                return hasEditor;
-            }
-        });
+        const results = await Promise.race([
+            chrome.scripting.executeScript({
+                target: { tabId: tabId, allFrames: true },
+                world: 'MAIN',
+                func: () => {
+                    const hasEditor = !!(window.monaco?.editor || window.ace?.edit || document.querySelector('.ace_editor, .zace-editor, lyte-ace-editor, .CodeMirror, [id*="delugeEditor"]'));
+                    return hasEditor;
+                }
+            }),
+            timeout(1500)
+        ]);
 
         const editorFrames = results.filter(r => r.result);
         if (editorFrames.length === 0) return null;
@@ -243,16 +248,23 @@ async function getTabMetadata(tabId) {
         // Try to get metadata from the first frame that has an editor
         for (const frame of editorFrames) {
             try {
-                const meta = await new Promise((resolve, reject) => {
-                    chrome.tabs.sendMessage(tabId, { action: 'GET_ZOHO_METADATA' }, { frameId: frame.frameId }, (res) => {
-                        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-                        else resolve(res);
-                    });
-                });
+                const meta = await Promise.race([
+                    new Promise((resolve, reject) => {
+                        chrome.tabs.sendMessage(tabId, { action: 'GET_ZOHO_METADATA' }, { frameId: frame.frameId }, (res) => {
+                            if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+                            else resolve(res);
+                        });
+                    }),
+                    timeout(1500)
+                ]);
                 if (meta && meta.system) return meta;
-            } catch (e) {}
+            } catch (e) {
+                console.warn(`[ZohoIDE] Meta fetch failed for tab ${tabId} frame ${frame.frameId}:`, e.message);
+            }
         }
-    } catch (e) {}
+    } catch (e) {
+        console.warn(`[ZohoIDE] Metadata extraction timed out for tab ${tabId}:`, e.message);
+    }
     return null;
 }
 
