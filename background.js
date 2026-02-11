@@ -66,23 +66,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let targetTabId = isSidePanel ? sender.tab.id : null;
 
     if (request.action === 'CHECK_CONNECTION') {
-        const handleCheck = (tabId, isStandalone) => {
-            // Ask the tab for metadata
-            chrome.tabs.sendMessage(tabId, { action: 'GET_METADATA' }, (response) => {
-                if (chrome.runtime.lastError || !response) {
-                    chrome.tabs.get(tabId, tab => {
-                        sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone });
-                    });
-                } else {
-                    sendResponse({ connected: true, ...response, isStandalone });
-                }
+        const getTabMetadata = (tab) => {
+            return new Promise((resolve) => {
+                chrome.tabs.sendMessage(tab.id, { action: 'GET_METADATA' }, (response) => {
+                    if (chrome.runtime.lastError || !response) {
+                        resolve({ id: tab.id, connected: true, tabTitle: tab.title, url: tab.url });
+                    } else {
+                        resolve({ id: tab.id, connected: true, ...response });
+                    }
+                });
             });
         };
 
-        if (targetTabId) handleCheck(targetTabId, false);
-        else findZohoTab(tab => {
-            if (tab) handleCheck(tab.id, true);
-            else sendResponse({ connected: false });
+        chrome.tabs.query({}, async (tabs) => {
+            const zohoTabs = tabs.filter(t => isZohoUrl(t.url));
+            const metadataPromises = zohoTabs.map(t => getTabMetadata(t));
+            const allMetadata = await Promise.all(metadataPromises);
+
+            // Determine active tab info for backward compatibility
+            let activeTabInfo = null;
+            if (targetTabId) {
+                activeTabInfo = allMetadata.find(m => m.id === targetTabId);
+            } else {
+                const activeTab = zohoTabs.find(t => t.active);
+                if (activeTab) activeTabInfo = allMetadata.find(m => m.id === activeTab.id);
+                else if (allMetadata.length > 0) activeTabInfo = allMetadata[0];
+            }
+
+            sendResponse({
+                connected: !!activeTabInfo,
+                ...activeTabInfo,
+                allOnlineTabs: allMetadata
+            });
         });
         return true;
     }
@@ -100,6 +115,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.action === 'GET_ZOHO_CODE' || request.action === 'SET_ZOHO_CODE' || request.action === 'SAVE_ZOHO_CODE' || request.action === 'EXECUTE_ZOHO_CODE') {
         const handleAction = async (tabId) => {
+            // Level 3 Blacklist Check
+            const isBlacklisted = await checkBlacklist(tabId);
+            if (isBlacklisted) {
+                sendResponse({ error: 'Tab is blacklisted (No Follow mode active)' });
+                return;
+            }
+
             lastZohoTabId = tabId;
             try {
                 const results = await chrome.scripting.executeScript({
@@ -189,17 +211,85 @@ function isZohoUrl(url) {
     return domains.some(d => url.includes(d));
 }
 
+// 500ms Debounced Scraper
+let scraperTimeout = null;
+
+async function debouncedScrape(tabId, url) {
+    if (scraperTimeout) clearTimeout(scraperTimeout);
+    scraperTimeout = setTimeout(async () => {
+        console.log('[ZohoIDE] Running debounced scraper for tab:', tabId);
+
+        // Level 3: Blacklist Check
+        const isBlacklisted = await checkBlacklist(tabId);
+        if (isBlacklisted) {
+            console.log('[ZohoIDE] Tab is blacklisted (No Follow). Stopping.');
+            return;
+        }
+
+        broadcastToIDE({ action: 'CONTEXT_SWITCH', tabId: tabId, url: url });
+    }, 500);
+}
+
+// Access IndexedDB from Background
+async function checkBlacklist(tabId) {
+    // Check URL first (Level 2/3) to avoid messaging tab if possible
+    const tab = await new Promise(r => chrome.tabs.get(tabId, r));
+    if (tab && tab.url) {
+        if (await isIdBlacklisted(tab.url)) return true;
+    }
+
+    // We might not have the stable ID yet, so we ask the tab for its metadata
+    return new Promise((resolve) => {
+        chrome.tabs.sendMessage(tabId, { action: 'GET_METADATA' }, async (response) => {
+            if (chrome.runtime.lastError || !response) {
+                // Fallback to URL check if metadata fails
+                chrome.tabs.get(tabId, async (tab) => {
+                    if (!tab) return resolve(false);
+                    const isUrlBlacklisted = await isIdBlacklisted(tab.url);
+                    resolve(isUrlBlacklisted);
+                });
+                return;
+            }
+
+            let stableId = "global";
+            if (response.orgId && response.system && response.functionId && response.orgId !== 'unknown' && response.functionId !== 'unknown') {
+                stableId = `${response.orgId}:${response.system}:${response.functionId}`;
+            } else {
+                stableId = response.url || "global";
+            }
+
+            const blacklisted = await isIdBlacklisted(stableId);
+            resolve(blacklisted);
+        });
+    });
+}
+
+// Since Dexie might not be easily available in Service Worker without bundling,
+// we'll use raw IndexedDB or message the IDE to check.
+// Better yet, let's use chrome.storage.local for the blacklist to keep it simple and fast across contexts.
+// The user asked for IndexedDB via Dexie for persistence, but for Level 3 filtering, speed is key.
+// I'll keep the blacklist in chrome.storage.local as well for fast access in background/content scripts.
+
+async function isIdBlacklisted(id) {
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['zide_blacklist'], (result) => {
+            const blacklist = result.zide_blacklist || [];
+            resolve(blacklist.includes(id));
+        });
+    });
+}
+
 // Multi-Tab Hygiene: Event-driven context switching
 chrome.tabs.onActivated.addListener((activeInfo) => {
     chrome.tabs.get(activeInfo.tabId, (tab) => {
         if (tab && isZohoUrl(tab.url)) {
-            broadcastToIDE({ action: 'CONTEXT_SWITCH', tabId: activeInfo.tabId, url: tab.url });
+            debouncedScrape(activeInfo.tabId, tab.url);
         }
     });
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && isZohoUrl(tab.url)) {
-        broadcastToIDE({ action: 'CONTEXT_SWITCH', tabId: tabId, url: tab.url });
+        debouncedScrape(tabId, tab.url);
     }
 });

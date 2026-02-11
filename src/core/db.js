@@ -11,7 +11,8 @@
     db.version(1).stores({
         files: 'id, name, url, updatedAt, projectId, hash',
         interfaces: 'id, name, ownerId, ownerType, sharedScope',
-        history: '++id, fileId, timestamp, trigger'
+        history: '++id, fileId, timestamp, trigger',
+        blacklist: 'id' // id will be functionId or url
     });
 
     window.ideDB = db;

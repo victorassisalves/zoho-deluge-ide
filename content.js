@@ -2,7 +2,20 @@
 console.log('[ZohoIDE] Content script loaded');
 
 // 1. Inject the modular bridge
-function injectBridge() {
+async function injectBridge() {
+    // Level 2: Regex Check (Efficiency)
+    const domains = ["zoho.com", "zoho.eu", "zoho.in", "zoho.com.au", "zoho.jp", "zoho.ca", "zoho.uk", "zoho.com.cn"];
+    const isZoho = domains.some(d => window.location.href.includes(d));
+    if (!isZoho) return;
+
+    // Level 3: Blacklist Check
+    const result = await chrome.storage.local.get(['zide_blacklist']);
+    const blacklist = result.zide_blacklist || [];
+    if (blacklist.includes(window.location.href)) {
+        console.log('[ZohoIDE] URL blacklisted. Skipping injection.');
+        return;
+    }
+
     if (document.getElementById('zoho-deluge-bridge-modular')) return;
     const s = document.createElement('script');
     s.id = 'zoho-deluge-bridge-modular';

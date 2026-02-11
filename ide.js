@@ -17,9 +17,12 @@ var researchPollingInterval = null;
 var lastActionTime = 0;
 
 var AppState = {
-    activeTabs: [], // { id, name, model, originalCode }
+    activeTabs: [], // { id, name, isModified }
     models: {}, // id -> { model, originalCode }
-    currentFileId: null
+    currentFileId: null,
+    onlineIds: new Set(),
+    isBlacklisted: false,
+    virtualLists: {}
 };
 window.AppState = AppState;
 
@@ -160,7 +163,12 @@ function initEditor() {
             if (AppState.currentFileId) {
                 const state = AppState.models[AppState.currentFileId];
                 if (state) {
-                    renderTabs(); // Refresh modified dots
+                    const isModified = code !== state.originalCode;
+                    const tab = AppState.activeTabs.find(t => t.id === AppState.currentFileId);
+                    if (tab && tab.isModified !== isModified) {
+                        tab.isModified = isModified;
+                        updateGranularStatus(tab.id, isModified);
+                    }
                 }
             }
 
@@ -235,6 +243,20 @@ function checkConnection() {
                 showStatus(msg, "success");
                 window.currentTargetTab = response;
 
+                // Update Online IDs
+                AppState.onlineIds.clear();
+                if (response.allOnlineTabs) {
+                    response.allOnlineTabs.forEach(tab => {
+                        let id = "global";
+                        if (tab.orgId && tab.system && tab.functionId && tab.orgId !== 'unknown' && tab.functionId !== 'unknown') {
+                            id = `${tab.orgId}:${tab.system}:${tab.functionId}`;
+                        } else {
+                            id = tab.url || "global";
+                        }
+                        AppState.onlineIds.add(id);
+                    });
+                }
+
                 // Identify stable ID: OrgID:System:FunctionID
                 let stableId = "global";
                 if (response.orgId && response.system && response.functionId && response.orgId !== 'unknown' && response.functionId !== 'unknown') {
@@ -288,6 +310,15 @@ async function loadProjectData() {
 
     console.log('[ZohoIDE] Loading project data for:', currentFileId);
 
+    // Clean up models not in RAM (not online and not current)
+    Object.keys(AppState.models).forEach(id => {
+        if (id !== currentFileId && !AppState.onlineIds.has(id)) {
+            console.log('[ZohoIDE] Lazy Loading: Disposing model for', id);
+            if (AppState.models[id].model) AppState.models[id].model.dispose();
+            delete AppState.models[id];
+        }
+    });
+
     // 1. Load File from VFS
     const file = await FileManager.getFile(currentFileId);
 
@@ -310,7 +341,7 @@ async function loadProjectData() {
 
         // Add to tabs
         if (!AppState.activeTabs.find(t => t.id === currentFileId)) {
-            AppState.activeTabs.push({ id: currentFileId, name: zideProjectName });
+            AppState.activeTabs.push({ id: currentFileId, name: zideProjectName, isModified: false });
         }
     } else {
         zideProjectName = (window.currentTargetTab && window.currentTargetTab.name) || "Untitled Project";
@@ -323,7 +354,7 @@ async function loadProjectData() {
         if (editor) editor.setModel(AppState.models[currentFileId].model);
 
         if (!AppState.activeTabs.find(t => t.id === currentFileId)) {
-            AppState.activeTabs.push({ id: currentFileId, name: zideProjectName });
+            AppState.activeTabs.push({ id: currentFileId, name: zideProjectName, isModified: false });
         }
     }
 
@@ -341,9 +372,38 @@ async function loadProjectData() {
     window.interfaceMappings = interfaceMappings;
     updateInterfaceMappingsList();
 
+    // 4. Blacklist Check
+    AppState.isBlacklisted = await isIdBlacklisted(currentFileId);
+    updateNoFollowUI();
+
     renderTabs();
     renderOpenEditors();
     performDriftCheck();
+}
+
+async function isIdBlacklisted(id) {
+    if (!id) return false;
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['zide_blacklist'], (result) => {
+            const blacklist = result.zide_blacklist || [];
+            resolve(blacklist.includes(id));
+        });
+    });
+}
+
+function updateNoFollowUI() {
+    const btn = document.getElementById('no-follow-btn');
+    if (!btn) return;
+
+    if (AppState.isBlacklisted) {
+        btn.innerHTML = '<span class="material-icons">visibility_off</span>';
+        btn.style.color = '#ff5555';
+        btn.title = 'No Follow: Active (Level 3 Blacklist)';
+    } else {
+        btn.innerHTML = '<span class="material-icons">visibility</span>';
+        btn.style.color = '#aaa';
+        btn.title = 'No Follow: Inactive';
+    }
 }
 
 function renderTabs() {
@@ -351,12 +411,13 @@ function renderTabs() {
     if (!container) return;
 
     container.innerHTML = '';
-    AppState.activeTabs.forEach(tab => {
+    AppState.activeTabs.forEach((tab, index) => {
         const tabEl = document.createElement('div');
         tabEl.className = 'tab-item' + (tab.id === currentFileId ? ' active' : '');
+        tabEl.dataset.id = tab.id;
+        tabEl.dataset.index = index;
 
-        const state = AppState.models[tab.id];
-        const isModified = state && state.model.getValue() !== state.originalCode;
+        const isModified = tab.isModified || false;
         if (isModified) tabEl.classList.add('modified');
 
         tabEl.innerHTML = `
@@ -385,34 +446,39 @@ function renderTabs() {
 }
 
 function renderOpenEditors() {
-    const list = document.getElementById('open-editors-list');
+    const container = document.getElementById('open-editors-list');
     const countEl = document.getElementById('open-editors-count');
-    if (!list) return;
+    if (!container) return;
 
-    list.innerHTML = '';
     if (countEl) countEl.innerText = AppState.activeTabs.length;
 
-    AppState.activeTabs.forEach(tab => {
-        const item = document.createElement('div');
-        item.className = 'file-card' + (tab.id === currentFileId ? ' active' : '');
+    if (!AppState.virtualLists.openEditors) {
+        AppState.virtualLists.openEditors = new VirtualList(container, {
+            itemHeight: 50,
+            items: AppState.activeTabs,
+            renderItem: (tab) => {
+                const item = document.createElement('div');
+                item.className = 'file-card' + (tab.id === currentFileId ? ' active' : '');
 
-        const state = AppState.models[tab.id];
-        const isModified = state && state.model.getValue() !== state.originalCode;
-        const statusIcon = isModified ? '<span style="color:#ffb86c; font-size:14px; margin-right:5px;">●</span>' : '';
+                const isModified = tab.isModified || false;
+                const statusIcon = isModified ? '<span style="color:#ffb86c; font-size:14px; margin-right:5px;">●</span>' : '';
 
-        item.innerHTML = `
-            <div class="file-title">${statusIcon}${tab.name}</div>
-            <div class="file-meta">Open Editor</div>
-        `;
+                item.innerHTML = `
+                    <div class="file-title">${statusIcon}${tab.name}</div>
+                    <div class="file-meta">Open Editor</div>
+                `;
 
-        item.onclick = async () => {
-            currentFileId = tab.id;
-            window.currentFileId = currentFileId;
-            await loadProjectData();
-        };
-
-        list.appendChild(item);
-    });
+                item.onclick = async () => {
+                    currentFileId = tab.id;
+                    window.currentFileId = currentFileId;
+                    await loadProjectData();
+                };
+                return item;
+            }
+        });
+    } else {
+        AppState.virtualLists.openEditors.updateItems(AppState.activeTabs);
+    }
 }
 
 function closeTab(id) {
@@ -458,6 +524,26 @@ function setupEventHandlers() {
     bind('push-btn', 'click', () => pushToZoho(true));
     bind('execute-btn', 'click', () => pushToZoho(true, true));
     bind('save-btn', 'click', saveLocally);
+
+    bind('no-follow-btn', 'click', async () => {
+        if (!currentFileId) return;
+        AppState.isBlacklisted = !AppState.isBlacklisted;
+
+        chrome.storage.local.get(['zide_blacklist'], async (result) => {
+            let blacklist = result.zide_blacklist || [];
+            if (AppState.isBlacklisted) {
+                if (!blacklist.includes(currentFileId)) blacklist.push(currentFileId);
+                if (window.ideDB) await window.ideDB.blacklist.add({ id: currentFileId });
+            } else {
+                blacklist = blacklist.filter(id => id !== currentFileId);
+                if (window.ideDB) await window.ideDB.blacklist.delete(currentFileId);
+            }
+            chrome.storage.local.set({ 'zide_blacklist': blacklist }, () => {
+                updateNoFollowUI();
+                showStatus(AppState.isBlacklisted ? "Added to Blacklist" : "Removed from Blacklist", "info");
+            });
+        });
+    });
 
     bind('project-name-input', 'input', async (e) => {
         zideProjectName = e.target.value;
@@ -1303,6 +1389,8 @@ function pullFromZoho() {
                 editor.setValue(response.code);
                 if (currentFileId && AppState.models[currentFileId]) {
                     AppState.models[currentFileId].originalCode = response.code;
+                    const tab = AppState.activeTabs.find(t => t.id === currentFileId);
+                    if (tab) tab.isModified = false;
                 }
                 log('Success', 'Code pulled.');
                 renderTabs();
@@ -1338,6 +1426,8 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
                 log('Success', 'Code pushed.');
                 if (currentFileId && AppState.models[currentFileId]) {
                     AppState.models[currentFileId].originalCode = code;
+                    const tab = AppState.activeTabs.find(t => t.id === currentFileId);
+                    if (tab) tab.isModified = false;
                 }
                 renderTabs();
 
@@ -1380,14 +1470,17 @@ async function saveLocally() {
     if (!currentFileId) return;
     const FileManager = getFileManager();
 
+    const state = AppState.models[currentFileId];
+    if (!state) return;
+
     // Check for errors
-    const markers = monaco.editor.getModelMarkers({ resource: editor.getModel().uri });
+    const markers = monaco.editor.getModelMarkers({ resource: state.model.uri });
     const errors = markers.filter(m => m.severity === monaco.MarkerSeverity.Error);
     if (errors.length > 0) {
         showStatus('Sync Warning: Errors present', 'warning');
     }
 
-    const code = editor.getValue();
+    const code = state.model.getValue();
     const name = zideProjectName || 'Untitled Project';
 
     const fileData = {
@@ -1403,6 +1496,9 @@ async function saveLocally() {
 
         if (AppState.models[currentFileId]) {
             AppState.models[currentFileId].originalCode = code;
+            const tab = AppState.activeTabs.find(t => t.id === currentFileId);
+            if (tab) tab.isModified = false;
+            renderTabs();
         }
 
         const allMetadata = await FileManager.getAllFilesMetadata();
@@ -1430,44 +1526,54 @@ async function saveLocally() {
 }
 
 function updateSavedFilesList(files) {
-    const list = document.getElementById('saved-files-list');
-    if (!list) return;
-    list.innerHTML = '';
+    const container = document.getElementById('saved-files-list');
+    if (!container) return;
+
     if (files.length === 0) {
-        list.innerHTML = '<div class="log-entry" style="font-size:11px; opacity:0.6;">No saved files yet.</div>';
+        container.innerHTML = '<div class="log-entry" style="font-size:11px; opacity:0.6;">No saved files yet.</div>';
+        delete AppState.virtualLists.savedFiles;
         return;
     }
-    files.forEach(file => {
-        const card = document.createElement('div');
-        card.className = 'file-card';
-        if (file.id === currentFileId) card.classList.add('active');
 
-        const timestamp = new Date(file.updatedAt).toLocaleString();
-        card.innerHTML = `
-            <div class="file-title">${file.name || 'Untitled'}</div>
-            <div class="file-meta">${file.url.substring(0, 30)}... • ${timestamp}</div>
-            <span class="material-icons file-delete-btn" title="Delete File">delete</span>
-        `;
+    if (!AppState.virtualLists.savedFiles) {
+        AppState.virtualLists.savedFiles = new VirtualList(container, {
+            itemHeight: 50,
+            items: files,
+            renderItem: (file) => {
+                const card = document.createElement('div');
+                card.className = 'file-card';
+                if (file.id === currentFileId) card.classList.add('active');
 
-        const deleteBtn = card.querySelector('.file-delete-btn');
-        deleteBtn.onclick = async (e) => {
-            e.stopPropagation();
-            await handleDeleteFile(file.id, file.name);
-        };
+                const timestamp = new Date(file.updatedAt).toLocaleString();
+                card.innerHTML = `
+                    <div class="file-title">${file.name || 'Untitled'}</div>
+                    <div class="file-meta">${file.url.substring(0, 30)}... • ${timestamp}</div>
+                    <span class="material-icons file-delete-btn" title="Delete File">delete</span>
+                `;
 
-        card.onclick = async () => {
-            if (confirm(`Load file "${file.name}"?`)) {
-                const fullFile = await FileManager.getFile(file.id);
-                if (fullFile) {
-                    currentFileId = file.id;
-                    window.currentFileId = currentFileId;
-                    editor.setValue(fullFile.code);
-                    await loadProjectData();
-                }
+                const deleteBtn = card.querySelector('.file-delete-btn');
+                deleteBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    await handleDeleteFile(file.id, file.name);
+                };
+
+                card.onclick = async () => {
+                    if (confirm(`Load file "${file.name}"?`)) {
+                        const fullFile = await FileManager.getFile(file.id);
+                        if (fullFile) {
+                            currentFileId = file.id;
+                            window.currentFileId = currentFileId;
+                            editor.setValue(fullFile.code);
+                            await loadProjectData();
+                        }
+                    }
+                };
+                return card;
             }
-        };
-        list.appendChild(card);
-    });
+        });
+    } else {
+        AppState.virtualLists.savedFiles.updateItems(files);
+    }
 }
 
 function extractVarsFromCode(code) {
@@ -1734,6 +1840,20 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
     // Expose internal functions to window for Cloud UI
     window.updateInterfaceMappingsList = updateInterfaceMappingsList;
     window.showStatus = showStatus;
+
+    function updateGranularStatus(fileId, isModified) {
+        // Update Tab Bar
+        const tabEl = document.querySelector(`.tab-item[data-id="${CSS.escape(fileId)}"]`);
+        if (tabEl) {
+            if (isModified) tabEl.classList.add('modified');
+            else tabEl.classList.remove('modified');
+        }
+
+        // Update Open Editors List (Virtual)
+        if (AppState.virtualLists.openEditors) {
+            AppState.virtualLists.openEditors.render();
+        }
+    }
 
     async function performDriftCheck() {
         if (!currentFileId || currentFileId === 'global' || !isConnected) {
