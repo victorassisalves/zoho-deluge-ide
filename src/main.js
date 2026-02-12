@@ -7,6 +7,7 @@ import fileManager from './services/FileManager.js';
 import db from './services/db.js';
 import interfaceManager from './services/InterfaceManager.js';
 import syncService from './services/SyncService.js';
+import ideMain from './ide/Main.js';
 import { initAutocomplete } from './features/autocomplete/index.js';
 import { initLinter } from './features/linter/index.js';
 import { initResizers } from './ui/resizers.js';
@@ -37,6 +38,14 @@ async function bootstrap() {
 
     initResizers();
     initSidebars();
+
+    // Initialize New Modular IDE
+    try {
+        await ideMain.init();
+        window.getOrCreateModel = (key, code) => ideMain.editor.getOrCreateModel(key, code);
+    } catch (e) {
+        logger.error('IDE Modular initialization failed:', e);
+    }
 
     // Verify Bridge Connection
     setTimeout(() => bridgeClient.ping(), 2000);

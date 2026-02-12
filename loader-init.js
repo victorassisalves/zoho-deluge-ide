@@ -48,7 +48,6 @@ require(['vs/editor/editor.main'], async function() {
         await loadScript('src/main.js', true);
 
         await loadScript('deluge-lang.js');
-        await loadScript('snippet_logic.js');
         await loadScript('api_data.js');
         await loadScript('ide.js');
 
