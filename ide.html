@@ -521,6 +521,24 @@
         </div>
     </div>
 
+    <!-- Adoption Modal -->
+    <div id="adoption-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Shared Interface Orphaned</h3>
+                <span id="adoption-modal-close" class="material-icons" style="cursor:pointer; opacity:0.6;">close</span>
+            </div>
+            <div class="modal-body">
+                <p id="adoption-message"></p>
+                <div id="orphaned-interfaces-list" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="adoption-cancel" class="text-btn">Cancel Deletion</button>
+                <button id="adoption-confirm" class="primary-btn">Promote & Delete</button>
+            </div>
+        </div>
+    </div>
+
     <script src="assets/monaco-editor/min/vs/loader.js"></script>
     <script src="my_snippets.js"></script>
     <script src="loader-init.js"></script>
