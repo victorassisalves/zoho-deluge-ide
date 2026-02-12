@@ -185,12 +185,16 @@ const CloudUI = {
         const selector = document.getElementById('project-selector');
         if (!selector) return;
         selector.innerHTML = '<option value="">Select Project...</option>';
+
+        const fragment = document.createDocumentFragment();
         projects.forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.id;
             opt.innerText = p.name;
-            selector.appendChild(opt);
+            fragment.appendChild(opt);
         });
+        selector.appendChild(fragment);
+
         const fileList = document.getElementById('cloud-file-list');
         if (fileList) fileList.innerHTML = '';
     },
