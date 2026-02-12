@@ -39,7 +39,17 @@ require(['vs/editor/editor.main'], async function() {
 
         window.define = originalDefine;
 
-        await loadScript('firebase-config.js');
+        try {
+            await loadScript('firebase-config.js');
+        } catch (e) {
+            console.error('[ZohoIDE] Config Missing:', e);
+            document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#1e1e1e;color:#fff;font-family:sans-serif;text-align:center;">' +
+                '<div><h1>Configuration Missing</h1>' +
+                '<p>Please create <code>firebase-config.js</code> in the extension root.</p>' +
+                '<p>Copy <code>firebase-config.example.js</code> and add your Firebase credentials.</p>' +
+                '<p>See README.md for details.</p></div></div>';
+            throw new Error("Configuration missing");
+        }
         await loadScript('cloud-service.js');
         await loadScript('cloud-ui.js');
 
