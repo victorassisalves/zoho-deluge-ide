@@ -152,12 +152,16 @@ const CloudUI = {
         const selector = document.getElementById('team-selector');
         if (!selector) return;
         selector.innerHTML = '<option value="">Personal (No Team)</option>';
+
+        const fragment = document.createDocumentFragment();
         teams.forEach(t => {
             const opt = document.createElement('option');
             opt.value = t.id;
             opt.innerText = t.name;
-            selector.appendChild(opt);
+            fragment.appendChild(opt);
         });
+        selector.appendChild(fragment);
+
         this.loadWorkspaces(null);
     },
 
@@ -167,12 +171,16 @@ const CloudUI = {
         const selector = document.getElementById('workspace-selector');
         if (!selector) return;
         selector.innerHTML = '<option value="">Select Workspace...</option>';
+
+        const fragment = document.createDocumentFragment();
         workspaces.forEach(w => {
             const opt = document.createElement('option');
             opt.value = w.id;
             opt.innerText = w.name;
-            selector.appendChild(opt);
+            fragment.appendChild(opt);
         });
+        selector.appendChild(fragment);
+
         const projSelector = document.getElementById('project-selector');
         if (projSelector) projSelector.innerHTML = '';
         const fileList = document.getElementById('cloud-file-list');
@@ -185,12 +193,16 @@ const CloudUI = {
         const selector = document.getElementById('project-selector');
         if (!selector) return;
         selector.innerHTML = '<option value="">Select Project...</option>';
+
+        const fragment = document.createDocumentFragment();
         projects.forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.id;
             opt.innerText = p.name;
-            selector.appendChild(opt);
+            fragment.appendChild(opt);
         });
+        selector.appendChild(fragment);
+
         const fileList = document.getElementById('cloud-file-list');
         if (fileList) fileList.innerHTML = '';
     },
@@ -209,13 +221,16 @@ const CloudUI = {
             list.innerHTML = '<div style="padding:10px; opacity:0.5; font-size:11px;">No files in this project</div>';
             return;
         }
+
+        const fragment = document.createDocumentFragment();
         files.forEach(f => {
             const item = document.createElement('div');
             item.className = 'cloud-file-item' + (this.activeFileId === f.id ? ' active' : '');
             item.innerHTML = `<div>${f.name}</div><div style="font-size:9px; opacity:0.5;">${f.url || 'No URL linked'}</div>`;
             item.addEventListener('click', () => this.selectFile(f));
-            list.appendChild(item);
+            fragment.appendChild(item);
         });
+        list.appendChild(fragment);
     },
 
     async handleCreateTeam() {
