@@ -36,10 +36,31 @@
             </aside>
             <div id="left-panel-content" class="sidebar-panel">
                 <!-- Explorer View -->
-                <div id="view-explorer" class="view-content active">
-                    <h4>Explorer</h4>
-                    <div id="saved-files-list">
-                        <div class="log-entry" style="font-size:11px; opacity:0.6;">No saved files yet.</div>
+                <div id="view-explorer" class="view-content active" style="padding: 0;">
+                    <div class="explorer-section" id="section-open-editors">
+                        <div class="explorer-header" id="open-editors-header">
+                            <span class="material-icons">expand_more</span> OPEN EDITORS
+                            <span class="material-icons sync-icon" id="sync-tabs-btn" title="Refresh Tabs" style="font-size:14px; margin-left:auto; cursor:pointer;">sync</span>
+                        </div>
+                        <div id="open-editors-list" class="explorer-list">
+                            <div class="log-entry" style="font-size:11px; opacity:0.6; padding: 10px;">No open functions detected.</div>
+                        </div>
+                    </div>
+                    <div class="explorer-section" id="section-project-explorer">
+                        <div class="explorer-header" id="project-explorer-header">
+                            <span class="material-icons">expand_more</span> EXPLORER
+                        </div>
+                        <div id="project-explorer-tree" class="explorer-tree">
+                            <div class="log-entry" style="font-size:11px; opacity:0.6; padding: 10px;">No saved projects.</div>
+                        </div>
+                    </div>
+                    <div class="explorer-section" id="section-history" style="margin-top: auto;">
+                        <div class="explorer-header collapsed" id="history-header">
+                            <span class="material-icons">history</span> HISTORY
+                        </div>
+                        <div id="saved-files-list" class="explorer-list" style="display: none;">
+                            <div class="log-entry" style="font-size:11px; opacity:0.6; padding: 10px;">No history yet.</div>
+                        </div>
                     </div>
                 </div>
 
@@ -496,6 +517,24 @@
             <div class="modal-footer">
                 <button id="snippet-modal-cancel" class="text-btn">Cancel</button>
                 <button id="snippet-modal-save" class="primary-btn">Save Snippet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Adoption Modal -->
+    <div id="adoption-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Shared Interface Orphaned</h3>
+                <span id="adoption-modal-close" class="material-icons" style="cursor:pointer; opacity:0.6;">close</span>
+            </div>
+            <div class="modal-body">
+                <p id="adoption-message"></p>
+                <div id="orphaned-interfaces-list" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="adoption-cancel" class="text-btn">Cancel Deletion</button>
+                <button id="adoption-confirm" class="primary-btn">Promote & Delete</button>
             </div>
         </div>
     </div>

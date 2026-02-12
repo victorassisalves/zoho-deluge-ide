@@ -480,10 +480,21 @@
                 'now': { type: 'DateTime' }
             };
 
-            // 0. Interface Mappings
+            // 0. Magic Comment Bindings: // @type myVar : InterfaceName
+            const magicCommentRegex = /\/\/\s*@type\s+([a-zA-Z_]\w*)\s*:\s*([a-zA-Z_]\w*)/g;
+            let match;
+            while ((match = magicCommentRegex.exec(code)) !== null) {
+                const varName = match[1];
+                const interfaceName = match[2];
+                varMap[varName] = { type: 'Map', mapping: interfaceName, path: [] };
+            }
+
+            // 0.1 Interface Mappings (Global/Legacy)
             if (window.interfaceMappings) {
                 for (const name in window.interfaceMappings) {
-                    varMap[name] = { type: 'Map', mapping: name, path: [] };
+                    if (!varMap[name]) {
+                        varMap[name] = { type: 'Map', mapping: name, path: [] };
+                    }
                 }
             }
 
@@ -491,7 +502,6 @@
 
             // 1. Explicit Declarations: string name = "..."
             const declRegex = /\b(string|int|decimal|boolean|map|list)\s+([a-zA-Z_]\w*)/gi;
-            let match;
             while ((match = declRegex.exec(cleanCode)) !== null) {
                 varMap[match[2]] = { type: match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase() };
             }
@@ -502,6 +512,9 @@
                 const name = match[1];
                 const val = match[2].trim();
                 if (keywords.has(name)) continue;
+
+                // Initialize as Object to ensure it's recognized even if type inference fails
+                if (!varMap[name]) varMap[name] = { type: 'Object' };
 
                 if (val.startsWith('"') || val.startsWith("'")) varMap[name] = { type: 'String' };
                 else if (val.match(/^\d+$/)) varMap[name] = { type: 'Int' };
