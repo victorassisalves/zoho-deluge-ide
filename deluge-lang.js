@@ -142,6 +142,18 @@
             ]
         };
 
+        const MANDATORY_PARAMS = {
+            'zoho.crm.getRecordById': 2,
+            'zoho.crm.createRecord': 2,
+            'zoho.crm.updateRecord': 3,
+            'zoho.crm.searchRecords': 2,
+            'zoho.books.getRecords': 2,
+            'zoho.books.createRecord': 3,
+            'zoho.recruit.getRecordById': 2,
+            'zoho.creator.getRecords': 4,
+            'zoho.creator.createRecord': 4
+        };
+
         monaco.languages.registerCompletionItemProvider('deluge', {
             triggerCharacters: ['.', '"'],
             provideCompletionItems: (model, position) => {
@@ -277,18 +289,6 @@
             // 1. Collect defined variables
             const definedVars = extractVariables(code);
 
-            const mandatoryParams = {
-                'zoho.crm.getRecordById': 2,
-                'zoho.crm.createRecord': 2,
-                'zoho.crm.updateRecord': 3,
-                'zoho.crm.searchRecords': 2,
-                'zoho.books.getRecords': 2,
-                'zoho.books.createRecord': 3,
-                'zoho.recruit.getRecordById': 2,
-                'zoho.creator.getRecords': 4,
-                'zoho.creator.createRecord': 4
-            };
-
             lines.forEach((line, i) => {
                 const trimmed = line.trim();
                 if (trimmed.length === 0) return;
@@ -360,7 +360,7 @@
                 });
 
                 // Mandatory Parameter Check
-                for (const [fn, count] of Object.entries(mandatoryParams)) {
+                for (const [fn, count] of Object.entries(MANDATORY_PARAMS)) {
                     if (trimmed.includes(fn)) {
                         const fnIndex = line.indexOf(fn);
                         const rest = line.substring(fnIndex + fn.length).trim();
