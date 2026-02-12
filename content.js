@@ -129,3 +129,33 @@ function injectSidePanel() {
         }
     });
 }
+
+// --- Phase 3: Passive Event Model ---
+window.addEventListener('focus', () => {
+    // Unique ID for this focus event request
+    const eventId = "focus_" + Math.random().toString(36).substring(2);
+
+    const responseHandler = (event) => {
+        const data = event.detail;
+        if (data && data.eventId === eventId) {
+            window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+            // Only report if we got valid metadata (implies we are on a Zoho page with context)
+            if (data.response && (data.response.system || data.response.functionId)) {
+                 chrome.runtime.sendMessage({
+                    type: 'ZO_FOCUS_GAINED',
+                    metadata: data.response
+                });
+            }
+        }
+    };
+
+    window.addEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+
+    // Ask bridge for metadata
+    window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', {
+        detail: {
+            eventId,
+            action: 'GET_ZOHO_METADATA'
+        }
+    }));
+});

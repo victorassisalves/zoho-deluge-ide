@@ -10,8 +10,7 @@ class TabManager {
 
     init() {
         this.bindEvents();
-        // Initial Sync handled by main.js calling this? or here?
-        setInterval(() => this.syncAppTabs(), 5000);
+        // Initial Sync on load
         this.syncAppTabs();
     }
 
@@ -82,6 +81,8 @@ class TabManager {
         visibleTabs.forEach((tab, index) => {
             const item = document.createElement("div");
             item.className = "explorer-item";
+            item.setAttribute("data-tab-id", tab.tabId); // Add data attribute for setActive
+
             const isCurrent = store.state.currentFile && (store.state.currentFile.tabId === tab.tabId);
             if (isCurrent) item.classList.add("active");
 
@@ -109,6 +110,20 @@ class TabManager {
 
             list.appendChild(item);
         });
+    }
+
+    setActive(tabId) {
+        // Fast class toggle without re-rendering list
+        const list = document.getElementById("open-editors-list");
+        if (!list) return;
+
+        // Remove active class from all
+        const currentActive = list.querySelector(".explorer-item.active");
+        if (currentActive) currentActive.classList.remove("active");
+
+        // Add to new
+        const newActive = list.querySelector(`.explorer-item[data-tab-id="${tabId}"]`);
+        if (newActive) newActive.classList.add("active");
     }
 
     getRenameKey(metadata) {

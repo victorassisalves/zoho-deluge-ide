@@ -77,9 +77,32 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
     broadcastToIDE({ action: 'SYNC_TABS' });
 });
 
-chrome.tabs.onActivated.addListener((activeInfo) => {
-    chrome.tabs.get(activeInfo.tabId, (tab) => {
+// --- Phase 3: Event-Driven Logic ---
+
+async function registerTab(tabId, fileId) {
+    if (!tabId || !fileId) return;
+    await chrome.storage.session.set({ [`tab_${tabId}`]: fileId });
+}
+
+async function getFileForTab(tabId) {
+    const result = await chrome.storage.session.get(`tab_${tabId}`);
+    return result[`tab_${tabId}`];
+}
+
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+    // 1. Instant Switchboard Notification
+    const tabId = activeInfo.tabId;
+    const fileId = await getFileForTab(tabId);
+
+    // Broadcast TAB_SWITCHED immediately if we know the file
+    if (fileId) {
+        broadcastToIDE({ type: 'TAB_SWITCHED', tabId: tabId, fileId: fileId });
+    }
+
+    // 2. Legacy Fallback / Metadata Refresh
+    chrome.tabs.get(tabId, (tab) => {
         if (tab && tab.url && isZohoUrl(tab.url)) {
+            // Send legacy sync for list updates (slow)
             broadcastToIDE({ action: 'SYNC_TABS' });
         }
     });
@@ -201,6 +224,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             data: request.data,
             sourceTabId: sender.tab ? sender.tab.id : null
         });
+    }
+
+    // Phase 3: Focus Event
+    if (request.type === 'ZO_FOCUS_GAINED') {
+        const tabId = sender.tab ? sender.tab.id : null;
+        if (tabId && request.metadata) {
+            // Generate stable fileId
+            const meta = request.metadata;
+            const id = (meta.functionId && meta.functionId !== "unknown") ? meta.functionId : (meta.url || "global");
+            // Match TabManager.js getRenameKey logic roughly
+            const fileId = `${meta.orgId}:${meta.system}:${id}`;
+
+            // Register Tab
+            registerTab(tabId, fileId);
+
+            // Forward to IDE
+            broadcastToIDE({
+                type: 'ZO_FOCUS_GAINED',
+                tabId: tabId,
+                fileId: fileId,
+                metadata: request.metadata
+            });
+        }
     }
 });
 
@@ -350,4 +396,3 @@ function findZohoTab(callback) {
         callback(editorTab || zohoTabs[0]);
     });
 }
-
