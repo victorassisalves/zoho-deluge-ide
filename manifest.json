@@ -113,6 +113,6 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' http://localhost:* https://apis.google.com https://www.gstatic.com https://*.firebaseio.com https://*.googleapis.com; object-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   }
 }
