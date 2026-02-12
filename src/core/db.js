@@ -1,4 +1,6 @@
-import Dexie from '../../assets/dexie.min.js';
+import '../../assets/dexie.min.js';
+
+const Dexie = window.Dexie;
 
 const dexieDB = new Dexie('DelugeIDE_DB');
 dexieDB.version(1).stores({
