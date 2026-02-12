@@ -1,8 +1,15 @@
-import db from './db.js';
+import { DB } from '../core/db.js';
 
 class MigrationService {
     async migrate() {
         if (typeof chrome === "undefined" || !chrome.storage) return;
+
+        // Check if DB is empty
+        const count = await DB.dexie.Files.count();
+        if (count > 0) {
+            console.log('[ZohoIDE] Dexie DB already populated. Skipping migration.');
+            return;
+        }
 
         const result = await new Promise(resolve => {
             chrome.storage.local.get([
@@ -17,11 +24,7 @@ class MigrationService {
             ], resolve);
         });
 
-        // Check if already migrated
-        const isMigrated = await db.get('Config', 'is_migrated');
-        if (isMigrated) return;
-
-        console.log('[ZohoIDE] Starting Migration to IndexedDB...');
+        console.log('[ZohoIDE] Starting Migration to Dexie DB...');
 
         // 1. Migrate Config
         const configItems = [
@@ -30,12 +33,15 @@ class MigrationService {
             { key: 'activation_behavior', value: result.activation_behavior }
         ];
         for (const item of configItems) {
-            if (item.value) await db.put('Config', item);
+            if (item.value) await DB.dexie.Config.put(item);
         }
 
         // 2. Migrate Files (from saved_functions_tree)
         if (result.saved_functions_tree) {
             const tree = result.saved_functions_tree;
+            const files = [];
+            const buffers = [];
+
             for (const orgId in tree) {
                 for (const system in tree[orgId]) {
                     for (const folder in tree[orgId][system]) {
@@ -49,43 +55,40 @@ class MigrationService {
                                 originalCode = result.zide_models_data[modelKey].originalCode || file.code;
                             }
 
-                            await db.put('Files', {
+                            files.push({
                                 id: fileId,
                                 orgId: orgId,
                                 system: system,
                                 folder: folder,
                                 name: file.name,
-                                code: file.code,
-                                originalCode: originalCode,
                                 timestamp: file.timestamp,
-                                metadata: file.metadata
+                                metadata: file.metadata,
+                                isOnline: false // Default to offline for migrated files
+                            });
+
+                            buffers.push({
+                                id: fileId,
+                                content: file.code,
+                                originalContent: originalCode
                             });
                         }
                     }
                 }
             }
-        }
 
-        // 3. Migrate Interfaces (from project_mappings or json_mappings)
-        // json_mappings was the old way, project_mappings is per-org
-        if (result.project_mappings) {
-            for (const orgId in result.project_mappings) {
-                for (const name in result.project_mappings[orgId]) {
-                    await db.put('Interfaces', {
-                        id: `${orgId}:${name}`,
-                        name: name,
-                        structure: result.project_mappings[orgId][name],
-                        ownerId: orgId,
-                        ownerType: 'SYSTEM',
-                        sharedScope: 'SYSTEM'
-                    });
-                }
+            if (files.length > 0) {
+                await DB.dexie.Files.bulkPut(files);
+                await DB.dexie.Buffers.bulkPut(buffers);
+                console.log(`[ZohoIDE] Migrated ${files.length} files.`);
             }
         }
 
+        // 3. Migrate Interfaces (from json_mappings)
+        // json_mappings -> Owner: SYSTEM (Legacy had no file ownership)
         if (result.json_mappings) {
+            const interfaces = [];
             for (const name in result.json_mappings) {
-                await db.put('Interfaces', {
+                interfaces.push({
                     id: `global:${name}`,
                     name: name,
                     structure: result.json_mappings[name],
@@ -94,9 +97,15 @@ class MigrationService {
                     sharedScope: 'GLOBAL'
                 });
             }
+             if (interfaces.length > 0) {
+                await DB.dexie.Interfaces.bulkPut(interfaces);
+                console.log(`[ZohoIDE] Migrated ${interfaces.length} interfaces.`);
+            }
         }
 
-        await db.put('Config', { key: 'is_migrated', value: true });
+        // project_mappings are skipped as per spec.
+
+        await DB.dexie.Config.put({ key: 'is_migrated', value: true });
         console.log('[ZohoIDE] Migration Complete.');
     }
 }
