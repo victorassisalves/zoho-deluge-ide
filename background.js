@@ -38,32 +38,23 @@ function openIDESidePanel() {
 }
 
 function broadcastToIDE(message) {
-    // Send to extension pages (IDE tab or side panel iframe)
     chrome.runtime.sendMessage(message);
 }
 
 chrome.commands.onCommand.addListener((command) => {
-    if (command === "sync-save") {
-        broadcastToIDE({ action: "CMD_SYNC_SAVE" });
-    } else if (command === "sync-save-execute") {
-        broadcastToIDE({ action: "CMD_SYNC_SAVE_EXECUTE" });
-    } else if (command === "pull-code") {
-        broadcastToIDE({ action: "CMD_PULL_CODE" });
-    } else if (command === "activate-ide") {
+    if (command === "sync-save") broadcastToIDE({ action: "CMD_SYNC_SAVE" });
+    else if (command === "sync-save-execute") broadcastToIDE({ action: "CMD_SYNC_SAVE_EXECUTE" });
+    else if (command === "pull-code") broadcastToIDE({ action: "CMD_PULL_CODE" });
+    else if (command === "activate-ide") {
         chrome.storage.local.get(['activation_behavior'], (result) => {
             const behavior = result.activation_behavior || 'new-tab';
-            if (behavior === 'new-tab') {
-                openIDETab();
-            } else if (behavior === 'side-panel') {
-                openIDESidePanel();
-            } else if (behavior === 'smart') {
+            if (behavior === 'new-tab') openIDETab();
+            else if (behavior === 'side-panel') openIDESidePanel();
+            else if (behavior === 'smart') {
                 chrome.tabs.query({ active: true, currentWindow: true }, (activeTabs) => {
                     const activeTab = activeTabs[0];
-                    if (activeTab && isZohoUrl(activeTab.url)) {
-                        openIDESidePanel();
-                    } else {
-                        openIDETab();
-                    }
+                    if (activeTab && isZohoUrl(activeTab.url)) openIDESidePanel();
+                    else openIDETab();
                 });
             }
         });
@@ -76,16 +67,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.action === 'CHECK_CONNECTION') {
         if (targetTabId) {
-            chrome.tabs.get(targetTabId, (tab) => {
-                sendResponse({ connected: true, tabTitle: tab.title, url: tab.url });
-            });
+            chrome.tabs.get(targetTabId, (tab) => sendResponse({ connected: true, tabTitle: tab.title, url: tab.url }));
         } else {
             findZohoTab((tab) => {
-                if (tab) {
-                    sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone: true });
-                } else {
-                    sendResponse({ connected: false });
-                }
+                if (tab) sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone: true });
+                else sendResponse({ connected: false });
             });
         }
         return true;
@@ -95,89 +81,69 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const handleOpen = (tabId) => {
             chrome.tabs.update(tabId, { active: true });
             chrome.windows.update(sender.tab ? sender.tab.windowId : tabId, { focused: true });
-            chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                func: () => {
-                    const ed = document.querySelector('[id*="delugeEditor"]') || document.querySelector('.ace_editor') || document.querySelector('.monaco-editor');
-                    if (ed) {
-                        ed.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        ed.click();
-                        const inner = ed.querySelector('textarea, .ace_text-input, .monaco-mouse-cursor-text');
-                        if (inner) inner.focus();
-                    }
-                }
-            });
         };
-
-        if (targetTabId) {
-            handleOpen(targetTabId);
-        } else {
-            findZohoTab((tab) => {
-                if (tab) handleOpen(tab.id);
-            });
-        }
+        if (targetTabId) handleOpen(targetTabId);
+        else findZohoTab(tab => tab && handleOpen(tab.id));
         sendResponse({ success: true });
         return true;
     }
 
-    if (request.action === 'GET_ZOHO_CODE') {
-        const handleResponse = (tabId) => {
+    if (request.action === 'GET_ZOHO_CODE' || request.action === 'SET_ZOHO_CODE' || request.action === 'SAVE_ZOHO_CODE' || request.action === 'EXECUTE_ZOHO_CODE') {
+        const handleAction = async (tabId) => {
             lastZohoTabId = tabId;
-            chrome.tabs.sendMessage(tabId, { action: 'GET_ZOHO_CODE' }, (response) => {
-                if (chrome.runtime.lastError) {
-                    sendResponse({ error: 'Tab not responding' });
-                } else {
-                    sendResponse(response || { error: 'No response from tab' });
+            try {
+                const results = await chrome.scripting.executeScript({
+                    target: { tabId: tabId, allFrames: true },
+                    world: 'MAIN',
+                    func: () => {
+                        // Check for common editor objects and elements in the main world
+                        const hasMonaco = !!(window.monaco && (window.monaco.editor || window.monaco.languages));
+                        const hasAce = !!(window.ace && window.ace.edit) || !!document.querySelector('.ace_editor, .zace-editor, lyte-ace-editor');
+                        const hasCodeMirror = !!document.querySelector('.CodeMirror');
+                        const hasDelugeEditor = !!document.querySelector('[id*="delugeEditor"], .deluge-editor, [id*="script"], textarea.deluge-editor');
+                        const hasZEditor = !!(window.ZEditor || window.Zace || window.delugeEditor);
+
+                        return hasMonaco || hasAce || hasCodeMirror || hasDelugeEditor || hasZEditor;
+                    }
+                });
+
+                if (!results || results.length === 0) {
+                    sendResponse({ error: 'No frames found in tab' });
+                    return;
                 }
-            });
-        };
 
-        if (targetTabId) {
-            handleResponse(targetTabId);
-        } else {
-            findZohoTab((tab) => {
-                if (tab) {
-                    handleResponse(tab.id);
-                } else {
-                    sendResponse({ error: 'No Zoho Deluge tab found.' });
-                }
-            });
-        }
-        return true;
-    }
+                // Prefer frames where result is true
+                const sortedFrames = results.sort((a, b) => {
+                    if (a.result === b.result) return 0;
+                    return a.result ? -1 : 1;
+                });
 
-    if (request.action === 'SET_ZOHO_CODE' || request.action === 'SAVE_ZOHO_CODE' || request.action === 'EXECUTE_ZOHO_CODE') {
-        const handleAction = (tabId) => {
-            chrome.tabs.sendMessage(tabId, request, (response) => {
-                sendResponse(response || { error: 'Failed to perform action.' });
-            });
-        };
-
-        if (targetTabId) {
-            handleAction(targetTabId);
-        } else if (lastZohoTabId) {
-            chrome.tabs.get(lastZohoTabId, (tab) => {
-                if (!chrome.runtime.lastError && tab) {
-                    handleAction(lastZohoTabId);
-                } else {
-                    findZohoTab((tab) => {
-                        if (tab) {
-                            handleAction(tab.id);
-                        } else {
-                            sendResponse({ error: 'No Zoho tab connected' });
+                let lastErr = null;
+                for (const frame of sortedFrames) {
+                    try {
+                        const response = await new Promise((resolve, reject) => {
+                            chrome.tabs.sendMessage(tabId, request, { frameId: frame.frameId }, (res) => {
+                                if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+                                else resolve(res);
+                            });
+                        });
+                        if (response && (request.action === 'GET_ZOHO_CODE' ? !!response.code : !!response.success)) {
+                            sendResponse(response);
+                            return;
                         }
-                    });
+                        if (response && response.error) lastErr = response.error;
+                    } catch (e) {
+                        console.warn(`[ZohoIDE] Frame ${frame.frameId} fail:`, e);
+                    }
                 }
-            });
-        } else {
-            findZohoTab((tab) => {
-                if (tab) {
-                    handleAction(tab.id);
-                } else {
-                    sendResponse({ error: 'No Zoho tab connected' });
-                }
-            });
-        }
+                sendResponse({ error: lastErr || 'No editor found in any frame' });
+            } catch (err) {
+                sendResponse({ error: 'Frame traversal failed: ' + err.message });
+            }
+        };
+
+        if (targetTabId) handleAction(targetTabId);
+        else findZohoTab(tab => tab ? handleAction(tab.id) : sendResponse({ error: 'No Zoho tab found' }));
         return true;
     }
 
@@ -193,23 +159,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 function findZohoTab(callback) {
     chrome.tabs.query({}, (allTabs) => {
         const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url));
-        if (zohoTabs.length === 0) {
-            callback(null);
-            return;
-        }
+        if (zohoTabs.length === 0) return callback(null);
         const activeZoho = zohoTabs.find(t => t.active);
-        if (activeZoho) {
-            callback(activeZoho);
-            return;
-        }
-        const editorTab = zohoTabs.find(t =>
-            t.url.includes('creator') ||
-            t.url.includes('crm') ||
-            t.url.includes('recruit') ||
-            t.url.includes('books') ||
-            t.title.toLowerCase().includes('deluge') ||
-            t.title.toLowerCase().includes('editor')
-        );
+        if (activeZoho) return callback(activeZoho);
+        const editorTab = zohoTabs.find(t => t.url.includes('creator') || t.url.includes('crm') || t.url.includes('flow') || t.title.toLowerCase().includes('deluge'));
         callback(editorTab || zohoTabs[0]);
     });
 }
@@ -217,5 +170,5 @@ function findZohoTab(callback) {
 function isZohoUrl(url) {
     if (!url) return false;
     const domains = ["zoho.com", "zoho.eu", "zoho.in", "zoho.com.au", "zoho.jp", "zoho.ca", "zoho.uk", "zoho.com.cn"];
-    return domains.some(d => url.includes(d)) || url.includes("zoho.");
+    return domains.some(d => url.includes(d));
 }

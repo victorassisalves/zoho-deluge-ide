@@ -46,13 +46,20 @@
                     [/[a-zA-Z_]\w*(?=\s*:)/, 'key'],
 
                     // Constants (UPPERCASE)
-                    [/[A-Z][A-Z_0-9]*/, 'identifier'],
+                    [/[A-Z][A-Z_0-9]*/, {
+                        cases: {
+                            'GET|POST|PUT|DELETE|PATCH': 'keyword',
+                            '@default': 'identifier'
+                        }
+                    }],
 
                     // Identifiers and Keywords
                     [/[a-z_$][\w$]*/, {
                         cases: {
-                            'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|void|string|int|decimal|boolean|map|list': 'keyword',
-                            'zoho|thisapp|standalone|input': 'type', 'invokeurl': 'identifier', '@default': 'variable'
+                            'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|void|string|int|decimal|boolean|map|list|collection': 'keyword',
+                            'zoho|thisapp|standalone|input': 'type',
+                            'invokeurl': 'identifier',
+                            '@default': 'variable'
                         }
                     }],
 
@@ -72,78 +79,157 @@
                 ],
             },
         });
+        // --- User Configuration ---
+        // Add your own methods here to have them appear in autocomplete
+        const userMethods = {
+            // example: [ { label: 'myMethod()', insertText: 'myMethod()', doc: 'My custom method' } ]
+        };
+
                         const staticSuggestions = [
             { label: 'Map()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'Map()' },
             { label: 'List()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'List()' },
             { label: 'Collection()', kind: monaco.languages.CompletionItemKind.Constructor, insertText: 'Collection()' },
             { label: 'info', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'info $0', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
             { label: 'return', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'return ' },
-            { label: 'if', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'if (${1:condition}) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-            { label: 'for each', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'for each ${1:var} in ${2:list} {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-            { label: 'try catch', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'try {\n\t$1\n} catch (${2:err}) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-            { label: 'void function', kind: monaco.languages.CompletionItemKind.Function, insertText: 'void ${1:name}($2) {\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-            { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Function, insertText: 'invokeurl\n[\n\turl: "$1"\n\ttype: ${2|GET,POST,PUT,DELETE|}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+            { label: 'if', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'if (${1:condition})\n{\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+            { label: 'for each', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'for each ${1:var} in ${2:list}\n{\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+            { label: 'try catch', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'try\n{\n\t$1\n}\ncatch (${2:err})\n{\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+            { label: 'void function', kind: monaco.languages.CompletionItemKind.Function, insertText: 'void ${1:name}($2)\n{\n\t$0\n}', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
+            { label: 'invokeurl', kind: monaco.languages.CompletionItemKind.Function, insertText: 'invokeurl\n[\n\turl: "$1"\n\ttype: ${2|GET,POST,PUT,DELETE,PATCH|}\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
             { label: 'sendmail', kind: monaco.languages.CompletionItemKind.Snippet, insertText: 'sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: "$1"\n\tsubject: "$2"\n\tmessage: "$3"\n];', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet },
-            { label: 'today', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'today' },
-            { label: 'now', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'now' },
             { label: 'daysBetween', kind: monaco.languages.CompletionItemKind.Function, insertText: 'daysBetween(${1:d1}, ${2:d2})', insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet }
         ];
 
-                const typeMethods = {
+        const typeMethods = {
             string: [
-                { label: 'length()', insertText: 'length()' },
-                { label: 'subString(start, end)', insertText: 'subString(${1:start}, ${2:end})' },
-                { label: 'toLowerCase()', insertText: 'toLowerCase()' },
-                { label: 'toUpperCase()', insertText: 'toUpperCase()' },
-                { label: 'trim()', insertText: 'trim()' },
-                { label: 'toList(sep)', insertText: 'toList("${1:,}")' },
-                { label: 'toNumber()', insertText: 'toNumber()' },
-                { label: 'toDecimal()', insertText: 'toDecimal()' },
-                { label: 'toDate()', insertText: 'toDate()' },
-                { label: 'toDateTime()', insertText: 'toDateTime()' },
-                { label: 'contains(str)', insertText: 'contains("${1:str}")' },
-                { label: 'startsWith(str)', insertText: 'startsWith("${1:str}")' },
-                { label: 'endsWith(str)', insertText: 'endsWith("${1:str}")' },
-                { label: 'replaceAll(old, new)', insertText: 'replaceAll("${1:old}", "${2:new}")' }
+                { label: "contains(str)", insertText: "contains(\"${1:str}\")", doc: "Checks if the string contains the specified substring." },
+                { label: "notContains(str)", insertText: "notContains(\"${1:str}\")", doc: "Checks if the string does not contain the specified substring." },
+                { label: "containsIgnoreCase(str)", insertText: "containsIgnoreCase(\"${1:str}\")", doc: "Checks if the string contains the specified substring, ignoring case." },
+                { label: "isEmpty()", insertText: "isEmpty()", doc: "Checks if the string is empty." },
+                { label: "length()", insertText: "length()", doc: "Returns the length of the string." },
+                { label: "toLowerCase()", insertText: "toLowerCase()", doc: "Converts the string to lower case." },
+                { label: "toUpperCase()", insertText: "toUpperCase()", doc: "Converts the string to upper case." },
+                { label: "trim()", insertText: "trim()", doc: "Removes leading and trailing whitespace." },
+                { label: "subString(start, end)", insertText: "subString(${1:start}, ${2:end})", doc: "Returns a substring from start index to end index." },
+                { label: "indexOf(str)", insertText: "indexOf(\"${1:str}\")", doc: "Returns the index of the first occurrence of the specified substring." },
+                { label: "lastIndexOf(str)", insertText: "lastIndexOf(\"${1:str}\")", doc: "Returns the index of the last occurrence of the specified substring." },
+                { label: "startsWith(str)", insertText: "startsWith(\"${1:str}\")", doc: "Checks if the string starts with the specified substring." },
+                { label: "endsWith(str)", insertText: "endsWith(\"${1:str}\")", doc: "Checks if the string ends with the specified substring." },
+                { label: "replaceAll(old, new)", insertText: "replaceAll(\"${1:old}\", \"${2:new}\")", doc: "Replaces all occurrences of a substring with another." },
+                { label: "toList(sep)", insertText: "toList(\"${1:,}\")", doc: "Splits the string into a list based on the separator." },
+                { label: "toNumber()", insertText: "toNumber()", doc: "Converts the string to a number." },
+                { label: "toDecimal()", insertText: "toDecimal()", doc: "Converts the string to a decimal." },
+                { label: "toDate()", insertText: "toDate()", doc: "Converts the string to a date." },
+                { label: "toDateTime()", insertText: "toDateTime()", doc: "Converts the string to a date-time." },
+                { label: "toString()", insertText: "toString()", doc: "Converts the value to a string." },
+                { label: "proper()", insertText: "proper()", doc: "Converts the string to proper case (first letter of each word capitalized)." },
+                { label: "left(n)", insertText: "left(${1:n})", doc: "Returns the first n characters of the string." },
+                { label: "right(n)", insertText: "right(${1:n})", doc: "Returns the last n characters of the string." },
+                { label: "mid(start, n)", insertText: "mid(${1:start}, ${2:n})", doc: "Returns n characters starting from the start index." },
+                { label: "leftpad(n)", insertText: "leftpad(${1:n})", doc: "Pads the string on the left to length n." },
+                { label: "rightpad(n)", insertText: "rightpad(${1:n})", doc: "Pads the string on the right to length n." },
+                { label: "reverse()", insertText: "reverse()", doc: "Reverses the string." }
             ],
             list: [
-                { label: 'add(val)', insertText: 'add(${1:val})' },
-                { label: 'addAll(otherList)', insertText: 'addAll(${1:otherList})' },
-                { label: 'get(index)', insertText: 'get(${1:index})' },
-                { label: 'size()', insertText: 'size()' },
-                { label: 'contains(val)', insertText: 'contains(${1:val})' },
-                { label: 'isEmpty()', insertText: 'isEmpty()' },
-                { label: 'remove(index)', insertText: 'remove(${1:index})' },
-                { label: 'clear()', insertText: 'clear()' },
-                { label: 'sort(asc)', insertText: 'sort(${1:true})' },
-                { label: 'distinct()', insertText: 'distinct()' }
+                { label: "add(val)", insertText: "add(${1:val})", doc: "Adds an element to the list." },
+                { label: "addAll(otherList)", insertText: "addAll(${1:otherList})", doc: "Adds all elements from another list." },
+                { label: "get(index)", insertText: "get(${1:index})", doc: "Returns the element at the specified index." },
+                { label: "size()", insertText: "size()", doc: "Returns the number of elements in the list." },
+                { label: "isEmpty()", insertText: "isEmpty()", doc: "Checks if the list is empty." },
+                { label: "contains(val)", insertText: "contains(${1:val})", doc: "Checks if the list contains the specified value." },
+                { label: "remove(index)", insertText: "remove(${1:index})", doc: "Removes the element at the specified index." },
+                { label: "clear()", insertText: "clear()", doc: "Removes all elements from the list." },
+                { label: "sort(asc)", insertText: "sort(${1:true})", doc: "Sorts the list in ascending or descending order." },
+                { label: "distinct()", insertText: "distinct()", doc: "Returns a new list with unique elements." },
+                { label: "intersect(otherList)", insertText: "intersect(${1:otherList})", doc: "Returns the intersection of two lists." },
+                { label: "subList(start, end)", insertText: "subList(${1:start}, ${2:end})", doc: "Returns a sublist from start index to end index." }
             ],
             map: [
-                { label: 'put(key, val)', insertText: 'put("${1:key}", ${2:val})' },
-                { label: 'get(key)', insertText: 'get("${1:key}")' },
-                { label: 'getJSON(key)', insertText: 'getJSON("${1:key}")' },
-                { label: 'keys()', insertText: 'keys()' },
-                { label: 'remove(key)', insertText: 'remove("${1:key}")' },
-                { label: 'size()', insertText: 'size()' },
-                { label: 'isEmpty()', insertText: 'isEmpty()' },
-                { label: 'containsKey(key)', insertText: 'containsKey("${1:key}")' },
-                { label: 'containValue(val)', insertText: 'containValue(${1:val})' },
-                { label: 'clear()', insertText: 'clear()' }
+                { label: "put(key, val)", insertText: "put(\"${1:key}\", ${2:val})", doc: "Adds a key-value pair to the map." },
+                { label: "putAll(otherMap)", insertText: "putAll(${1:otherMap})", doc: "Adds all entries from another map." },
+                { label: "get(key)", insertText: "get(\"${1:key}\")", doc: "Returns the value associated with the specified key." },
+                { label: "getJSON(key)", insertText: "getJSON(\"${1:key}\")", doc: "Returns the value as a JSON object." },
+                { label: "keys()", insertText: "keys()", doc: "Returns a list of keys in the map." },
+                { label: "remove(key)", insertText: "remove(\"${1:key}\")", doc: "Removes the entry for the specified key." },
+                { label: "size()", insertText: "size()", doc: "Returns the number of entries in the map." },
+                { label: "isEmpty()", insertText: "isEmpty()", doc: "Checks if the map is empty." },
+                { label: "containsKey(key)", insertText: "containsKey(\"${1:key}\")", doc: "Checks if the map contains the specified key." },
+                { label: "containsValue(val)", insertText: "containsValue(${1:val})", doc: "Checks if the map contains the specified value." },
+                { label: "clear()", insertText: "clear()", doc: "Removes all entries from the map." }
+            ],
+            int: [
+                { label: "abs()", insertText: "abs()", doc: "Returns the absolute value." },
+                { label: "toDecimal()", insertText: "toDecimal()", doc: "Converts to a decimal." },
+                { label: "toString()", insertText: "toString()", doc: "Converts to a string." },
+                { label: "toHex()", insertText: "toHex()", doc: "Converts to a hexadecimal string." }
+            ],
+            decimal: [
+                { label: "abs()", insertText: "abs()", doc: "Returns the absolute value." },
+                { label: "round(precision)", insertText: "round(${1:2})", doc: "Rounds to the specified number of decimal places." },
+                { label: "ceil()", insertText: "ceil()", doc: "Returns the smallest integer greater than or equal to the number." },
+                { label: "floor()", insertText: "floor()", doc: "Returns the largest integer less than or equal to the number." },
+                { label: "toLong()", insertText: "toLong()", doc: "Converts to a long integer." },
+                { label: "toString()", insertText: "toString()", doc: "Converts to a string." }
+            ],
+            date: [
+                { label: "addDay(n)", insertText: "addDay(${1:1})", doc: "Adds n days to the date." },
+                { label: "subDay(n)", insertText: "subDay(${1:1})", doc: "Subtracts n days from the date." },
+                { label: "addMonth(n)", insertText: "addMonth(${1:1})", doc: "Adds n months to the date." },
+                { label: "addYear(n)", insertText: "addYear(${1:1})", doc: "Adds n years to the date." },
+                { label: "getDay()", insertText: "getDay()", doc: "Returns the day of the month." },
+                { label: "getMonth()", insertText: "getMonth()", doc: "Returns the month (1-12)." },
+                { label: "getYear()", insertText: "getYear()", doc: "Returns the year." },
+                { label: "toString(format)", insertText: "toString(\"${1:dd-MMM-yyyy}\")", doc: "Converts to a string with the specified format." },
+                { label: "toDateTime()", insertText: "toDateTime()", doc: "Converts to a date-time." }
+            ],
+            datetime: [
+                { label: "addHour(n)", insertText: "addHour(${1:1})", doc: "Adds n hours to the date-time." },
+                { label: "addMinutes(n)", insertText: "addMinutes(${1:1})", doc: "Adds n minutes to the date-time." },
+                { label: "addSeconds(n)", insertText: "addSeconds(${1:1})", doc: "Adds n seconds to the date-time." },
+                { label: "getHour()", insertText: "getHour()", doc: "Returns the hour of the day." },
+                { label: "getMinutes()", insertText: "getMinutes()", doc: "Returns the minutes." },
+                { label: "getSeconds()", insertText: "getSeconds()", doc: "Returns the seconds." },
+                { label: "toString(format)", insertText: "toString(\"${1:dd-MMM-yyyy HH:mm:ss}\")", doc: "Converts to a string with the specified format." }
+            ],
+            common: [
+                { label: "isNull()", insertText: "isNull()", doc: "Checks if the value is null." },
+                { label: "toString()", insertText: "toString()", doc: "Converts the value to a string." }
             ],
             zoho: [
-                { label: 'zoho.crm.getRecordById(module, id)', insertText: 'zoho.crm.getRecordById("${1:Leads}", ${2:id})' },
-                { label: 'zoho.crm.updateRecord(module, id, map)', insertText: 'zoho.crm.updateRecord("${1:Leads}", ${2:id}, ${3:dataMap})' },
-                { label: 'zoho.crm.createRecord(module, map)', insertText: 'zoho.crm.createRecord("${1:Leads}", ${2:dataMap})' },
-                { label: 'zoho.crm.searchRecords(module, criteria)', insertText: 'zoho.crm.searchRecords("${1:Leads}", "(${2:Email} == \'${3:test@example.com}\')")' },
-                { label: 'zoho.books.getRecords(module, orgId)', insertText: 'zoho.books.getRecords("${1:Invoices}", "${2:organization_id}")' },
-                { label: 'zoho.books.createRecord(module, orgId, map)', insertText: 'zoho.books.createRecord("${1:Invoices}", "${2:organization_id}", ${3:dataMap})' },
-                { label: 'zoho.recruit.getRecordById(module, id)', insertText: 'zoho.recruit.getRecordById("${1:Candidates}", ${2:id})' },
-                { label: 'zoho.recruit.updateRecord(module, id, map)', insertText: 'zoho.recruit.updateRecord("${1:Candidates}", ${2:id}, ${3:dataMap})' }
+                { label: 'zoho.crm.getRecordById(module, id)', insertText: 'crm.getRecordById("${1:Leads}", ${2:id})' },
+                { label: 'zoho.crm.updateRecord(module, id, map)', insertText: 'crm.updateRecord("${1:Leads}", ${2:id}, ${3:dataMap})' },
+                { label: 'zoho.crm.createRecord(module, map)', insertText: 'crm.createRecord("${1:Leads}", ${2:dataMap})' },
+                { label: 'zoho.crm.searchRecords(module, criteria)', insertText: 'crm.searchRecords("${1:Leads}", "(${2:Email} == \'${3:test@example.com}\')")' },
+                { label: 'zoho.books.getRecords(module, orgId)', insertText: 'books.getRecords("${1:Invoices}", "${2:organization_id}")' },
+                { label: 'zoho.books.createRecord(module, orgId, map)', insertText: 'books.createRecord("${1:Invoices}", "${2:organization_id}", ${3:dataMap})' },
+                { label: 'zoho.recruit.getRecordById(module, id)', insertText: 'recruit.getRecordById("${1:Candidates}", ${2:id})' },
+                { label: 'zoho.recruit.updateRecord(module, id, map)', insertText: 'recruit.updateRecord("${1:Candidates}", ${2:id}, ${3:dataMap})' }
+            ],
+            crm: [
+                { label: 'getRecordById(module, id)', insertText: 'getRecordById("${1:Leads}", ${2:id})' },
+                { label: 'getRecords(module, page, per_page)', insertText: 'getRecords("${1:Leads}", ${2:1}, ${3:20})' },
+                { label: 'searchRecords(module, criteria)', insertText: 'searchRecords("${1:Leads}", "(${2:Email} == \'${3:test@example.com}\')")' },
+                { label: 'createRecord(module, map)', insertText: 'createRecord("${1:Leads}", ${2:dataMap})' },
+                { label: 'updateRecord(module, id, map)', insertText: 'updateRecord("${1:Leads}", ${2:id}, ${3:dataMap})' },
+                { label: 'getRelatedRecords(relation, module, id)', insertText: 'getRelatedRecords("${1:Relation}", "${2:Leads}", ${3:id})' }
+            ],
+            books: [
+                { label: 'getRecords(module, orgId)', insertText: 'getRecords("${1:Invoices}", "${2:organization_id}")' },
+                { label: 'createRecord(module, orgId, map)', insertText: 'createRecord("${1:Invoices}", "${2:organization_id}", ${3:dataMap})' }
+            ],
+            creator: [
+                { label: 'uploadFile(file, owner, app, form, id, field)', insertText: 'uploadFile(${1:file_var}, "${2:Owner}", "${3:App}", "${4:Form}", ${5:id}, "${6:Field}")' },
+                { label: 'getRecords(owner, app, report, criteria, page, size, conn)', insertText: 'getRecords("${1:Owner}", "${2:App}", "${3:Report}", "${4:Criteria}", ${5:1}, ${6:100}, "${7:Connection}")' }
+            ],
+            recruit: [
+                { label: 'getRecords(module, page, per_page)', insertText: 'getRecords("${1:Candidates}", ${2:1}, ${3:20})' },
+                { label: 'getRecordById(module, id)', insertText: 'getRecordById("${1:Candidates}", ${2:id})' },
+                { label: 'updateRecord(module, id, map)', insertText: 'updateRecord("${1:Candidates}", ${2:id}, ${3:dataMap})' }
             ]
         };
 
         monaco.languages.registerCompletionItemProvider('deluge', {
-            triggerCharacters: ['.', '"'],
+            triggerCharacters: ['.', '"', "'", '/'],
             provideCompletionItems: (model, position) => {
                 const lineUntilPos = model.getValueInRange({
                     startLineNumber: position.lineNumber,
@@ -160,40 +246,209 @@
                     endColumn: position.column
                 };
 
-                // Method Suggestion after a dot
+                // 1. Interface Manager Autocomplete (Auto-Trigger on Get or Dot)
+                // We use \b to ensure we match whole variable names
+                const interfaceGetMatch = lineUntilPos.match(/\b([a-zA-Z_]\w*)\s*((?:\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"][^'"]*['"]|\d+)\s*\))*)\s*\.\s*get(?:JSON)?\s*\(\s*['"]([^'"]*)$/);
+                const interfaceDotMatch = lineUntilPos.match(/\b([a-zA-Z_]\w*)\s*((?:\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"][^'"]*['"]|\d+)\s*\))*)\s*\.\s*([a-zA-Z_]\w*)?$/);
+
+                if (interfaceGetMatch || interfaceDotMatch) {
+                    const isDot = !!interfaceDotMatch;
+                    const match = isDot ? interfaceDotMatch : interfaceGetMatch;
+                    const varName = match[1];
+                    const path = match[2];
+
+                    const varMap = extractVariables(code);
+                    const varInfo = varMap[varName];
+                    const mappings = window.interfaceMappings || {};
+
+                    let mappingName = (varInfo && typeof varInfo === 'object' && varInfo.mapping) ? varInfo.mapping : (mappings[varName] ? varName : null);
+                    let initialPath = (varInfo && typeof varInfo === 'object' && varInfo.path) ? varInfo.path : [];
+
+                    if (mappingName && mappings[mappingName]) {
+                        let currentObj = mappings[mappingName];
+                        for (const p of initialPath) {
+                            if (currentObj) currentObj = currentObj[p];
+                        }
+                        const pathParts = path.match(/\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/g) || [];
+                        for (const part of pathParts) {
+                            const keyMatch = part.match(/\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/);
+                            if (keyMatch && currentObj && typeof currentObj === 'object') {
+                                const key = keyMatch[1] !== undefined ? keyMatch[1] : keyMatch[2];
+                                currentObj = currentObj[key];
+                            }
+                        }
+
+                        if (currentObj && typeof currentObj === 'object') {
+                            let suggestions = [];
+                            let prefix = "";
+                            let type = Array.isArray(currentObj) ? 'list' : 'map';
+
+                            // 1. Key Suggestions
+                            let objForKeys = null;
+                            if (type === 'list') {
+                                if (currentObj.length > 0 && typeof currentObj[0] === 'object' && currentObj[0] !== null) {
+                                    objForKeys = currentObj[0];
+                                    prefix = "get(0).";
+                                }
+                            } else {
+                                objForKeys = currentObj;
+                            }
+
+                            if (objForKeys && typeof objForKeys === 'object' && !Array.isArray(objForKeys)) {
+                                Object.keys(objForKeys).forEach(key => {
+                                    const val = objForKeys[key];
+                                    const isComplex = typeof val === 'object' && val !== null;
+                                    const method = isComplex ? 'getJSON' : 'get';
+
+                                    suggestions.push({
+                                        label: key,
+                                        kind: monaco.languages.CompletionItemKind.Property,
+                                        detail: (isComplex ? (Array.isArray(val) ? 'List' : 'Map') : typeof val) + " (Interface)",
+                                        insertText: isDot ? `${prefix}${method}("${key}")` : key,
+                                        sortText: '00' + key,
+                                        range: isDot ? {
+                                            startLineNumber: position.lineNumber,
+                                            endLineNumber: position.lineNumber,
+                                            startColumn: match.index + match[0].lastIndexOf('.') + 2,
+                                            endColumn: position.column
+                                        } : range,
+                                        command: { id: 'editor.action.triggerSuggest', title: 'Re-trigger' }
+                                    });
+                                });
+                            }
+
+                            // 2. Method Suggestions (Only if it's a dot trigger)
+                            if (isDot) {
+                                const methods = typeMethods[type] || [];
+                                const common = typeMethods.common || [];
+                                [...methods, ...common].forEach((m, index) => {
+                                    suggestions.push({
+                                        ...m,
+                                        kind: monaco.languages.CompletionItemKind.Method,
+                                        detail: m.doc + " (Method)",
+                                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                        sortText: '01' + (m.label === 'isNull()' || m.label === 'toString()' ? 'zzz' : String.fromCharCode(97 + index)),
+                                        range: {
+                                            startLineNumber: position.lineNumber,
+                                            endLineNumber: position.lineNumber,
+                                            startColumn: match.index + match[0].lastIndexOf('.') + 2,
+                                            endColumn: position.column
+                                        }
+                                    });
+                                });
+                            }
+
+                            if (suggestions.length > 0) {
+                                return { suggestions };
+                            }
+                        }
+                    }
+                }
+
+                // 2. Zoho suggestions (handle zoho. and zoho.crm. etc)
+                if (lineUntilPos.match(/zoho\.[a-zA-Z0-9_.]*$/)) {
+                    const parts = lineUntilPos.split('.');
+                    const lastPart = parts[parts.length - 1];
+                    const isDirectZoho = parts.length === 2 && lastPart === '';
+
+                    let suggestions = [];
+                    if (isDirectZoho) {
+                        // Sub-namespaces
+                        suggestions = [
+                            { label: 'crm', kind: monaco.languages.CompletionItemKind.Module, insertText: 'crm.' },
+                            { label: 'books', kind: monaco.languages.CompletionItemKind.Module, insertText: 'books.' },
+                            { label: 'creator', kind: monaco.languages.CompletionItemKind.Module, insertText: 'creator.' },
+                            { label: 'recruit', kind: monaco.languages.CompletionItemKind.Module, insertText: 'recruit.' },
+                            { label: 'currenttime', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'currenttime' },
+                            { label: 'currentdate', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'currentdate' },
+                            { label: 'adminuserid', kind: monaco.languages.CompletionItemKind.Variable, insertText: 'adminuserid' }
+                        ];
+                        // Add legacy methods too
+                        suggestions = suggestions.concat(typeMethods.zoho.map(m => ({
+                            ...m,
+                            kind: monaco.languages.CompletionItemKind.Function
+                        })));
+                    } else {
+                        const namespace = parts[1];
+                        const methods = typeMethods[namespace] || [];
+                        suggestions = methods.map(m => ({
+                            ...m,
+                            kind: monaco.languages.CompletionItemKind.Method
+                        }));
+                    }
+
+                    if (suggestions.length > 0) {
+                        return {
+                            suggestions: suggestions.map(s => ({
+                                ...s,
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                range: range
+                            }))
+                        };
+                    }
+                }
+
+                // 3. Method Suggestion after a dot (generic)
                 const dotMatch = lineUntilPos.match(/([a-zA-Z0-9_]+)\.$/);
                 if (dotMatch) {
                     const varName = dotMatch[1];
-                    const type = inferVarType(varName, code) || 'map';
-                    const methods = typeMethods[type.toLowerCase()] || typeMethods.map;
+                    if (varName !== 'zoho') {
+                        const type = inferVarType(varName, code) || 'map';
+                        const methods = typeMethods[type.toLowerCase()] || typeMethods.map;
+                        const common = typeMethods.common || [];
+                        const user = userMethods[type.toLowerCase()] || [];
 
-                    return {
-                        suggestions: methods.map(m => ({
-                            ...m,
-                            kind: monaco.languages.CompletionItemKind.Method,
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            range: range
-                        }))
-                    };
+                        return {
+                            suggestions: [...methods, ...user, ...common].map((m, index) => ({
+                                ...m,
+                                kind: monaco.languages.CompletionItemKind.Method,
+                                detail: m.doc,
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                range: range,
+                                sortText: (m.label === 'isNull()' || m.label === 'toString()') ? 'zzz' : String.fromCharCode(97 + index)
+                            }))
+                        };
+                    }
                 }
 
-                // Zoho suggestions
-                if (lineUntilPos.endsWith('zoho.')) {
-                    return {
-                        suggestions: typeMethods.zoho.map(m => ({
-                            ...m,
-                            kind: monaco.languages.CompletionItemKind.Function,
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            range: range
-                        }))
-                    };
+                // 4. My Snippets (handle / trigger)
+                const mySnippetMatch = lineUntilPos.match(/(?:^|\s)\/([a-zA-Z0-9_]*)$/);
+                if (mySnippetMatch) {
+                    const triggerText = mySnippetMatch[1];
+                    const slashIndex = lineUntilPos.lastIndexOf('/' + triggerText);
+                    const textBeforeSlash = lineUntilPos.substring(0, slashIndex);
+
+                    // Avoid triggering inside comments or strings (naive but effective for common cases)
+                    const isComment = textBeforeSlash.includes('//') || textBeforeSlash.includes('/*');
+                    const isString = (textBeforeSlash.match(/"/g) || []).length % 2 !== 0 || (textBeforeSlash.match(/'/g) || []).length % 2 !== 0;
+
+                    if (!isComment && !isString) {
+                        const snippets = window.mySnippets || [];
+                        return {
+                            suggestions: snippets.map(s => ({
+                                label: '/' + s.trigger,
+                                kind: monaco.languages.CompletionItemKind.Snippet,
+                                detail: s.name + (s.comments ? ` - ${s.comments}` : ""),
+                                documentation: { value: "```deluge\n" + s.code + "\n```" },
+                                insertText: s.code,
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                range: {
+                                    startLineNumber: position.lineNumber,
+                                    endLineNumber: position.lineNumber,
+                                    startColumn: slashIndex + 1,
+                                    endColumn: position.column
+                                }
+                            }))
+                        };
+                    }
                 }
 
-                // Default suggestions
-                const vars = extractVariables(code);
-                const varSuggestions = Array.from(vars).map(v => ({
+                // 5. Default suggestions
+                const varMap = extractVariables(code);
+                const varSuggestions = Object.keys(varMap).map(v => ({
                     label: v,
                     kind: monaco.languages.CompletionItemKind.Variable,
+                    detail: varMap[v].type + (varMap[v].mapping ? ` (Mapped: ${varMap[v].mapping})` : ""),
                     insertText: v,
                     range: range
                 }));
@@ -209,57 +464,141 @@
 
 
         // Validation logic
-            function extractVariables(code) {
-        const vars = new Set(['input', 'zoho', 'thisapp', 'standalone', 'today', 'now', 'invokeurl']);
-
-        // Extract parameters from function signatures
-        const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
-        let pMatch;
-        while ((pMatch = funcParamRegex.exec(code)) !== null) {
-            const params = pMatch[1].split(',');
-            params.forEach(p => {
-                const parts = p.trim().split(/\s+/);
-                if (parts.length > 0) {
-                    const paramName = parts[parts.length - 1].trim();
-                    if (paramName) vars.add(paramName);
-                }
+        function extractVariables(code) {
+            // Robustly remove comments while preserving strings (to avoid strings with // breaking things)
+            const cleanCode = code.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\/\*[\s\S]*?\*\/|\/\/.*/g, (match, group1) => {
+                if (group1) return group1; // Keep the string
+                return ""; // Remove the comment
             });
+
+            const varMap = {
+                'input': { type: 'Map' },
+                'zoho': { type: 'Namespace' },
+                'thisapp': { type: 'Namespace' },
+                'standalone': { type: 'Namespace' },
+                'today': { type: 'Date' },
+                'now': { type: 'DateTime' }
+            };
+
+            // 0. Interface Mappings
+            if (window.interfaceMappings) {
+                for (const name in window.interfaceMappings) {
+                    varMap[name] = { type: 'Map', mapping: name, path: [] };
+                }
+            }
+
+            const keywords = new Set(['if', 'else', 'for', 'each', 'in', 'return', 'info', 'true', 'false', 'null', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'collection', 'zoho', 'thisapp', 'standalone', 'input', 'today', 'now', 'invokeurl', 'GET', 'POST', 'PUT', 'DELETE', 'PATCH']);
+
+            // 1. Explicit Declarations: string name = "..."
+            const declRegex = /\b(string|int|decimal|boolean|map|list)\s+([a-zA-Z_]\w*)/gi;
+            let match;
+            while ((match = declRegex.exec(cleanCode)) !== null) {
+                varMap[match[2]] = { type: match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase() };
+            }
+
+            // 2. Assignments: name = ...
+            const assignRegex = /([a-zA-Z_]\w*)\s*=\s*([^;]+)/g;
+            while ((match = assignRegex.exec(cleanCode)) !== null) {
+                const name = match[1];
+                const val = match[2].trim();
+                if (keywords.has(name)) continue;
+
+                if (val.startsWith('"') || val.startsWith("'")) varMap[name] = { type: 'String' };
+                else if (val.match(/^\d+$/)) varMap[name] = { type: 'Int' };
+                else if (val.match(/^\d+\.\d+$/)) varMap[name] = { type: 'Decimal' };
+                else if (val.toLowerCase().startsWith('map()')) varMap[name] = { type: 'Map' };
+                else if (val.toLowerCase().startsWith('list()')) varMap[name] = { type: 'List' };
+                else if (val.toLowerCase().startsWith('collection()')) varMap[name] = { type: 'List' };
+                else if (val.toLowerCase().startsWith('invokeurl')) varMap[name] = { type: 'Map' };
+                else if (val.startsWith('{')) {
+                    varMap[name] = { type: 'Map', isLiteral: true };
+                    // Basic literal key extraction for dynamic autocomplete
+                    const keysMatch = val.match(/['"]([^'"]+)['"]\s*:/g);
+                    if (keysMatch) {
+                        const literalMapping = {};
+                        keysMatch.forEach(k => {
+                            const key = k.match(/['"]([^'"]+)['"]/)[1];
+                            literalMapping[key] = "Object";
+                        });
+                        if (!window.interfaceMappings) window.interfaceMappings = {};
+                        const mappingName = `_literal_${name}`;
+                        window.interfaceMappings[mappingName] = literalMapping;
+                        varMap[name].mapping = mappingName;
+                        varMap[name].path = [];
+                    }
+                }
+
+                // Trace assignments from other variables: data = resp.get("data")
+                const getMatch = val.match(/\b([a-zA-Z_]\w*)\s*((?:\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"][^'"]*['"]|\d+)\s*\))+)\s*$/);
+                if (getMatch) {
+                    const sourceVar = getMatch[1];
+                    const pathStr = getMatch[2];
+                    const sourceInfo = varMap[sourceVar] || (window.interfaceMappings && window.interfaceMappings[sourceVar] ? { mapping: sourceVar, path: [] } : null);
+
+                    if (sourceInfo && (sourceInfo.mapping || (window.interfaceMappings && window.interfaceMappings[sourceVar]))) {
+                        const mappingName = sourceInfo.mapping || sourceVar;
+                        const newPath = [...(sourceInfo.path || [])];
+                        const pathParts = pathStr.match(/\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/g) || [];
+                        for (const part of pathParts) {
+                            const keyMatch = part.match(/\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/);
+                            if (keyMatch) {
+                                const key = keyMatch[1] !== undefined ? keyMatch[1] : keyMatch[2];
+                                newPath.push(key);
+                            }
+                        }
+                        varMap[name] = { type: 'Map', mapping: mappingName, path: newPath };
+                    }
+                } else if (varMap[val]) {
+                    // Direct assignment: v2 = v1
+                    varMap[name] = { ...varMap[val] };
+                }
+            }
+
+            // 3. Function params
+            const funcParamRegex = /(?:void|string|int|decimal|boolean|map|list)\s+[a-zA-Z_]\w*\s*\(([^)]*)\)/gi;
+            while ((match = funcParamRegex.exec(cleanCode)) !== null) {
+                const params = match[1].split(',');
+                params.forEach(p => {
+                    const parts = p.trim().split(/\s+/);
+                    if (parts.length >= 2) {
+                        const type = parts[0].trim();
+                        const name = parts[parts.length - 1].trim();
+                        varMap[name] = { type: type.charAt(0).toUpperCase() + type.slice(1).toLowerCase() };
+                    } else if (parts.length === 1 && parts[0]) {
+                        varMap[parts[0]] = { type: 'Object' };
+                    }
+                });
+            }
+
+            // 4. Loops
+            const forEachRegex = /for\s+each\s+([a-zA-Z_]\w*)\s+in\s+([a-zA-Z_]\w*)/gi;
+            while ((match = forEachRegex.exec(cleanCode)) !== null) {
+                varMap[match[1]] = { type: 'Object' };
+            }
+
+            // 5. Catch
+            const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
+            while ((match = catchRegex.exec(cleanCode)) !== null) {
+                varMap[match[1]] = { type: 'Error' };
+            }
+
+            // 6. Heuristics from usage
+            const methodUsageRegex = /([a-zA-Z_]\w*)\.(put|get|keys|remove|size|isEmpty|containsKey|containsValue|clear|add|addAll|sort|distinct)\(/g;
+            while ((match = methodUsageRegex.exec(cleanCode)) !== null) {
+                const name = match[1];
+                const method = match[2];
+                if (keywords.has(name) || (varMap[name] && varMap[name].type && varMap[name].type !== 'Object')) continue;
+
+                if (['put', 'keys', 'containsKey', 'containsValue'].includes(method)) varMap[name] = { type: 'Map' };
+                else if (['add', 'addAll', 'sort', 'distinct'].includes(method)) varMap[name] = { type: 'List' };
+            }
+
+            return varMap;
         }
 
-        // Extract variables from catch blocks
-        const catchRegex = /catch\s*\(\s*([a-zA-Z_]\w*)\s*\)/gi;
-        while ((pMatch = catchRegex.exec(code)) !== null) {
-            vars.add(pMatch[1]);
-        }
-
-        // Extract from assignments
-        const assignmentRegex = /([a-zA-Z0-9_]+)\s*=/g;
-        let match;
-        while ((match = assignmentRegex.exec(code)) !== null) {
-            vars.add(match[1]);
-        }
-
-        // Extract from for each loops
-        const forEachRegex = /for\s+each\s+([a-zA-Z0-9_]+)\s+in/gi;
-        while ((match = forEachRegex.exec(code)) !== null) {
-            vars.add(match[1]);
-        }
-
-        // Extract from for loops
-        const forRegex = /for\s+([a-zA-Z0-9_]+)\s+in/gi;
-        while ((match = forRegex.exec(code)) !== null) {
-            vars.add(match[1]);
-        }
-
-        return vars;
-    }
-
-    function inferVarType(varName, code) {
-            const mapRegex = new RegExp(varName + "\\s*=\\s*Map\\(\\)", "i");
-            if (mapRegex.test(code)) return "Map";
-            const listRegex = new RegExp(varName + "\\s*=\\s*List\\(\\)", "i");
-            if (listRegex.test(code)) return "List";
-            return null;
+        function inferVarType(varName, code) {
+            const vars = extractVariables(code);
+            return vars[varName] ? vars[varName].type : null;
         }
 
 
@@ -275,7 +614,7 @@
             let inCommentBlock = false;
 
             // 1. Collect defined variables
-            const definedVars = extractVariables(code);
+            const varMap = extractVariables(code);
 
             const mandatoryParams = {
                 'zoho.crm.getRecordById': 2,
@@ -312,12 +651,12 @@
                 openParens += (trimmed.match(/\(/g) || []).length;
                 openParens -= (trimmed.match(/\)/g) || []).length;
 
-                const skipKeywords = ['if', 'for', 'else', 'try', 'catch', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'break', 'continue', 'return', 'info', 'invokeurl'];
+                const skipKeywords = ['if', 'for', 'each', 'in', 'else', 'try', 'catch', 'void', 'string', 'int', 'decimal', 'boolean', 'map', 'list', 'break', 'continue', 'return', 'info', 'invokeurl', 'GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'true', 'false', 'null'];
                 const startsWithKeyword = skipKeywords.some(kw => {
                     const regex = new RegExp('^' + kw + '(\\s|\\(|$)', 'i');
                     return regex.test(trimmed);
                 });
-                const endsWithSpecial = trimmed.endsWith('{') || trimmed.endsWith('}') || trimmed.endsWith(';') || trimmed.endsWith(':') || trimmed.endsWith(',') || trimmed.endsWith('(') || trimmed.endsWith('[');
+                const endsWithSpecial = trimmed.endsWith('{') || trimmed.endsWith('}') || trimmed.endsWith(';') || trimmed.endsWith(':') || trimmed.endsWith(',') || trimmed.endsWith('(') || trimmed.endsWith('[') || trimmed.toLowerCase().endsWith('invokeurl') || trimmed.toLowerCase().endsWith('sendmail');
 
                 // Semicolon check
                 if (!endsWithSpecial && !startsWithKeyword && openBrackets === 0 && openBraces === 0 && openParens === 0) {
@@ -331,25 +670,31 @@
                 }
 
                 // Undefined variable check (Simple heuristic)
-                const words = trimmed.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
-                words.forEach(word => {
-                    if (skipKeywords.includes(word)) return;
-                    if (definedVars.has(word)) return;
+                // Use a regex that respects word boundaries and ignores matches inside strings
+                const wordRegex = /\b[a-zA-Z_][a-zA-Z0-9_\-]*\b/g;
+                let wordMatch;
+                while ((wordMatch = wordRegex.exec(line)) !== null) {
+                    const word = wordMatch[0];
+                    const index = wordMatch.index;
 
-                    // Check if it's followed by ( or . (might be a function/namespace)
-                    const index = line.indexOf(word);
-                    const restOfLine = line.substring(index + word.length).trim();
-                    if (restOfLine.startsWith('(') || restOfLine.startsWith('.') || restOfLine.startsWith(':')) return;
+                    if (skipKeywords.includes(word)) continue;
+                    if (varMap[word]) continue;
 
                     // Check if it's part of a string
-                    // (Simplified check: if it's between quotes on same line)
                     const before = line.substring(0, index);
                     const after = line.substring(index + word.length);
-                    if ((before.match(/"/g) || []).length % 2 === 1 && (after.match(/"/g) || []).length % 2 === 1) return;
-                    if ((before.match(/'/g) || []).length % 2 === 1 && (after.match(/'/g) || []).length % 2 === 1) return;
+                    if ((before.match(/"/g) || []).length % 2 === 1 && (after.match(/"/g) || []).length % 2 === 1) continue;
+                    if ((before.match(/'/g) || []).length % 2 === 1 && (after.match(/'/g) || []).length % 2 === 1) continue;
+
+                    // Check if it's followed by ( or . (might be a function/namespace) or : (a key)
+                    const restOfLine = after.trim();
+                    if (restOfLine.startsWith('(') || restOfLine.startsWith('.') || restOfLine.startsWith(':')) continue;
 
                     // If it's on the left of =, it's being defined now
-                    if (after.trim().startsWith('=')) return;
+                    if (restOfLine.startsWith('=')) continue;
+
+                    // If it's part of a mapping name, it's valid
+                    if (window.interfaceMappings && window.interfaceMappings[word]) continue;
 
                     markers.push({
                         message: `Undefined variable: '${word}'`,
@@ -357,7 +702,7 @@
                         startLineNumber: i + 1, startColumn: index + 1,
                         endLineNumber: i + 1, endColumn: index + word.length + 1
                     });
-                });
+                }
 
                 // Mandatory Parameter Check
                 for (const [fn, count] of Object.entries(mandatoryParams)) {
@@ -435,6 +780,20 @@
             provideHover: (model, position) => {
                 const word = model.getWordAtPosition(position);
                 if (!word) return;
+
+                // Try to find method documentation
+                for (const type in typeMethods) {
+                    const method = typeMethods[type].find(m => m.label.startsWith(word.word + '('));
+                    if (method && method.doc) {
+                        return {
+                            range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
+                            contents: [
+                                { value: `**${method.label}**` },
+                                { value: method.doc }
+                            ]
+                        };
+                    }
+                }
 
                 const docs = {
                     'Map': 'A key-value pair data structure. Use `Map()` to initialize.',

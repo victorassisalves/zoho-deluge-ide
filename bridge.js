@@ -1,210 +1,268 @@
-// Bridge script injected into Zoho page to access Ace/CodeMirror/Monaco in Main World
-
+// Bridge script for Zoho Deluge IDE
 (function() {
-    console.log('[ZohoIDE] Bridge script initialized');
+    const log = (...args) => console.log('[ZohoIDE Bridge]', ...args);
 
-    window.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'FROM_EXTENSION') {
-            const action = event.data.action;
-            let response = {};
-
-            if (action === 'GET_ZOHO_CODE') {
-                const code = getEditorCode();
-                if (code !== null) {
-                    response = { code: code };
-                } else {
-                    response = { error: 'No editor found in this frame' };
-                }
-            } else if (action === 'SET_ZOHO_CODE') {
-                response = { success: setEditorCode(event.data.code) };
-            } else if (action === 'SAVE_ZOHO_CODE') {
-                response = { success: triggerZohoAction('save') };
-            } else if (action === 'EXECUTE_ZOHO_CODE') {
-                response = { success: triggerZohoAction('execute') };
-            } else if (action === 'GET_CREATOR_FORMS') {
-                response = { forms: getCreatorForms() };
+    const Engines = {
+        Monaco: {
+            isAvailable: () => !!(window.monaco && (window.monaco.editor || window.monaco.languages)),
+            getCode: () => {
+                try {
+                    if (!window.monaco || !window.monaco.editor) return null;
+                    const models = window.monaco.editor.getModels();
+                    if (!models || models.length === 0) return null;
+                    // Prefer models with content and relevant language
+                    let model = models.find(m => m.getValue().length > 0 && (m.getLanguageId() === 'deluge' || m.getLanguageId() === 'javascript'));
+                    if (!model) model = models.find(m => m.getValue().length > 0);
+                    if (!model) model = models[0];
+                    return model.getValue();
+                } catch(e) { log('Monaco getCode error:', e); return null; }
+            },
+            setCode: (code) => {
+                try {
+                    if (!window.monaco || !window.monaco.editor) return false;
+                    const models = window.monaco.editor.getModels();
+                    if (!models || models.length === 0) return false;
+                    let model = models.find(m => m.getLanguageId() === 'deluge' || m.getLanguageId() === 'javascript');
+                    if (!model) model = models[0];
+                    model.setValue(code);
+                    return true;
+                } catch(e) { log('Monaco setCode error:', e); return false; }
             }
+        },
+        Ace: {
+            isAvailable: () => !!(document.querySelector('.ace_editor, .zace-editor, lyte-ace-editor') || (window.ace && window.ace.edit) || window.ZEditor || window.Zace),
+            getCode: () => {
+                try {
+                    // Try ZEditor/Zace first (common in Zoho Creator)
+                    if (window.ZEditor && window.ZEditor.getValue) return window.ZEditor.getValue();
+                    if (window.Zace && window.Zace.getValue) return window.Zace.getValue();
 
-            window.postMessage({ type: 'FROM_PAGE', action: action, response: response }, '*');
+                    // Try lyte-ace-editor component
+                    const lyteAce = document.querySelector('lyte-ace-editor');
+                    if (lyteAce && lyteAce.getEditor) {
+                        const ed = lyteAce.getEditor();
+                        if (ed && ed.getValue) return ed.getValue();
+                    }
+
+                    const aceEls = document.querySelectorAll('.ace_editor, .zace-editor');
+                    for (let el of aceEls) {
+                        if (el.env && el.env.editor) return el.env.editor.getValue();
+                        if (window.ace && window.ace.edit) {
+                            try { return window.ace.edit(el).getValue(); } catch(e) {}
+                        }
+                    }
+                    return null;
+                } catch(e) { log('Ace getCode error:', e); return null; }
+            },
+            setCode: (code) => {
+                try {
+                    if (window.ZEditor && window.ZEditor.setValue) { window.ZEditor.setValue(code); return true; }
+                    if (window.Zace && window.Zace.setValue) { window.Zace.setValue(code); return true; }
+
+                    const lyteAce = document.querySelector('lyte-ace-editor');
+                    if (lyteAce && lyteAce.getEditor) {
+                        const ed = lyteAce.getEditor();
+                        if (ed && ed.setValue) { ed.setValue(code); return true; }
+                    }
+
+                    const aceEls = document.querySelectorAll('.ace_editor, .zace-editor');
+                    let success = false;
+                    for (let el of aceEls) {
+                        if (el.env && el.env.editor) { el.env.editor.setValue(code); success = true; }
+                        else if (window.ace && window.ace.edit) {
+                            try { window.ace.edit(el).setValue(code); success = true; } catch(e) {}
+                        }
+                    }
+                    return success;
+                } catch(e) { log('Ace setCode error:', e); return false; }
+            }
+        },
+        CodeMirror: {
+            isAvailable: () => !!document.querySelector('.CodeMirror'),
+            getCode: () => {
+                try {
+                    const cmEls = document.querySelectorAll('.CodeMirror');
+                    for (let el of cmEls) if (el.CodeMirror) return el.CodeMirror.getValue();
+                    return null;
+                } catch(e) { return null; }
+            },
+            setCode: (code) => {
+                try {
+                    const cmEls = document.querySelectorAll('.CodeMirror');
+                    let success = false;
+                    for (let el of cmEls) if (el.CodeMirror) { el.CodeMirror.setValue(code); success = true; }
+                    return success;
+                } catch(e) { return false; }
+            }
+        },
+        Fallback: {
+            isAvailable: () => !!(document.querySelector('[id*="delugeEditor"], .deluge-editor, textarea[id*="script"]')),
+            getCode: () => {
+                const el = document.querySelector('[id*="delugeEditor"], .deluge-editor, textarea[id*="script"]');
+                return el ? el.value || el.innerText : null;
+            },
+            setCode: (code) => {
+                const el = document.querySelector('[id*="delugeEditor"], .deluge-editor, textarea[id*="script"]');
+                if (el) {
+                    el.value = code;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    return true;
+                }
+                return false;
+            }
         }
-    });
+    };
 
-    function getEditorCode() {
+    const Products = {
+        flow: {
+            match: (url) => url.includes('flow.zoho'),
+            save: ['input[value="Save"].zf-green-btn', 'input[value="Save"]'],
+            execute: ['input[value="Execute"].zf-green-o-btn', 'input[value="Execute"]']
+        },
+        creator: {
+            match: (url) => url.includes('creator.zoho') || url.includes('creatorapp.zoho') || url.includes('creatorportal.zoho'),
+            save: ['input#saveFuncBtn', 'input[elename="saveFunction"]', 'lyte-button[data-zcqa="save"]', '.zc-save-btn', 'button.save-btn'],
+            execute: ['input#executeFuncBtn', 'input[elename="executeFunction"]', 'lyte-button[data-zcqa="execute"]', '.zc-execute-btn', 'button.run-btn']
+        },
+        crm: {
+            match: (url) => url.includes('crm.zoho'),
+            save: ['lyte-button[data-zcqa="functionSavev2"]', 'lyte-button[data-zcqa="functionSavev2"] button', '#crmsave', 'lyte-button[data-zcqa="save"]', '.crm-save-btn'],
+            execute: ['span[data-zcqa="delgv2execPlay"]', '#crmexecute', 'lyte-button[data-id="execute"]']
+        },
+        generic: {
+            match: () => true,
+            save: ['#save_script', '#save_btn', 'input[value="Save"]', 'input[value="Update"]'],
+            execute: ['#execute_script', '#run_script', 'input[value="Execute"]', 'input[value="Run"]']
+        }
+    };
+
+    function robustClick(el) {
+        if (!el) return false;
         try {
-            if (window.monaco && window.monaco.editor) {
-                const models = window.monaco.editor.getModels();
-                if (models && models.length > 0) return models[0].getValue();
+            log('Clicking element:', el.tagName, el.id, el.className);
+
+            // Dispatch a sequence of events to mimic real user interaction
+            const events = [
+                { type: 'mousedown', cls: MouseEvent },
+                { type: 'pointerdown', cls: PointerEvent },
+                { type: 'mouseup', cls: MouseEvent },
+                { type: 'pointerup', cls: PointerEvent },
+                { type: 'click', cls: MouseEvent }
+            ];
+
+            events.forEach(({ type, cls }) => {
+                try {
+                    const event = new cls(type, {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                        buttons: 1
+                    });
+                    el.dispatchEvent(event);
+                } catch (e) {}
+            });
+
+            // If it's a lyte-button or has a specific 'click' attribute (common in Zoho)
+            // we might need to trigger its internal handlers if they didn't fire
+            if (el.tagName.toLowerCase() === 'lyte-button' && el.executeAction) {
+                try { el.executeAction('click', new MouseEvent('click')); } catch(e) {}
             }
-        } catch (e) {}
-        try {
-            const aceEls = document.querySelectorAll('.ace_editor');
-            for (let aceEl of aceEls) {
-                if (aceEl.env && aceEl.env.editor) return aceEl.env.editor.getValue();
-                if (window.ace && window.ace.edit) {
-                    try { return window.ace.edit(aceEl).getValue(); } catch(e) {}
-                }
-            }
-        } catch (e) {}
-        try {
-            const cmEls = document.querySelectorAll('.CodeMirror');
-            for (let cmEl of cmEls) {
-                if (cmEl.CodeMirror) return cmEl.CodeMirror.getValue();
-            }
-        } catch (e) {}
-        try {
-            const delugeEditor = document.querySelector('[id*="delugeEditor"], [id*="scriptEditor"], .deluge-editor');
-            if (delugeEditor) {
-                if (delugeEditor.value !== undefined) return delugeEditor.value;
-                if (delugeEditor.env && delugeEditor.env.editor) return delugeEditor.env.editor.getValue();
-            }
-        } catch (e) {}
-        try {
-            if (window.ZEditor && window.ZEditor.getContent) return window.ZEditor.getContent();
-        } catch (e) {}
-        return null;
+
+            return true;
+        } catch(e) {
+            log('Click error:', e);
+            return false;
+        }
     }
 
-    function setEditorCode(code) {
-        let success = false;
-        try {
-            if (window.monaco && window.monaco.editor) {
-                const models = window.monaco.editor.getModels();
-                if (models && models.length > 0) { models[0].setValue(code); success = true; }
-            }
-        } catch (e) {}
-        try {
-            const aceEls = document.querySelectorAll('.ace_editor');
-            for (let aceEl of aceEls) {
-                if (aceEl.env && aceEl.env.editor) { aceEl.env.editor.setValue(code); success = true; }
-                else if (window.ace && window.ace.edit) {
-                    try { window.ace.edit(aceEl).setValue(code); success = true; } catch(e) {}
-                }
-            }
-        } catch (e) {}
-        try {
-            const cmEls = document.querySelectorAll('.CodeMirror');
-            for (let cmEl of cmEls) {
-                if (cmEl.CodeMirror) { cmEl.CodeMirror.setValue(code); success = true; }
-            }
-        } catch (e) {}
-        try {
-            const delugeEditor = document.querySelector('[id*="delugeEditor"], [id*="scriptEditor"], .deluge-editor');
-            if (delugeEditor) {
-                delugeEditor.value = code;
-                if (delugeEditor.env && delugeEditor.env.editor) delugeEditor.env.editor.setValue(code);
-                delugeEditor.dispatchEvent(new Event('input', { bubbles: true }));
-                delugeEditor.dispatchEvent(new Event('change', { bubbles: true }));
-                success = true;
-            }
-        } catch (e) {}
-        return success;
-    }
+    function triggerAction(type) {
+        const url = window.location.href;
+        log(`Triggering ${type} for URL: ${url}`);
+        let productMatch = Object.entries(Products).find(([name, p]) => p.match && p.match(url));
+        let product = productMatch ? productMatch[1] : Products.generic;
+        let productName = productMatch ? productMatch[0] : 'generic';
 
-    function triggerZohoAction(type) {
-        let selectors = [];
-        if (type === 'save') {
-            selectors = [
-                'button[id="save_script"]',
-                'button[id="save_btn"]',
-                '#save_script',
-                '#save_btn',
-                '#crmsave', 'lyte-button[data-zcqa="functionSavev2"]', '.dxEditorPrimaryBtn',
-                '.crm-save-btn',
-                '.zc-save-btn',
-                '.save-btn',
-                '.lyte-button[data-id="save"]',
-                '.lyte-button[data-id="update"]',
-                '.lyte-button[data-id="save_and_close"]',
-                '.save_btn',
-                'input#saveBtn',
-                'input[value="Save"]'
-            ];
-        } else if (type === 'execute') {
-            selectors = [
-                'button[id="execute_script"]',
-                'button[id="run_script"]',
-                '#execute_script',
-                '#run_script',
-                '#crmexecute', 'span[data-zcqa="delgv2execPlay"]', '.dx_execute_icon',
-                '#runscript',
-                '.zc-execute-btn',
-                '.execute-btn',
-                '.lyte-button[data-id="execute"]',
-                '.lyte-button[data-id="run"]',
-                '.lyte-button[data-id="save_and_execute"]',
-                '.execute_btn',
-                '#execute_btn',
-                'input#executeBtn',
-                'input[value="Execute"]',
-                'input[value="Run"]'
-            ];
-        }
+        log(`Detected product: ${productName}`);
+        const selectors = product[type] || [];
 
         for (let sel of selectors) {
-            try {
-                const el = document.querySelector(sel);
-                if (el) { el.click(); return true; }
-            } catch(e) {}
+            const els = document.querySelectorAll(sel);
+            log(`Checking selector: ${sel}, found ${els.length} elements`);
+            for (let el of els) {
+                const isVisible = !!(el.offsetParent !== null || el.offsetWidth > 0);
+                log(`Element ${el.tagName} visible: ${isVisible}`);
+                if (el && isVisible) {
+                    if (robustClick(el)) {
+                        log(`${type} action successful with selector: ${sel}`);
+                        return true;
+                    }
+                }
+            }
         }
 
-        // Fallback: search by text and ARIA labels
-        const buttons = document.querySelectorAll('button, .lyte-button, a.btn, input[type="button"], [role="button"]');
-        for (let btn of buttons) {
-            const txt = (btn.innerText || btn.textContent || btn.value || btn.getAttribute('aria-label') || '').toLowerCase().trim();
-            if (type === 'save') {
-                if (txt === 'save' || txt === 'update' || txt.includes('save script') || txt.includes('update script') || txt.includes('save & close') || txt.includes('save and close')) {
-                    btn.click(); return true;
-                }
-            }
-            if (type === 'execute') {
-                if (txt === 'execute' || txt === 'run' || txt.includes('execute script') || txt.includes('run script') || txt.includes('save & execute') || txt.includes('save and execute')) {
-                    btn.click(); return true;
-                }
-            }
+        // Text-based fallback
+        const candidates = document.querySelectorAll('button, input[type="button"], input[type="submit"], .lyte-button, [role="button"]');
+        for (let el of candidates) {
+            if (el.offsetParent === null && el.offsetWidth === 0) continue;
+            const txt = (el.innerText || el.textContent || el.value || '').toLowerCase().trim();
+            if (type === 'save' && (txt === 'save' || txt === 'update' || txt.includes('save script'))) return robustClick(el);
+            if (type === 'execute' && (txt === 'execute' || txt === 'run' || txt.includes('execute script'))) return robustClick(el);
         }
         return false;
     }
 
-    function getCreatorForms() {
-        const forms = [];
-        try {
-            // Attempt to find form names in the sidebar of Zoho Creator Builder
-            // This varies by version, but let's try common selectors
-            const formElements = document.querySelectorAll('.zc-form-name, .form-title, [data-zc-formname]');
-            formElements.forEach(el => {
-                const name = el.getAttribute('data-zc-formname') || el.innerText.trim();
-                if (name && !forms.includes(name)) forms.push(name);
-            });
+    log('Bridge initialized in frame:', window.location.href);
 
-            // Fallback: search for specific sidebar items
-            if (forms.length === 0) {
-                const sidebarItems = document.querySelectorAll('.zc-sidebar-item-text');
-                sidebarItems.forEach(el => {
-                    const name = el.innerText.trim();
-                    if (name && name.length > 2) forms.push(name);
-                });
-            }
-        } catch (e) {
-            console.error('[ZohoIDE] Error fetching forms:', e);
-        }
-        return forms;
-    }
+    window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
+        const data = event.detail;
+        if (!data || !data.action) return;
 
-    // Console scraping
-    setInterval(() => {
-        try {
-            const selectors = ['.console-output', '#console-result', '.builder-console-content', '.debugger-console', '[id*="console"]', '.output-container', '.deluge-console'];
-            for (let selector of selectors) {
-                const el = document.querySelector(selector);
-                if (el && el.innerText && el.innerText.trim().length > 0) {
-                    const text = el.innerText.trim();
-                    if (text !== window._last_console_data) {
-                        window._last_console_data = text;
-                        window.postMessage({ type: 'FROM_PAGE', action: 'ZOHO_CONSOLE_UPDATE', data: text }, '*');
+        let response = {};
+        const { action, eventId } = data;
+
+        if (action === 'GET_ZOHO_CODE') {
+            log('GET_ZOHO_CODE requested');
+            for (let engineName of Object.keys(Engines)) {
+                const engine = Engines[engineName];
+                if (engine.isAvailable()) {
+                    const code = engine.getCode();
+                    if (code !== null) {
+                        log('Code retrieved from:', engineName);
+                        response = { code };
                         break;
                     }
                 }
             }
-        } catch (e) {}
-    }, 2000);
+            if (!response.code) response = { error: 'No editor found' };
+        } else if (action === 'SET_ZOHO_CODE') {
+            log('SET_ZOHO_CODE requested');
+            let success = false;
+            for (let engineName of Object.keys(Engines)) {
+                const engine = Engines[engineName];
+                if (engine.isAvailable()) {
+                    if (engine.setCode(data.code)) {
+                        log('Code set successfully using:', engineName);
+                        success = true;
+                        break;
+                    }
+                }
+            }
+            // Give the editor a moment to process the change before returning
+            if (success) await new Promise(r => setTimeout(r, 100));
+            response = { success };
+        } else if (action === 'SAVE_ZOHO_CODE') {
+            log('SAVE_ZOHO_CODE requested');
+            response = { success: triggerAction('save') };
+        } else if (action === 'EXECUTE_ZOHO_CODE') {
+            log('EXECUTE_ZOHO_CODE requested');
+            response = { success: triggerAction('execute') };
+        } else if (action === 'PING') {
+            response = { status: 'PONG' };
+        }
+
+        window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
+            detail: { eventId, action, response }
+        }));
+    });
 })();

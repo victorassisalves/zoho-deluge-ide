@@ -6,7 +6,7 @@ window.zideProjectName = zideProjectName;
 window.activeCloudFileId = null;
 
 /**
- * Zoho Deluge Advanced IDE v1.2.3
+ * Zoho Deluge Advanced IDE v2.0.0
  */
 
 var editor;
@@ -14,6 +14,7 @@ var isConnected = false;
 var interfaceMappings = {};
 var currentResearchReport = "";
 var researchPollingInterval = null;
+var lastActionTime = 0;
 
 function initEditor() {
     if (editor) return;
@@ -61,6 +62,7 @@ function initEditor() {
             language: 'deluge',
             theme: 'dracula',
             automaticLayout: true,
+            wordBasedSuggestions: false,
             fontSize: 14,
             minimap: { enabled: true },
             lineNumbers: 'on',
@@ -79,19 +81,45 @@ function initEditor() {
 
 
 
-        // Keyboard Shortcuts
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => { saveLocally(); });
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS, () => { pushToZoho(true); });
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => { pushToZoho(true, true); });
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => { pullFromZoho(); });
+        // Keyboard Shortcuts & Overrides
+        editor.addAction({
+            id: 'zide-save-local',
+            label: 'Save Locally',
+            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+            run: () => { saveLocally(); }
+        });
+        editor.addAction({
+            id: 'zide-push-zoho',
+            label: 'Push to Zoho',
+            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS],
+            run: () => { pushToZoho(true); }
+        });
+        editor.addAction({
+            id: 'zide-push-execute-zoho',
+            label: 'Push and Execute',
+            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter],
+            run: () => { pushToZoho(true, true); }
+        });
+        editor.addAction({
+            id: 'zide-pull-zoho',
+            label: 'Pull from Zoho',
+            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP],
+            run: () => {
+                console.log('[ZohoIDE] Shortcut: Pull from Zoho');
+                pullFromZoho();
+            }
+        });
 
         if (typeof chrome !== "undefined" && chrome.runtime) {
             chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (request.action === "CMD_SYNC_SAVE") {
+                    console.log('[ZohoIDE] Command: Sync & Save');
                     pushToZoho(true);
                 } else if (request.action === "CMD_SYNC_SAVE_EXECUTE") {
+                    console.log('[ZohoIDE] Command: Sync & Execute');
                     pushToZoho(true, true);
                 } else if (request.action === "CMD_PULL_CODE") {
+                    console.log('[ZohoIDE] Command: Pull Code');
                     pullFromZoho();
                 }
             });
@@ -106,11 +134,18 @@ function initEditor() {
         });
 
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.get(['saved_deluge_code', 'theme', 'activation_behavior', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height'], (result) => {
+            chrome.storage.local.get(['saved_deluge_code', 'theme', 'activation_behavior', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height', 'font_size'], (result) => {
                 if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
         if (typeof initApiExplorer === 'function') initApiExplorer();
         if (typeof syncProblemsPanel === 'function') syncProblemsPanel();
                 if (result.theme) monaco.editor.setTheme(result.theme);
+                if (result.font_size) {
+                    const fs = parseInt(result.font_size);
+                    if (fs && editor) {
+                        editor.updateOptions({ fontSize: fs });
+                        document.getElementById("editor-font-size").value = fs;
+                    }
+                }
                 if (result.activation_behavior) document.getElementById("activation-behavior").value = result.activation_behavior;
                 if (result.bottom_panel_height) {
                     const bottomPanel = document.getElementById('bottom-panel');
@@ -212,16 +247,17 @@ function loadProjectData() {
 
         const projectMappings = result.project_mappings || {};
         interfaceMappings = projectMappings[zideProjectUrl] || {};
+        window.interfaceMappings = interfaceMappings;
         updateInterfaceMappingsList();
     });
 }
 
-function setupEventHandlers() {
-    const bind = (id, event, fn) => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener(event, fn);
-    };
+const bind = (id, event, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(event, fn);
+};
 
+function setupEventHandlers() {
     bind('new-btn', 'click', () => {
         if (confirm('Start a new script?')) {
             editor.setValue('// New Zoho Deluge Script\n\n');
@@ -271,6 +307,18 @@ function setupEventHandlers() {
         monaco.editor.setTheme(theme);
         if (typeof chrome !== "undefined" && chrome.storage) {
             chrome.storage.local.set({ 'theme': theme });
+        }
+    });
+
+    bind('editor-font-size', 'input', (e) => {
+        let fs = parseInt(e.target.value);
+        if (fs) {
+            if (fs > 30) fs = 30;
+            if (fs < 8) fs = 8;
+            if (editor) editor.updateOptions({ fontSize: fs });
+            if (typeof chrome !== "undefined" && chrome.storage) {
+                chrome.storage.local.set({ 'font_size': fs });
+            }
         }
     });
 
@@ -432,8 +480,25 @@ function setupEventHandlers() {
     bind('save-settings-btn', 'click', () => {
         const key = document.getElementById('gemini-api-key').value;
         const model = document.getElementById('gemini-model').value;
+        let fontSize = document.getElementById('editor-font-size').value;
+
+        // Handle font size
+        let fs = parseInt(fontSize);
+        if (fs) {
+            if (fs > 30) fs = 30;
+            if (fs < 8) fs = 8;
+            fontSize = fs;
+            if (editor) editor.updateOptions({ fontSize: fs });
+            document.getElementById('editor-font-size').value = fs;
+        }
+
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.set({ 'gemini_api_key': key, 'gemini_model': model, 'activation_behavior': document.getElementById('activation-behavior').value }, () => {
+            chrome.storage.local.set({
+                'gemini_api_key': key,
+                'gemini_model': model,
+                'activation_behavior': document.getElementById('activation-behavior').value,
+                'font_size': fontSize
+            }, () => {
                 log('Success', 'Settings saved.');
             });
         }
@@ -457,6 +522,10 @@ function setupEventHandlers() {
 
     bind('interface-btn', 'click', () => {
         document.getElementById('modal-title').innerText = 'Convert JSON to Deluge Map';
+        document.getElementById('interface-var-name').value = 'payload';
+        document.getElementById('interface-input').value = '';
+        document.getElementById('modal-json-status').innerHTML = '';
+
         document.getElementById('modal-var-container').style.display = 'block';
         document.getElementById('modal-convert').style.display = 'block';
         document.getElementById('modal-map-only').style.display = 'none';
@@ -465,19 +534,61 @@ function setupEventHandlers() {
 
     bind('add-interface-btn', 'click', () => {
         document.getElementById('modal-title').innerText = 'Add JSON Mapping for Autocomplete';
+        document.getElementById('interface-var-name').value = 'payload';
+        document.getElementById('interface-input').value = '';
+        document.getElementById('modal-json-status').innerHTML = '';
+
         document.getElementById('modal-var-container').style.display = 'block';
         document.getElementById('modal-convert').style.display = 'none';
         document.getElementById('modal-map-only').style.display = 'block';
+        document.getElementById('modal-map-only').innerText = 'Save Mapping';
         document.getElementById('interface-modal').style.display = 'flex';
     });
 
     bind('modal-cancel', 'click', () => { document.getElementById('interface-modal').style.display = 'none'; });
+    bind('modal-close', 'click', () => { document.getElementById('interface-modal').style.display = 'none'; });
 
-        bind('modal-convert', 'click', () => {
+    bind('modal-paste', 'click', async () => {
+        try {
+            let text = await navigator.clipboard.readText();
+            document.getElementById('interface-input').value = tryFixJson(text);
+            validateModalJson();
+        } catch (err) {
+            console.error('Failed to read clipboard:', err);
+        }
+    });
+
+    bind('interface-input', 'input', () => {
+        validateModalJson();
+    });
+
+    bind('interface-input', 'paste', () => {
+        setTimeout(() => {
+            const input = document.getElementById('interface-input');
+            if (input) {
+                input.value = tryFixJson(input.value);
+                validateModalJson();
+            }
+        }, 0);
+    });
+
+    bind('modal-fix-json', 'click', () => {
+        const input = document.getElementById('interface-input');
+        if (input) {
+            input.value = tryFixJson(input.value);
+            validateModalJson();
+        }
+    });
+
+    bind('modal-convert', 'click', () => {
         const varName = document.getElementById('interface-var-name').value || 'payload';
-        const jsonStr = document.getElementById('interface-input').value;
-        const style = document.getElementById('gen-style').value;
-        const update = document.getElementById('gen-update').checked;
+        let jsonStr = document.getElementById('interface-input').value;
+
+        // Final attempt to fix before processing
+        jsonStr = tryFixJson(jsonStr);
+
+        const style = document.getElementById('gen-style') ? document.getElementById('gen-style').value : 'step';
+        const update = document.getElementById('gen-update') ? document.getElementById('gen-update').checked : false;
         try {
             const code = convertInterfaceToDeluge(varName, jsonStr, { style, update });
             editor.executeEdits('json-convert', [{ range: editor.getSelection(), text: code }]);
@@ -490,7 +601,8 @@ function setupEventHandlers() {
 
     bind('modal-map-only', 'click', () => {
         const name = document.getElementById('interface-var-name').value || 'mapping';
-        const jsonStr = document.getElementById('interface-input').value;
+        let jsonStr = document.getElementById('interface-input').value;
+        jsonStr = tryFixJson(jsonStr);
         saveInterfaceMapping(name, jsonStr);
         document.getElementById('interface-modal').style.display = 'none';
     });
@@ -509,6 +621,101 @@ function setupEventHandlers() {
     initResources();
 
 
+}
+
+function tryFixJson(str) {
+    if (!str) return str;
+    let fixed = str.trim();
+
+    // 0. Try to extract JSON if it's wrapped in other text
+    const firstBrace = fixed.indexOf('{');
+    const firstBracket = fixed.indexOf('[');
+    let startPos = -1;
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) startPos = firstBrace;
+    else if (firstBracket !== -1) startPos = firstBracket;
+
+    if (startPos !== -1) {
+        const lastBrace = fixed.lastIndexOf('}');
+        const lastBracket = fixed.lastIndexOf(']');
+        let endPos = -1;
+        if (lastBrace !== -1 && (lastBracket === -1 || lastBrace > lastBracket)) endPos = lastBrace;
+        else if (lastBracket !== -1) endPos = lastBracket;
+
+        if (endPos !== -1 && endPos > startPos) {
+            fixed = fixed.substring(startPos, endPos + 1);
+        }
+    }
+
+    // 1. Remove comments
+    fixed = fixed.replace(/\/\/.*$/gm, '');
+    fixed = fixed.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // 2. Replace single quotes with double quotes for keys
+    fixed = fixed.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'\s*:/g, '"$1":');
+
+    // 3. Replace single quotes with double quotes for values
+    fixed = fixed.replace(/([:\[,]\s*)'([^'\\]*(?:\\.[^'\\]*)*)'/g, '$1"$2"');
+
+    // 4. Quote unquoted keys
+    const keyPattern = /([{,]\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/g;
+    fixed = fixed.replace(keyPattern, '$1"$2":');
+
+    // Also handle keys at the start of a line (missing commas or object body)
+    fixed = fixed.replace(/^(\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/gm, '$1"$2":');
+
+    // 5. Remove trailing commas
+    fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
+
+    try {
+        const obj = JSON.parse(fixed);
+        return JSON.stringify(obj, null, 2);
+    } catch (e) {
+        return fixed;
+    }
+}
+
+function validateModalJson() {
+    const input = document.getElementById('interface-input');
+    const status = document.getElementById('modal-json-status');
+    const btnConvert = document.getElementById('modal-convert');
+    const btnSave = document.getElementById('modal-map-only');
+    const btnFix = document.getElementById('modal-fix-json');
+
+    if (!input || !input.value.trim()) {
+        if (status) status.innerHTML = '';
+        if (btnFix) btnFix.style.display = 'none';
+        return;
+    }
+
+    try {
+        JSON.parse(input.value);
+        if (status) {
+            status.innerHTML = '<span style="color: #50fa7b;">✓ Valid JSON</span>';
+        }
+        if (btnConvert) btnConvert.disabled = false;
+        if (btnSave) btnSave.disabled = false;
+        if (btnFix) btnFix.style.display = 'none';
+    } catch (e) {
+        // Try fixing it
+        const fixed = tryFixJson(input.value);
+        try {
+            JSON.parse(fixed);
+            if (status) {
+                status.innerHTML = '<span style="color: #ffb86c;">⚠ Invalid JSON (Autofix available)</span>';
+            }
+            if (btnFix) btnFix.style.display = 'inline-flex';
+            // We allow clicking even if invalid if autofix works
+            if (btnConvert) btnConvert.disabled = false;
+            if (btnSave) btnSave.disabled = false;
+        } catch (e2) {
+            if (status) {
+                status.innerHTML = `<span style="color: #ff5555;">✗ Invalid JSON: ${e.message}</span>`;
+            }
+            if (btnFix) btnFix.style.display = 'none';
+            // if (btnConvert) btnConvert.disabled = true;
+            // if (btnSave) btnSave.disabled = true;
+        }
+    }
 }
 
 function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
@@ -576,6 +783,7 @@ function saveInterfaceMapping(name, jsonStr) {
     try {
         const obj = JSON.parse(jsonStr);
         interfaceMappings[name] = obj;
+        window.interfaceMappings = interfaceMappings;
         saveCurrentMappings();
         updateInterfaceMappingsList();
     } catch (e) {
@@ -600,24 +808,41 @@ function saveCurrentMappings() {
 
 function updateInterfaceMappingsList() {
     const list = document.getElementById('interface-mappings-list');
+    const countEl = document.getElementById('mapping-count');
     if (!list) return;
+
+    const mappings = Object.keys(interfaceMappings);
+    if (countEl) countEl.innerText = mappings.length;
+
     list.innerHTML = '';
-    Object.keys(interfaceMappings).forEach(name => {
+    mappings.forEach(name => {
         const item = document.createElement('div');
         item.className = 'mapping-item';
+        if (window.activeMappingName === name) item.classList.add('active');
 
         const nameSpan = document.createElement('span');
         nameSpan.innerText = name;
         nameSpan.style.flex = '1';
+        nameSpan.style.overflow = 'hidden';
+        nameSpan.style.textOverflow = 'ellipsis';
+        nameSpan.style.whiteSpace = 'nowrap';
 
         const actions = document.createElement('div');
-        actions.style.display = 'flex';
-        actions.style.gap = '8px';
+        actions.className = 'mapping-actions';
+
+        const editBtn = document.createElement('span');
+        editBtn.className = 'material-icons';
+        editBtn.innerHTML = 'edit';
+        editBtn.title = 'Edit Mapping';
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            openEditMappingModal(name);
+        };
 
         const copyAllBtn = document.createElement('span');
-        copyAllBtn.innerHTML = '📋';
+        copyAllBtn.className = 'material-icons';
+        copyAllBtn.innerHTML = 'content_copy';
         copyAllBtn.title = 'Copy as Deluge Map';
-        copyAllBtn.style.cursor = 'pointer';
         copyAllBtn.onclick = (e) => {
             e.stopPropagation();
             const code = convertInterfaceToDeluge(name, JSON.stringify(interfaceMappings[name]));
@@ -627,26 +852,46 @@ function updateInterfaceMappingsList() {
             }
         };
 
+        const copyJsonBtn = document.createElement('span');
+        copyJsonBtn.className = 'material-icons';
+        copyJsonBtn.innerHTML = 'data_object';
+        copyJsonBtn.title = 'Copy as Raw JSON';
+        copyJsonBtn.onclick = (e) => {
+            e.stopPropagation();
+            const json = JSON.stringify(interfaceMappings[name], null, 2);
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(json);
+                showStatus('Raw JSON copied to clipboard', 'success');
+            }
+        };
+
         const deleteBtn = document.createElement('span');
-        deleteBtn.className = 'delete-mapping';
-        deleteBtn.innerHTML = '×';
-        deleteBtn.style.opacity = '1';
+        deleteBtn.className = 'delete-mapping material-icons';
+        deleteBtn.innerHTML = 'close';
         deleteBtn.onclick = (e) => {
             e.stopPropagation();
             if (confirm(`Delete mapping "${name}"?`)) {
                 delete interfaceMappings[name];
+                window.interfaceMappings = interfaceMappings;
+                if (window.activeMappingName === name) {
+                    window.activeMappingName = null;
+                    document.getElementById('interface-tree-view').innerHTML = '<div style="font-size:11px; opacity:0.5; text-align:center; margin-top:20px;">Select a mapping to explore its structure</div>';
+                }
                 saveCurrentMappings();
                 updateInterfaceMappingsList();
             }
         };
 
+        actions.appendChild(editBtn);
         actions.appendChild(copyAllBtn);
+        actions.appendChild(copyJsonBtn);
         actions.appendChild(deleteBtn);
 
         item.appendChild(nameSpan);
         item.appendChild(actions);
 
         item.onclick = () => {
+            window.activeMappingName = name;
             document.querySelectorAll('.mapping-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
             renderInterfaceTree(name, interfaceMappings[name]);
@@ -655,10 +900,58 @@ function updateInterfaceMappingsList() {
     });
 }
 
+function openEditMappingModal(name) {
+    const mapping = interfaceMappings[name];
+    if (!mapping) return;
+
+    document.getElementById('modal-title').innerText = 'Edit JSON Mapping';
+    document.getElementById('interface-var-name').value = name;
+    document.getElementById('interface-input').value = JSON.stringify(mapping, null, 2);
+
+    document.getElementById('modal-var-container').style.display = 'block';
+    document.getElementById('modal-convert').style.display = 'none';
+    document.getElementById('modal-map-only').style.display = 'block';
+    document.getElementById('modal-map-only').innerText = 'Update Mapping';
+
+    document.getElementById('interface-modal').style.display = 'flex';
+    validateModalJson();
+}
+
 function renderInterfaceTree(mappingName, obj) {
     const tree = document.getElementById('interface-tree-view');
     if (!tree) return;
     tree.innerHTML = '';
+
+    // Header for the tree view
+    const treeHeader = document.createElement('div');
+    treeHeader.className = 'tree-view-header';
+    treeHeader.innerHTML = `
+        <div class="tree-header-info">
+            <span class="material-icons" style="font-size: 16px; color: #8be9fd;">account_tree</span>
+            <span class="tree-header-title">${mappingName}</span>
+        </div>
+        <div class="tree-header-actions">
+            <button id="tree-expand-all" title="Expand All"><span class="material-icons">unfold_more</span></button>
+            <button id="tree-collapse-all" title="Collapse All"><span class="material-icons">unfold_less</span></button>
+        </div>
+    `;
+    tree.appendChild(treeHeader);
+
+    const treeContent = document.createElement('div');
+    treeContent.className = 'tree-content';
+    tree.appendChild(treeContent);
+
+    bind('tree-expand-all', 'click', () => {
+        treeContent.querySelectorAll('.tree-sub.collapsed').forEach(sub => sub.classList.remove('collapsed'));
+        treeContent.querySelectorAll('.toggle-icon.collapsed').forEach(icon => icon.classList.remove('collapsed'));
+        treeContent.querySelectorAll('.tree-footer').forEach(f => f.style.display = 'block');
+    });
+
+    bind('tree-collapse-all', 'click', () => {
+        treeContent.querySelectorAll('.tree-sub').forEach(sub => sub.classList.add('collapsed'));
+        treeContent.querySelectorAll('.toggle-icon').forEach(icon => icon.classList.add('collapsed'));
+        treeContent.querySelectorAll('.tree-footer').forEach(f => f.style.display = 'none');
+    });
 
     function buildTree(data, container, path = "", depth = 0) {
         if (typeof data === 'object' && data !== null) {
@@ -679,9 +972,9 @@ function renderInterfaceTree(mappingName, obj) {
 
                 let iconHtml = '';
                 if (isObject) {
-                    iconHtml = '<span class="toggle-icon">▼</span><span class="node-icon">📁</span>';
+                    iconHtml = '<span class="toggle-icon material-icons" style="font-size:12px;">arrow_drop_down</span><span class="node-icon material-icons" style="font-size:12px;">folder</span>';
                 } else {
-                    iconHtml = '<span class="toggle-icon" style="visibility:hidden">▼</span><span class="node-icon">📄</span>';
+                    iconHtml = '<span class="toggle-icon material-icons" style="visibility:hidden; font-size:12px;">arrow_drop_down</span><span class="node-icon material-icons" style="font-size:12px;">description</span>';
                 }
 
                 const keyHtml = `<span class="tree-key">${key}</span>`;
@@ -709,6 +1002,19 @@ function renderInterfaceTree(mappingName, obj) {
                     editor.executeEdits("tree-insert", [{ range: editor.getSelection(), text: fullPath }]);
                 };
 
+                const copyJsonBtn = document.createElement('button');
+                copyJsonBtn.className = 'tree-action-btn';
+                copyJsonBtn.innerText = 'JSON';
+                copyJsonBtn.title = 'Copy as Raw JSON to clipboard';
+                copyJsonBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    const json = JSON.stringify(val, null, 2);
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(json);
+                        showStatus('Node JSON copied to clipboard', 'success');
+                    }
+                };
+
                 const copyMapBtn = document.createElement('button');
                 copyMapBtn.className = 'tree-action-btn';
                 copyMapBtn.innerText = 'Map';
@@ -724,6 +1030,7 @@ function renderInterfaceTree(mappingName, obj) {
                 };
 
                 actions.appendChild(copyPathBtn);
+                actions.appendChild(copyJsonBtn);
                 if (isObject) actions.appendChild(copyMapBtn);
                 label.appendChild(actions);
 
@@ -757,7 +1064,7 @@ function renderInterfaceTree(mappingName, obj) {
             });
         }
     }
-    buildTree(obj, tree);
+    buildTree(obj, treeContent);
 }
 
 
@@ -781,6 +1088,10 @@ function log(type, message) {
 }
 
 function pullFromZoho() {
+    const now = Date.now();
+    if (now - lastActionTime < 800) return;
+    lastActionTime = now;
+
     if (!isConnected) {
         log('Error', 'No Zoho tab connected. Please open a Zoho Deluge editor tab first.');
         return;
@@ -797,6 +1108,10 @@ function pullFromZoho() {
 }
 
 function pushToZoho(triggerSave = false, triggerExecute = false) {
+    const now = Date.now();
+    if (now - lastActionTime < 1000) return;
+    lastActionTime = now;
+
     if (!isConnected) {
         log('Error', 'No Zoho tab connected. Sync/Execute failed.');
         return;
@@ -817,17 +1132,38 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
         chrome.runtime.sendMessage({ action: 'SET_ZOHO_CODE', code: code }, (response) => {
             if (response && response.success) {
                 log('Success', 'Code pushed.');
-                if (triggerSave) {
+
+                if (triggerSave || triggerExecute) {
+                    // Logic: Save first. If Execute is requested, wait 500ms then Execute.
                     chrome.runtime.sendMessage({ action: 'SAVE_ZOHO_CODE' }, (res) => {
-                        if (res && res.success) log('Success', 'Zoho Save triggered.');
+                        if (res && res.success) {
+                            log('Success', 'Zoho Save triggered.');
+
+                            if (triggerExecute) {
+                                log('System', 'Waiting 700ms before execution...');
+                                setTimeout(() => {
+                                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (execRes) => {
+                                        if (execRes && execRes.success) log('Success', 'Zoho Execute triggered.');
+                                        else log('Warning', 'Zoho Execute trigger failed.');
+                                    });
+                                }, 700);
+                            }
+                        } else {
+                            log('Warning', 'Zoho Save trigger failed. Try clicking manually.');
+                            // Still try to execute if it was requested, as some saves might be "no-op"
+                            if (triggerExecute) {
+                                setTimeout(() => {
+                                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (execRes) => {
+                                        if (execRes && execRes.success) log('Success', 'Zoho Execute triggered.');
+                                    });
+                                }, 700);
+                            }
+                        }
                     });
                 }
-                if (triggerExecute) {
-                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (res) => {
-                        if (res && res.success) log('Success', 'Zoho Execute triggered.');
-                    });
-                }
-            } else { log('Error', response?.error || 'Push failed.'); }
+            } else {
+                log('Error', response?.error || 'Push failed.');
+            }
         });
     }
 }
@@ -1000,18 +1336,34 @@ function explainCode() {
 
 if (document.readyState === 'complete') { initEditor(); } else { window.addEventListener('load', initEditor); }
 
-document.getElementById('toggle-right-sidebar')?.addEventListener('click', () => {
+function toggleRightSidebar() {
     const sidebar = document.getElementById('right-sidebar');
-    sidebar.classList.toggle('collapsed');
+    const resizer = document.getElementById('right-sidebar-resizer');
+    if (!sidebar) return;
 
-    if (sidebar.classList.contains('collapsed')) {
-        sidebar.dataset.oldWidth = sidebar.style.width || '250px';
-        sidebar.style.width = ''; // Let CSS take over
+    const isNowCollapsing = !sidebar.classList.contains('collapsed');
+
+    if (isNowCollapsing) {
+        // Save current width before collapsing
+        const currentWidth = sidebar.getBoundingClientRect().width;
+        sidebar.dataset.oldWidth = currentWidth + 'px';
+        sidebar.classList.add('collapsed');
+        if (resizer) resizer.classList.add('collapsed');
+        sidebar.style.width = ''; // Let CSS take over for collapsed state
     } else {
+        sidebar.classList.remove('collapsed');
+        if (resizer) resizer.classList.remove('collapsed');
         sidebar.style.width = sidebar.dataset.oldWidth || '250px';
     }
-    if (editor) editor.layout();
-});
+
+    if (editor) {
+        setTimeout(() => editor.layout(), 0);
+        setTimeout(() => editor.layout(), 300); // After transition
+    }
+}
+
+document.getElementById('toggle-right-sidebar')?.addEventListener('click', toggleRightSidebar);
+document.getElementById('toggle-right-sidebar-top')?.addEventListener('click', toggleRightSidebar);
 
 // Docs search implementation
 if (document.getElementById('docs-search')) {
