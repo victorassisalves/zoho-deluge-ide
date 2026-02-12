@@ -3,7 +3,6 @@ import diagnostics from '../../services/diagnostics.js';
 
 export const setupAutocomplete = (monaco) => {
     diagnostics.report('AutocompleteEngine', 'initializing');
-    return; // Disabled to prevent duplication with deluge-lang.js
 
     monaco.languages.registerCompletionItemProvider('deluge', {
         triggerCharacters: ['.', '"', ':'],
@@ -36,10 +35,13 @@ export const setupAutocomplete = (monaco) => {
                         kind: s.kind,
                         insertText: s.insertText,
                         insertTextRules: s.insertTextRules,
+                        detail: s.detail,
+                        documentation: s.documentation,
                         range: s.range || range
                     }))
                 };
             } catch (err) {
+                console.error("Autocomplete Error", err);
                 return { suggestions: [] };
             }
         }

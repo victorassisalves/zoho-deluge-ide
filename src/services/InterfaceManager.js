@@ -1,25 +1,54 @@
 // src/services/InterfaceManager.js
 import { DB as db } from "../core/db.js";
 import store from "../core/store.js";
+import { typeMethods } from "../core/StdLib.js";
 
 class InterfaceManager {
     async getInterfacesForFile(fileId) {
         if (!fileId) return [];
 
         const file = await db.get("Files", fileId);
-        if (!file) return [];
+
+        const orgId = file ? file.orgId : null;
+        const folderId = file ? file.folder : null;
+        const fileIdReal = file ? file.id : null;
 
         // Scope resolution: Global > System > Folder > File
-        // Fetch all interfaces
         const interfaces = await db.getAll("Interfaces");
 
         return interfaces.filter(i => {
             if (i.ownerType === "GLOBAL") return true;
-            if (i.ownerType === "SYSTEM" && i.ownerId === file.orgId) return true; // Assuming orgId as System context for now
-            if (i.ownerType === "FOLDER" && i.ownerId === file.folder) return true;
-            if (i.ownerType === "FILE" && i.ownerId === file.id) return true;
+            if (i.ownerType === "SYSTEM" && i.ownerId === orgId) return true;
+            if (i.ownerType === "FOLDER" && i.ownerId === folderId) return true;
+            if (i.ownerType === "FILE" && i.ownerId === fileIdReal) return true;
             return false;
         });
+    }
+
+    async resolveInterface(name, fileId) {
+        // 1. Check Standard Library
+        if (typeMethods[name]) {
+            return { type: 'standard', data: typeMethods[name] };
+        }
+
+        // 2. Check DB
+        const interfaces = await this.getInterfacesForFile(fileId);
+        const candidates = interfaces.filter(i => i.name === name);
+
+        if (candidates.length === 0) return null;
+
+        // Sort by scope specificity: File > Folder > System > Global
+        const priorities = { 'FILE': 4, 'FOLDER': 3, 'SYSTEM': 2, 'GLOBAL': 1 };
+        candidates.sort((a, b) => (priorities[b.ownerType] || 0) - (priorities[a.ownerType] || 0));
+
+        const bestMatch = candidates[0];
+        try {
+             const json = typeof bestMatch.structure === 'string' ? JSON.parse(bestMatch.structure) : bestMatch.structure;
+             return { type: 'json', data: json };
+        } catch (e) {
+             console.error("Failed to parse interface JSON", e);
+             return null;
+        }
     }
 
     async saveInterface(interfaceData) {
@@ -31,13 +60,10 @@ class InterfaceManager {
         await db.delete("Interfaces", id);
     }
 
-    // Logic from ide.js
-
     tryFixJson(str) {
         if (!str) return str;
         let fixed = str.trim();
 
-        // 0. Try to extract JSON if wrapped
         const firstBrace = fixed.indexOf("{");
         const firstBracket = fixed.indexOf("[");
         let startPos = -1;
@@ -56,24 +82,13 @@ class InterfaceManager {
             }
         }
 
-        // 1. Remove comments
         fixed = fixed.replace(/\/\/.*$/gm, "");
         fixed = fixed.replace(/\/\*[\s\S]*?\*\//g, "");
-
-        // 2. Replace single quotes with double quotes for keys
         fixed = fixed.replace(/'([^'\\\\]*(?:\\\\.[^'\\\\]*)*)'\s*:/g, "\"$1\":");
-
-        // 3. Replace single quotes with double quotes for values
         fixed = fixed.replace(/([:\[,]\s*)'([^'\\\\]*(?:\\\\.[^'\\\\]*)*)'/g, "$1\"$2\"");
-
-        // 4. Quote unquoted keys
         const keyPattern = /([{,]\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/g;
         fixed = fixed.replace(keyPattern, "$1\"$2\":");
-
-        // Also handle keys at the start of a line
         fixed = fixed.replace(/^(\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/gm, "$1\"$2\":");
-
-        // 5. Remove trailing commas
         fixed = fixed.replace(/,(\s*[}\]])/g, "$1");
 
         try {
@@ -110,7 +125,6 @@ class InterfaceManager {
             return `${varName} = ${toInline(obj)};`;
         }
 
-        // Step-by-step logic
         const processValue = (val, name) => {
             if (Array.isArray(val)) {
                 const listVar = name || `list_${++varCounter}`;

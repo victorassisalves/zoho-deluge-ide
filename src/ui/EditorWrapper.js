@@ -1,6 +1,7 @@
 // src/ui/EditorWrapper.js
 import store from "../core/store.js";
 import fileManager from "../services/FileManager.js";
+import delugeLsp from "../features/DelugeLsp.js";
 
 class EditorWrapper {
     constructor() {
@@ -108,6 +109,9 @@ class EditorWrapper {
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP],
             run: () => { window.dispatchEvent(new Event("trigger-pull-zoho")); }
         });
+
+        // Initialize LSP Features (Type Scanning & Autocomplete)
+        delugeLsp.init(this.editor);
 
         // Load initial settings
         if (typeof chrome !== "undefined" && chrome.storage) {
