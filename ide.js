@@ -1708,24 +1708,45 @@ function renderInterfaceTree(mappingName, obj) {
                 const label = document.createElement('div');
                 label.className = 'tree-label';
 
-                let iconHtml = '';
-                if (isObject) {
-                    iconHtml = '<span class="toggle-icon material-icons" style="font-size:12px;">arrow_drop_down</span><span class="node-icon material-icons" style="font-size:12px;">folder</span>';
-                } else {
-                    iconHtml = '<span class="toggle-icon material-icons" style="visibility:hidden; font-size:12px;">arrow_drop_down</span><span class="node-icon material-icons" style="font-size:12px;">description</span>';
-                }
+                // Fixed: Use DOM creation to prevent XSS
+                const iconSpan1 = document.createElement('span');
+                iconSpan1.className = 'toggle-icon material-icons';
+                iconSpan1.style.fontSize = '12px';
+                iconSpan1.textContent = 'arrow_drop_down';
+                if (!isObject) iconSpan1.style.visibility = 'hidden';
 
-                const keyHtml = `<span class="tree-key">${key}</span>`;
-                let valHtml = '';
-                let typeHtml = `<span class="tree-type">${isArray ? 'List' : (isObject ? 'Map' : typeof val)}</span>`;
+                const iconSpan2 = document.createElement('span');
+                iconSpan2.className = 'node-icon material-icons';
+                iconSpan2.style.fontSize = '12px';
+                iconSpan2.textContent = isObject ? 'folder' : 'description';
+
+                const keySpan = document.createElement('span');
+                keySpan.className = 'tree-key';
+                keySpan.textContent = key;
+
+                const typeSpan = document.createElement('span');
+                typeSpan.className = 'tree-type';
+                typeSpan.textContent = isArray ? 'List' : (isObject ? 'Map' : typeof val);
+
+                label.innerHTML = '';
+                label.appendChild(iconSpan1);
+                label.appendChild(document.createTextNode(' '));
+                label.appendChild(iconSpan2);
+                label.appendChild(document.createTextNode(' '));
+                label.appendChild(keySpan);
 
                 if (!isObject) {
-                    valHtml = `: <span class="tree-val">${JSON.stringify(val)}</span>`;
+                    label.appendChild(document.createTextNode(': '));
+                    const valSpan = document.createElement('span');
+                    valSpan.className = 'tree-val';
+                    valSpan.textContent = JSON.stringify(val);
+                    label.appendChild(valSpan);
                 } else {
-                    valHtml = `: ${isArray ? '[' : '{'}`;
+                    label.appendChild(document.createTextNode(isArray ? ': [' : ': {'));
                 }
 
-                label.innerHTML = `${iconHtml} ${keyHtml}${valHtml} ${typeHtml}`;
+                label.appendChild(document.createTextNode(' '));
+                label.appendChild(typeSpan);
 
                 // Actions container
                 const actions = document.createElement('div');
