@@ -473,6 +473,7 @@ function getDisplayName(metadata) {
     let name = renames[key] || metadata.functionName || metadata.title || 'Untitled';
 
     const cleaners = [
+        /^\(\d+\)\s*/, // Remove Zoho sequence prefix like (1)
         /^Zoho - Functions - Zoho CRM - /,
         /^Zoho - CRM - Functions - /,
         /^Functions - Zoho CRM - /,

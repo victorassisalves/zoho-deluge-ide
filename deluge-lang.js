@@ -513,6 +513,9 @@
                 const val = match[2].trim();
                 if (keywords.has(name)) continue;
 
+                // Initialize as Object to ensure it's recognized even if type inference fails
+                if (!varMap[name]) varMap[name] = { type: 'Object' };
+
                 if (val.startsWith('"') || val.startsWith("'")) varMap[name] = { type: 'String' };
                 else if (val.match(/^\d+$/)) varMap[name] = { type: 'Int' };
                 else if (val.match(/^\d+\.\d+$/)) varMap[name] = { type: 'Decimal' };
