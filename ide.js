@@ -12,18 +12,18 @@ window.activeCloudFileId = null;
 var editor;
 var isConnected = false;
 var interfaceMappings = {};
+var AppState = window.AppState;
 var currentResearchReport = "";
 var researchPollingInterval = null;
 var lastActionTime = 0;
 
-var AppState;
 
 function initEditor() {
     // The editor is now initialized by src/ide/Main.js -> CodeEditor.js
     if (window.IDEMain && window.IDEMain.editor) {
         editor = window.IDEMain.editor.editor;
         window.editor = editor;
-        AppState = window.AppState;
+
     }
 
     if (typeof chrome !== "undefined" && chrome.runtime) {
@@ -50,21 +50,21 @@ function initEditor() {
                 configItems.forEach(item => config[item.key] = item.value);
 
                 const ignoredTabs = config.zide_ignored_tabs || [];
-                AppState.ignoredTabIds = new Set(ignoredTabs);
+                window.AppState.ignoredTabIds = new Set(ignoredTabs);
 
                 // Load manual renames
                 chrome.storage.local.get(['user_renames'], (res) => {
                     if (res.user_renames) {
-                        AppState.renames = res.user_renames;
-                        renderOpenEditors();
-                        renderExplorer();
+                        window.AppState.renames = res.user_renames;
+                        window.renderOpenEditors();
+                        window.renderExplorer();
                     }
                 });
 
                 if (config.zide_models_data) {
                     for (const key in config.zide_models_data) {
                         const data = config.zide_models_data[key];
-                        const mInfo = getOrCreateModel(key, data.originalCode || "");
+                        const mInfo = window.getOrCreateModel(key, data.originalCode || "");
                         mInfo.model.setValue(data.code || "");
                         mInfo.originalCode = data.originalCode || "";
                     }
@@ -123,31 +123,31 @@ async function syncAppTabs() {
     if (typeof chrome !== "undefined" && chrome.runtime) {
         chrome.runtime.sendMessage({ action: "GET_ALL_ZOHO_TABS" }, async (tabs) => {
             if (tabs && Array.isArray(tabs)) {
-                AppState.activeTabs = tabs;
+                window.AppState.activeTabs = tabs;
 
                 // Update sync status for models connected to these tabs
                 for (const tab of tabs) {
-                    if (AppState.ignoredTabIds.has(tab.tabId)) continue;
-                    const key = getRenameKey(tab);
-                    const mInfo = AppState.models[key];
+                    if (window.AppState.ignoredTabIds.has(tab.tabId)) continue;
+                    const key = window.getRenameKey(tab);
+                    const mInfo = window.AppState.models[key];
                     if (mInfo && tab.active) {
                         // Check drift in background for active tab
                         chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE', tabId: tab.tabId }, async (response) => {
                             if (response && response.code) {
                                 const status = await SyncService.detectStatus(tab.functionId, response.code);
                                 mInfo.syncStatus = status;
-                                if (AppState.currentFile && getRenameKey(AppState.currentFile.data) === key) {
+                                if (window.AppState.currentFile && window.getRenameKey(window.AppState.currentFile.data) === key) {
                                     updateDriftUI(tab.tabId, status);
                                 }
-                                renderOpenEditors();
-                                renderExplorer();
+                                window.renderOpenEditors();
+                                window.renderExplorer();
                             }
                         });
                     }
                 }
 
-                renderOpenEditors();
-                renderExplorer();
+                window.renderOpenEditors();
+                window.renderExplorer();
 
                 isConnected = tabs.length > 0;
                 if (isConnected) {
@@ -160,14 +160,14 @@ async function syncAppTabs() {
                     // Auto-switch IDE to active browser tab if it changed
                     if (activeTab.tabId !== oldTabId && activeTab.active) {
                         // Don't auto-switch if the tab is ignored
-                        if (!AppState.ignoredTabIds.has(activeTab.tabId)) {
+                        if (!window.AppState.ignoredTabIds.has(activeTab.tabId)) {
                             console.log('[ZohoIDE] Browser tab changed, auto-switching IDE:', activeTab.tabId);
 
                             // Check if this tab matches a saved file
                             const savedFile = await FileManager.getFileByTab(activeTab);
                             if (savedFile) {
                                 selectSavedFile(savedFile.orgId, savedFile.system, savedFile.folder, savedFile.id);
-                            } else if (!AppState.currentFile || AppState.currentFile.type === 'tab') {
+                            } else if (!window.AppState.currentFile || window.AppState.currentFile.type === 'tab') {
                                 selectTabFile(activeTab);
                             }
                         }
@@ -188,38 +188,28 @@ async function syncAppTabs() {
 
 // renderOpenEditors is now handled by Explorer component
 
-function getRenameKey(metadata) {
-    if (typeof window.getRenameKey === 'function' && window.getRenameKey !== getRenameKey) return window.getRenameKey(metadata);
-    return 'legacy-key';
-}
-
-function getDisplayName(metadata) {
-    if (typeof window.getDisplayName === 'function' && window.getDisplayName !== getDisplayName) return window.getDisplayName(metadata, AppState.renames);
-    return metadata ? (metadata.functionName || metadata.title || 'Untitled') : 'Untitled';
-}
-
 function renameFunction(metadata) {
-    const currentName = getDisplayName(metadata);
+    const currentName = window.getDisplayName(metadata);
     const newName = prompt('Rename function:', currentName);
     if (newName && newName !== currentName) {
-        const key = getRenameKey(metadata);
-        AppState.renames[key] = newName;
+        const key = window.getRenameKey(metadata);
+        window.AppState.renames[key] = newName;
         if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.set({ 'user_renames': AppState.renames }, () => {
-                renderExplorer();
-                renderOpenEditors();
+            chrome.storage.local.set({ 'user_renames': window.AppState.renames }, () => {
+                window.renderExplorer();
+                window.renderOpenEditors();
             });
         } else {
-            renderExplorer();
-            renderOpenEditors();
+            window.renderExplorer();
+            window.renderOpenEditors();
         }
     }
 }
 
 async function refreshContextualMappings() {
-    if (!AppState.currentFile) return;
+    if (!window.AppState.currentFile) return;
     try {
-        const reachable = await InterfaceManager.getInterfacesForFile(AppState.currentFile.id);
+        const reachable = await InterfaceManager.getInterfacesForFile(window.AppState.currentFile.id);
         const flattened = {};
 
         // Group by type for precedence (lowest to highest)
@@ -236,7 +226,7 @@ async function refreshContextualMappings() {
         });
 
         window.interfaceMappings = flattened;
-        updateInterfaceMappingsList();
+        window.updateInterfaceMappingsList();
     } catch (e) {
         console.error('[ZohoIDE] refreshContextualMappings failed:', e);
     }
@@ -244,12 +234,12 @@ async function refreshContextualMappings() {
 
 async function selectTabFile(tab) {
     console.log('[ZohoIDE] Selecting tab:', tab.tabId, tab.functionName);
-    AppState.currentFile = { id: tab.functionId, type: 'tab', tabId: tab.tabId, data: tab };
+    window.AppState.currentFile = { id: tab.functionId, type: 'tab', tabId: tab.tabId, data: tab };
     zideProjectUrl = tab.url;
     window.zideProjectUrl = zideProjectUrl;
 
-    const key = getRenameKey(tab);
-    const mInfo = getOrCreateModel(key);
+    const key = window.getRenameKey(tab);
+    const mInfo = window.getOrCreateModel(key);
     editor.setModel(mInfo.model);
 
     await refreshContextualMappings();
@@ -262,7 +252,7 @@ async function selectTabFile(tab) {
         }
     });
 
-    renderOpenEditors();
+    window.renderOpenEditors();
     updateExplorerActiveState();
 }
 
@@ -352,25 +342,25 @@ async function loadExplorerData() {
         const files = await FileManager.getAllFiles();
 
         // Reconstruct savedFunctions tree for legacy rendering logic
-        AppState.savedFunctions = {};
+        window.AppState.savedFunctions = {};
         files.forEach(file => {
             const orgId = file.orgId || 'global';
             const system = file.system || 'Zoho';
             const folder = file.folder || 'General';
 
-            if (!AppState.savedFunctions[orgId]) AppState.savedFunctions[orgId] = {};
-            if (!AppState.savedFunctions[orgId][system]) AppState.savedFunctions[orgId][system] = {};
-            if (!AppState.savedFunctions[orgId][system][folder]) AppState.savedFunctions[orgId][system][folder] = {};
+            if (!window.AppState.savedFunctions[orgId]) window.AppState.savedFunctions[orgId] = {};
+            if (!window.AppState.savedFunctions[orgId][system]) window.AppState.savedFunctions[orgId][system] = {};
+            if (!window.AppState.savedFunctions[orgId][system][folder]) window.AppState.savedFunctions[orgId][system][folder] = {};
 
-            AppState.savedFunctions[orgId][system][folder][file.id] = file;
+            window.AppState.savedFunctions[orgId][system][folder][file.id] = file;
         });
 
         const history = await DB.getAll('History');
-        AppState.history = history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 100);
-        updateSavedFilesList(AppState.history);
+        window.AppState.history = history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 100);
+        updateSavedFilesList(window.AppState.history);
 
         // Load mappings
-        const currentOrg = (AppState.currentFile?.data?.orgId || 'global').toString().toLowerCase();
+        const currentOrg = (window.AppState.currentFile?.data?.orgId || 'global').toString().toLowerCase();
         const interfaces = await DB.getAll('Interfaces');
         interfaceMappings = {};
         interfaces.forEach(i => {
@@ -381,19 +371,19 @@ async function loadExplorerData() {
         });
         window.interfaceMappings = interfaceMappings;
 
-        renderExplorer();
-        updateInterfaceMappingsList();
+        window.renderExplorer();
+        window.updateInterfaceMappingsList();
     } catch (e) {
         console.error('[ZohoIDE] loadExplorerData failed:', e);
     }
 }
 
 async function selectSavedFile(orgId, system, folder, funcId) {
-    const func = AppState.savedFunctions[orgId][system][folder][funcId];
-    AppState.currentFile = { id: funcId, type: 'saved', data: func.metadata };
+    const func = window.AppState.savedFunctions[orgId][system][folder][funcId];
+    window.AppState.currentFile = { id: funcId, type: 'saved', data: func.metadata };
 
-    const key = getRenameKey(func.metadata);
-    const mInfo = getOrCreateModel(key, func.code);
+    const key = window.getRenameKey(func.metadata);
+    const mInfo = window.getOrCreateModel(key, func.code);
     // If we just created it from saved file, and it had no code, set it
     if (mInfo.model.getValue() === "" && func.code) {
         mInfo.model.setValue(func.code);
@@ -404,10 +394,10 @@ async function selectSavedFile(orgId, system, folder, funcId) {
     await refreshContextualMappings();
 
     // Check if we can reconnect to an active tab
-    const matchingTab = AppState.activeTabs.find(t => t.functionId === funcId || (t.functionName === func.name && t.orgId === orgId));
+    const matchingTab = window.AppState.activeTabs.find(t => t.functionId === funcId || (t.functionName === func.name && t.orgId === orgId));
     if (matchingTab) {
-        AppState.currentFile.tabId = matchingTab.tabId;
-        AppState.currentFile.type = 'tab';
+        window.AppState.currentFile.tabId = matchingTab.tabId;
+        window.AppState.currentFile.type = 'tab';
         log('System', `Reconnected to active tab: ${matchingTab.title}`);
 
         // Detect Drift
@@ -416,8 +406,8 @@ async function selectSavedFile(orgId, system, folder, funcId) {
                 const status = await SyncService.detectStatus(funcId, response.code);
                 updateDriftUI(matchingTab.tabId, status);
                 mInfo.syncStatus = status;
-                renderExplorer();
-                renderOpenEditors();
+                window.renderExplorer();
+                window.renderOpenEditors();
             }
         });
     } else {
@@ -425,12 +415,12 @@ async function selectSavedFile(orgId, system, folder, funcId) {
         updateDriftUI(null, 'OFFLINE');
     }
 
-    renderExplorer();
-    renderOpenEditors();
+    window.renderExplorer();
+    window.renderOpenEditors();
 }
 
 function updateExplorerActiveState() {
-    renderExplorer();
+    window.renderExplorer();
 }
 
 const bind = (id, event, fn) => {
@@ -459,9 +449,9 @@ function setupEventHandlers() {
     bind('new-btn', 'click', () => {
         if (confirm('Start a new script?')) {
             editor.setValue('// New Zoho Deluge Script\n\n');
-            AppState.currentFile = null;
-            renderOpenEditors();
-            renderExplorer();
+            window.AppState.currentFile = null;
+            window.renderOpenEditors();
+            window.renderExplorer();
         }
     });
 
@@ -476,7 +466,7 @@ function setupEventHandlers() {
     bind('sync-tabs-btn', 'click', (e) => {
         e.stopPropagation();
         showStatus("Syncing tabs & Resetting ignored list...");
-        AppState.ignoredTabIds.clear();
+        window.AppState.ignoredTabIds.clear();
         if (typeof chrome !== "undefined" && chrome.storage) {
             chrome.storage.local.set({ 'zide_ignored_tabs': [] });
         }
@@ -1018,7 +1008,7 @@ async function saveInterfaceMapping(name, jsonStr) {
         interfaceMappings[name] = obj;
         window.interfaceMappings = interfaceMappings;
 
-        const currentOrg = (AppState.currentFile?.data?.orgId || 'global').toString().toLowerCase();
+        const currentOrg = (window.AppState.currentFile?.data?.orgId || 'global').toString().toLowerCase();
 
         await DB.put('Interfaces', {
             id: `${currentOrg}:${name}`,
@@ -1029,7 +1019,7 @@ async function saveInterfaceMapping(name, jsonStr) {
             sharedScope: currentOrg === 'global' ? 'GLOBAL' : 'SYSTEM'
         });
 
-        updateInterfaceMappingsList();
+        window.updateInterfaceMappingsList();
     } catch (e) {
         console.error("[ZohoIDE] saveInterfaceMapping Error:", e);
         alert('Invalid JSON: ' + e.message);
@@ -1228,7 +1218,7 @@ function pullFromZoho() {
     if (now - lastActionTime < 800) return;
     lastActionTime = now;
 
-    const targetTab = AppState.activeTabs.find(t => t.tabId === AppState.currentFile?.tabId) || window.currentTargetTab;
+    const targetTab = window.AppState.activeTabs.find(t => t.tabId === window.AppState.currentFile?.tabId) || window.currentTargetTab;
     const targetTabId = targetTab?.tabId;
 
     if (!targetTabId) {
@@ -1239,8 +1229,8 @@ function pullFromZoho() {
     if (typeof chrome !== "undefined" && chrome.runtime) {
         chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE', tabId: targetTabId }, (response) => {
             if (response && response.code) {
-                const key = getRenameKey(targetTab);
-                const mInfo = getOrCreateModel(key, response.code);
+                const key = window.getRenameKey(targetTab);
+                const mInfo = window.getOrCreateModel(key, response.code);
                 mInfo.model.setValue(response.code);
                 mInfo.originalCode = response.code;
                 editor.setModel(mInfo.model);
@@ -1250,7 +1240,7 @@ function pullFromZoho() {
                 updateDriftUI(targetTabId, 'SYNCED');
 
                 log('Success', 'Code pulled.');
-                renderOpenEditors();
+                window.renderOpenEditors();
             } else { log('Error', response?.error || 'No code found.'); }
         });
     }
@@ -1261,11 +1251,11 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
     if (now - lastActionTime < 1000) return;
     lastActionTime = now;
 
-    let targetTab = AppState.activeTabs.find(t => t.tabId === AppState.currentFile?.tabId);
+    let targetTab = window.AppState.activeTabs.find(t => t.tabId === window.AppState.currentFile?.tabId);
 
     // Fallback to any matching tab for this file if the specific tabId is gone
-    if (!targetTab && AppState.currentFile) {
-        targetTab = AppState.activeTabs.find(t => t.functionId === AppState.currentFile.id || (t.functionName === AppState.currentFile.data?.name && t.orgId === AppState.currentFile.data?.orgId));
+    if (!targetTab && window.AppState.currentFile) {
+        targetTab = window.AppState.activeTabs.find(t => t.functionId === window.AppState.currentFile.id || (t.functionName === window.AppState.currentFile.data?.name && t.orgId === window.AppState.currentFile.data?.orgId));
     }
 
     // Ultimate fallback to currentTargetTab
@@ -1301,16 +1291,16 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
                 log('Success', 'Code pushed.');
 
                 // Update originalCode to mark as synced
-                const key = getRenameKey(targetTab);
-                if (AppState.models[key]) {
-                    AppState.models[key].originalCode = code;
+                const key = window.getRenameKey(targetTab);
+                if (window.AppState.models[key]) {
+                    window.AppState.models[key].originalCode = code;
                     saveModelsToStorage();
 
                     // Update Sync History
                     SyncService.markSynced(targetTab.functionId, code);
                     updateDriftUI(targetTabId, 'SYNCED');
 
-                    renderOpenEditors();
+                    window.renderOpenEditors();
                 }
 
                 if (triggerSave || triggerExecute) {
@@ -1348,7 +1338,7 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 
 async function saveLocally() {
     const code = editor.getValue();
-    let meta = AppState.currentFile?.data || window.currentTargetTab;
+    let meta = window.AppState.currentFile?.data || window.currentTargetTab;
 
     if (!meta) {
         const name = prompt('Enter a name for this script:', 'Untitled Script');
@@ -1376,7 +1366,7 @@ async function saveLocally() {
         folder: folder,
         name: name,
         code: code,
-        originalCode: AppState.models[getRenameKey(meta)]?.originalCode || code,
+        originalCode: window.AppState.models[window.getRenameKey(meta)]?.originalCode || code,
         metadata: meta
     };
 
@@ -1681,19 +1671,16 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
 });
 
     // Expose internal functions to window for Cloud UI and testing
-    window.updateInterfaceMappingsList = updateInterfaceMappingsList;
     window.showStatus = showStatus;
     window.loadExplorerData = loadExplorerData;
-    window.renderExplorer = renderExplorer;
-    window.renderOpenEditors = renderOpenEditors;
     window.renameFunction = renameFunction;
     window.selectTabFile = selectTabFile;
     window.selectSavedFile = selectSavedFile;
     window.syncAppTabs = syncAppTabs;
-    window.getOrCreateModel = getOrCreateModel;
-    window.getRenameKey = getRenameKey;
     window.safeDeleteFile = safeDeleteFile;
     window.updateDriftUI = updateDriftUI;
+    window.pullFromZoho = pullFromZoho;
+    window.pushToZoho = pushToZoho;
 
     function syncProblemsPanel() {
         const list = document.getElementById('problems-list');
