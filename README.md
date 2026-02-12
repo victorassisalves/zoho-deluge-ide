@@ -22,6 +22,20 @@ This extension provides a powerful, full-screen development environment for Zoho
    - Click **Details**.
    - Scroll down and toggle on **Allow in incognito**. *Without this, the IDE cannot see your Zoho tabs if they are in private windows.*
 
+## Configuration (Required)
+
+**Before installing in Chrome**, you must configure your Firebase credentials:
+
+1.  Copy `firebase-config.example.js` to `firebase-config.js` in the root directory.
+    ```bash
+    cp firebase-config.example.js firebase-config.js
+    ```
+2.  Open `firebase-config.js` in a text editor.
+3.  Replace the placeholder values (e.g., `YOUR_API_KEY`) with your actual Firebase project credentials.
+    -   You can find these in the Firebase Console under **Project Settings > General > Your apps**.
+
+> **Security Note:** `firebase-config.js` is ignored by git to prevent accidental commitment of your secrets.
+
 ## How to Use
 
 1. **Open the IDE**: Click the extension icon in your Chrome toolbar and click "Open Full IDE".
