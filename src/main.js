@@ -220,6 +220,29 @@ async function bootstrap() {
     document.getElementById("execute-btn")?.addEventListener("click", () => syncService.pushToZoho(editorWrapper.editor, true, true));
     document.getElementById("save-btn")?.addEventListener("click", () => saveLocally());
 
+    // --- Phase 3: Event Listeners ---
+    if (typeof chrome !== "undefined" && chrome.runtime) {
+        chrome.runtime.onMessage.addListener((message) => {
+            if (message.type === 'TAB_SWITCHED') {
+                const { tabId, fileId } = message;
+                console.log("[Main] TAB_SWITCHED:", tabId, fileId);
+                tabManager.setActive(tabId);
+            }
+            else if (message.type === 'ZO_FOCUS_GAINED') {
+                const { tabId, fileId, metadata } = message;
+                console.log("[Main] ZO_FOCUS_GAINED:", tabId);
+
+                // Trigger Traffic Light Update
+                chrome.runtime.sendMessage({ action: "GET_ZOHO_CODE", tabId: tabId }, async (response) => {
+                     if (response && response.code) {
+                         const status = await syncService.detectStatus(metadata.functionId, response.code);
+                         window.dispatchEvent(new CustomEvent("update-drift-ui", { detail: { tabId: tabId, status } }));
+                     }
+                });
+            }
+        });
+    }
+
     console.log("Main Bootstrapped.");
 }
 
