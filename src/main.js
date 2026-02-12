@@ -4,7 +4,7 @@ import logger from './utils/logger.js';
 import bridgeClient from './services/bridge-client.js';
 import migrationService from './services/MigrationService.js';
 import fileManager from './services/FileManager.js';
-import db from './services/db.js';
+import { DB } from './core/db.js'; // Use the new Dexie DB wrapper
 import interfaceManager from './services/InterfaceManager.js';
 import syncService from './services/SyncService.js';
 import { initAutocomplete } from './features/autocomplete/index.js';
@@ -18,7 +18,7 @@ async function bootstrap() {
 
     // Expose services to global scope for monolithic ide.js
     window.FileManager = fileManager;
-    window.DB = db;
+    window.DB = DB; // Update global DB to use the Dexie wrapper
     window.InterfaceManager = interfaceManager;
     window.SyncService = syncService;
 
