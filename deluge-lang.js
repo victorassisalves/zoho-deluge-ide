@@ -39,10 +39,15 @@
                 'if', 'else', 'for', 'each', 'in', 'return', 'info', 'true', 'false', 'null',
                 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'void', 'string',
                 'int', 'decimal', 'boolean', 'map', 'list', 'collection',
-                'GET', 'POST', 'PUT', 'DELETE', 'PATCH'
+                'GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'invokeurl', 'sendmail'
             ],
             typeKeywords: [
                 'zoho', 'thisapp', 'standalone', 'input'
+            ],
+            brackets: [
+                { open: '{', close: '}', token: 'delimiter.curly' },
+                { open: '[', close: ']', token: 'delimiter.square' },
+                { open: '(', close: ')', token: 'delimiter.parenthesis' }
             ],
             tokenizer: {
                 root: [
@@ -59,9 +64,8 @@
                     // Identifiers and Keywords
                     [/[a-zA-Z_$][\w$]*/, {
                         cases: {
-                            'if|else|for|each|in|return|info|true|false|null|break|continue|try|catch|finally|throw|void|string|int|decimal|boolean|map|list|collection|GET|POST|PUT|DELETE|PATCH': 'keyword',
-                            'zoho|thisapp|standalone|input': 'type',
-                            'invokeurl': 'identifier',
+                            '@keywords': 'keyword',
+                            '@typeKeywords': 'type',
                             '@default': 'variable'
                         }
                     }],

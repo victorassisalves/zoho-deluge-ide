@@ -53,7 +53,6 @@ function initEditor() {
                 { token: 'delimiter', foreground: 'f8f8f2' },
                 { token: 'operator', foreground: 'ff79c6' },
                 { token: 'identifier', foreground: 'f8f8f2' },
-                { token: 'variable', foreground: 'f8f8f2' },
                 { token: 'type', foreground: '8be9fd', fontStyle: 'italic' },
                 { token: 'function', foreground: '50fa7b' },
                 { token: 'method', foreground: '50fa7b' },
