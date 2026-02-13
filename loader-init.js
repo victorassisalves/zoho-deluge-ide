@@ -4,28 +4,7 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 
 console.log("[ZohoIDE] Loader starting...");
 
-window.MonacoEnvironment = {
-    // Use 'getWorker' (returns a Worker instance), NOT 'getWorkerUrl'
-    getWorker: function (moduleId, label) {
-        const basePath = "assets/monaco-editor/min/vs/assets/";
-
-        // Select the correct worker file based on language
-        let workerFilename = "editor.worker-Be8ye1pW.js"; // Default
-
-        if (label === "json") {
-            workerFilename = "json.worker-DKiEKt88.js";
-        } else if (label === "css" || label === "scss" || label === "less") {
-            workerFilename = "css.worker-HnVq6Ewq.js";
-        } else if (label === "html" || label === "handlebars" || label === "razor") {
-            workerFilename = "html.worker-B51mlPHg.js";
-        } else if (label === "typescript" || label === "javascript") {
-            workerFilename = "ts.worker-CMbG-7ft.js";
-        }
-
-        // Create the physical worker directly to bypass CSP Blob restrictions
-        return new Worker(chrome.runtime.getURL(basePath + workerFilename));
-    }
-};
+// window.MonacoEnvironment is now handled in monaco-init.js to ensure early execution and CSP compliance.
 
 require.config({
     paths: { "vs": "assets/monaco-editor/min/vs" }

@@ -28,19 +28,7 @@ function log(type, message) {
 }
 
 function showStatus(message, type = "info") {
-    const statusEl = document.getElementById("status-indicator");
-    if (statusEl) {
-        // Legacy status handling (for non-drift messages)
-        // If message is "Saved locally", show it temporarily then revert?
-        // Ideally we should use a toast or snackbar, but for now specific messages might override the sync status briefly.
-        // However, the new sync status is robust. We might want to separate "System Status" from "Sync Status".
-        // The current ID "status-indicator" is being repurposed for Sync Status in the header.
-        // Let's check where showStatus is used.
-        // It is used for "Saved locally" and "Reconnecting...".
-        // Maybe we log it instead or use a separate notification area.
-        // For now, I'll log it and let the drift UI handle the main indicator.
-        log(type, message);
-    }
+    log(type, message);
 }
 
 // Controller Logic
@@ -202,6 +190,9 @@ async function bootstrap() {
     window.addEventListener("trigger-push-zoho", () => syncService.pushToZoho(editorWrapper.editor));
     window.addEventListener("trigger-push-execute-zoho", () => syncService.pushToZoho(editorWrapper.editor, false, true));
     window.addEventListener("trigger-pull-zoho", () => syncService.pullFromZoho(editorWrapper.editor));
+
+    // Listen for SyncService logs
+    window.addEventListener("ide-log", (e) => log(e.detail.type, e.detail.message));
 
     window.addEventListener("update-drift-ui", (e) => {
         const { tabId, status } = e.detail;
