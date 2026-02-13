@@ -5,22 +5,27 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 console.log("[ZohoIDE] Loader starting...");
 
 window.MonacoEnvironment = {
-    getWorkerUrl: function (workerId, label) {
-        // Use full URL to avoid relative path issues
-        const baseUrl = chrome.runtime.getURL("");
+    getWorker: function (workerId, label) {
+        // Base path to your assets
+        const basePath = 'assets/monaco-editor/min/vs/assets/';
+
+        let workerFilename = 'editor.worker-Be8ye1pW.js'; // Default worker
+
+        // Select specific worker based on language
         if (label === 'json') {
-             return baseUrl + 'assets/monaco-editor/min/vs/assets/json.worker-DKiEKt88.js';
+            workerFilename = 'json.worker-DKiEKt88.js';
+        } else if (label === 'css' || label === 'scss' || label === 'less') {
+            workerFilename = 'css.worker-HnVq6Ewq.js';
+        } else if (label === 'html' || label === 'handlebars' || label === 'razor') {
+            workerFilename = 'html.worker-B51mlPHg.js';
+        } else if (label === 'typescript' || label === 'javascript') {
+            workerFilename = 'ts.worker-CMbG-7ft.js';
         }
-        if (label === 'css' || label === 'scss' || label === 'less') {
-             return baseUrl + 'assets/monaco-editor/min/vs/assets/css.worker-HnVq6Ewq.js';
-        }
-        if (label === 'html' || label === 'handlebars' || label === 'razor') {
-             return baseUrl + 'assets/monaco-editor/min/vs/assets/html.worker-B51mlPHg.js';
-        }
-        if (label === 'typescript' || label === 'javascript') {
-             return baseUrl + 'assets/monaco-editor/min/vs/assets/ts.worker-CMbG-7ft.js';
-        }
-        return baseUrl + 'assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
+
+        // Return the physical worker instance
+        const workerUrl = chrome.runtime.getURL(basePath + workerFilename);
+        console.log("[ZohoIDE] Creating Worker:", workerUrl);
+        return new Worker(workerUrl);
     }
 };
 
@@ -51,8 +56,12 @@ require(["vs/editor/editor.main"], async function() {
         await loadScript("assets/firebase-auth-compat.js");
         await loadScript("assets/firebase-firestore-compat.js");
 
-        // Load Dexie as global while define is hidden
-        await loadScript("assets/dexie.min.js");
+        // Load Dexie as global while define is hidden (even if it's ESM, it might set window.Dexie if loaded as script, but we are using module import in db.js now. However, legacy parts might rely on it?)
+        // Wait, db.js uses ESM import from assets/dexie.js.
+        // We do NOT need to load it here globally if we use ESM everywhere.
+        // BUT, since we have mixed environment, let's just ensure imports work.
+        // We downloaded dexie.js (ESM). It won't set window.Dexie automatically if loaded as module.
+        // But src/core/db.js imports it. So we are good there.
 
         window.define = originalDefine;
 

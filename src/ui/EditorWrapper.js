@@ -10,29 +10,7 @@ class EditorWrapper {
     }
 
     init() {
-        // Configure Monaco Environment for Workers
-        // This avoids CSP issues with blob: URLs by pointing to the file directly
-        if (!window.MonacoEnvironment) {
-            window.MonacoEnvironment = {
-                getWorkerUrl: function (moduleId, label) {
-                    if (label === 'json') {
-                         return 'assets/monaco-editor/min/vs/assets/json.worker-DKiEKt88.js';
-                    }
-                    if (label === 'css' || label === 'scss' || label === 'less') {
-                         return 'assets/monaco-editor/min/vs/assets/css.worker-HnVq6Ewq.js';
-                    }
-                    if (label === 'html' || label === 'handlebars' || label === 'razor') {
-                         return 'assets/monaco-editor/min/vs/assets/html.worker-B51mlPHg.js';
-                    }
-                    if (label === 'typescript' || label === 'javascript') {
-                         return 'assets/monaco-editor/min/vs/assets/ts.worker-CMbG-7ft.js';
-                    }
-                    // Default worker (used for Deluge)
-                    return 'assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
-                }
-            };
-        }
-
+        // MonacoEnvironment is now configured in loader-init.js
         if (typeof monaco !== "undefined") {
             this.initMonaco();
         } else {
