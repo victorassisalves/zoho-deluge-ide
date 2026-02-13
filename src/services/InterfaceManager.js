@@ -1,6 +1,6 @@
-// src/services/InterfaceManager.js
 import { DB as db } from "../core/db.js";
 import store from "../core/store.js";
+import { StdLib } from "../core/StdLib.js";
 
 class InterfaceManager {
     async getInterfacesForFile(fileId) {
@@ -20,6 +20,25 @@ class InterfaceManager {
             if (i.ownerType === "FILE" && i.ownerId === file.id) return true;
             return false;
         });
+    }
+
+    async resolveInterface(name, fileId) {
+        // Priority: File (0) > Folder (1) > System (2) > Global (3)
+        // Lower number wins
+        const priority = { "FILE": 0, "FOLDER": 1, "SYSTEM": 2, "GLOBAL": 3 };
+
+        const candidates = await this.getInterfacesForFile(fileId);
+
+        const match = candidates
+            .filter(i => i.name === name)
+            .sort((a, b) => (priority[a.ownerType] || 99) - (priority[b.ownerType] || 99))[0];
+
+        if (match) return match.structure;
+
+        // Fallback to Standard Library
+        if (StdLib[name]) return StdLib[name];
+
+        return null;
     }
 
     async saveInterface(interfaceData) {
