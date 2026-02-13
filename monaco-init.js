@@ -3,7 +3,7 @@
 
 console.log("[ZohoIDE] Initializing Monaco Environment...");
 
-window.MonacoEnvironment = {
+const monacoEnvironment = {
     // Force Monaco to use physical worker files instead of Blob workers (CSP restriction in MV3)
     getWorker: function (moduleId, label) {
         console.log("[ZohoIDE] Creating worker for:", label);
@@ -26,3 +26,10 @@ window.MonacoEnvironment = {
         return new Worker(workerUrl);
     }
 };
+
+// Freeze MonacoEnvironment to prevent editor.main.js from overwriting it with a Blob-based default
+Object.defineProperty(window, "MonacoEnvironment", {
+    value: monacoEnvironment,
+    writable: false,
+    configurable: false
+});

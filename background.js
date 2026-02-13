@@ -330,7 +330,8 @@ async function getTabMetadata(tabId) {
     const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms));
 
     try {
-        // Get editor status from all frames
+        // Get editor status from all frames using executeScript
+        // This replaces the need for webNavigation.getAllFrames
         const editorResults = await Promise.race([
             chrome.scripting.executeScript({
                 target: { tabId: tabId, allFrames: true },
@@ -343,12 +344,18 @@ async function getTabMetadata(tabId) {
                 }
             }),
             timeout(1500)
-        ]).catch(() => []);
-
-        // Probe ALL frames for metadata
-        const frames = await new Promise(resolve => {
-            chrome.webNavigation.getAllFrames({ tabId: tabId }, (f) => resolve(f || []));
+        ]).catch((e) => {
+            console.warn(`[ZohoIDE] executeScript failed for tab ${tabId}: ${e.message}`);
+            return [];
         });
+
+        // Derive frames from the executeScript results
+        const frames = editorResults && editorResults.length > 0 ? editorResults : [];
+
+        if (frames.length === 0) {
+             // Fallback if scripting failed or no frames (e.g. restricted url)
+             return null;
+        }
 
         const metaPromises = frames.map(frame => {
             return new Promise(resolve => {
