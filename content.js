@@ -7,6 +7,7 @@ function injectBridge() {
     const s = document.createElement('script');
     s.id = 'zoho-deluge-bridge-modular';
     s.src = chrome.runtime.getURL('bridge.js');
+    s.onload = () => console.log('[ZohoIDE] Bridge script loaded and executed.');
     const target = document.head || document.documentElement;
     if (target) {
         target.appendChild(s);
@@ -36,37 +37,40 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return false;
     }
 
-    // Actions to relay to the bridge using CustomEvent to avoid Zoho's onmessage listeners
+    // Actions to relay to the bridge
     const relayActions = ['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE', 'GET_ZOHO_METADATA', 'PING'];
     if (relayActions.includes(request.action)) {
         const eventId = Math.random().toString(36).substring(2);
-        const detail = {
+        const messageData = {
+            type: 'ZOHO_IDE_FROM_EXT',
             eventId,
             action: request.action,
             ...request
         };
 
         const responseHandler = (event) => {
-            const data = event.detail;
-            if (data && data.eventId === eventId) {
-                window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+            // We listen for window messages from the bridge
+            if (event.source !== window) return;
+            const data = event.data;
+            if (data && data.type === 'ZOHO_IDE_FROM_PAGE' && data.eventId === eventId) {
+                window.removeEventListener('message', responseHandler);
                 sendResponse(data.response);
             }
         };
 
-        window.addEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+        window.addEventListener('message', responseHandler);
 
-        // Dispatch to bridge
-        window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', { detail }));
+        // Dispatch to bridge using postMessage
+        window.postMessage(messageData, '*');
 
         // Timeout if no response
         setTimeout(() => {
-            window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+            window.removeEventListener('message', responseHandler);
             try {
-                sendResponse({ error: 'Bridge timeout' });
-            } catch (e) {
-                // Channel might be closed
-            }
+                // If channel is still open, send timeout error.
+                // But for 'PING', background.js handles the timeout/retry logic better.
+                // We just stop listening.
+            } catch (e) {}
         }, 2000);
 
         return true; // Keep channel open
@@ -136,10 +140,11 @@ window.addEventListener('focus', () => {
     const eventId = "focus_" + Math.random().toString(36).substring(2);
 
     const responseHandler = (event) => {
-        const data = event.detail;
-        if (data && data.eventId === eventId) {
-            window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
-            // Only report if we got valid metadata (implies we are on a Zoho page with context)
+        if (event.source !== window) return;
+        const data = event.data;
+        if (data && data.type === 'ZOHO_IDE_FROM_PAGE' && data.eventId === eventId) {
+            window.removeEventListener('message', responseHandler);
+            // Only report if we got valid metadata
             if (data.response && (data.response.system || data.response.functionId)) {
                  chrome.runtime.sendMessage({
                     type: 'ZO_FOCUS_GAINED',
@@ -149,13 +154,12 @@ window.addEventListener('focus', () => {
         }
     };
 
-    window.addEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+    window.addEventListener('message', responseHandler);
 
     // Ask bridge for metadata
-    window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', {
-        detail: {
-            eventId,
-            action: 'GET_ZOHO_METADATA'
-        }
-    }));
+    window.postMessage({
+        type: 'ZOHO_IDE_FROM_EXT',
+        eventId,
+        action: 'GET_ZOHO_METADATA'
+    }, '*');
 });

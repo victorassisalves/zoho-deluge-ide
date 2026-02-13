@@ -418,7 +418,6 @@ const ProductConfigs = {
 
 function getCurrentConfig() {
     const url = window.location.href;
-    // Try to match by URL first (more accurate than hostname in some cases)
     for (const [key, config] of Object.entries(ProductConfigs)) {
         if (config.match && config.match(url)) return { name: key, config };
     }
@@ -443,9 +442,12 @@ function triggerAction(type) {
     return success;
 }
 
-window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
-    const data = event.detail;
-    if (!data || !data.action) return;
+window.addEventListener('message', async (event) => {
+    // Only accept messages from same window
+    if (event.source !== window) return;
+
+    const data = event.data;
+    if (!data || data.type !== 'ZOHO_IDE_FROM_EXT') return;
 
     let response = {};
     const { action, eventId } = data;
@@ -486,9 +488,12 @@ window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
         response = { error: e.message };
     }
 
-    window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
-        detail: { eventId, action, response }
-    }));
+    window.postMessage({
+        type: 'ZOHO_IDE_FROM_PAGE',
+        eventId,
+        action,
+        response
+    }, '*');
 });
 
 })();

@@ -115,35 +115,52 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'CHECK_CONNECTION') {
         const verifyConnection = (tab) => {
              // Try to PING the tab to see if bridge is alive
+             console.log('[ZohoIDE] Pinging tab', tab.id);
              chrome.tabs.sendMessage(tab.id, { action: 'PING' }, (response) => {
                  if (chrome.runtime.lastError) {
                      // Try injecting if runtime error (meaning no listener)
-                     console.log('[ZohoIDE] Injecting content script for tab', tab.id);
+                     console.log('[ZohoIDE] PING failed (Runtime Error), injecting content script...', chrome.runtime.lastError.message);
                      chrome.scripting.executeScript({
                         target: { tabId: tab.id },
                         files: ['content.js']
                      }).then(() => {
-                         // Wait a bit and retry
-                         setTimeout(() => {
+                         // Wait a bit longer for injection + bridge load
+                         console.log('[ZohoIDE] Injection successful, waiting for bridge...');
+                         let attempts = 0;
+                         const maxAttempts = 5;
+
+                         const pollPing = () => {
+                             attempts++;
+                             console.log(`[ZohoIDE] PING Retry ${attempts}...`);
                              chrome.tabs.sendMessage(tab.id, { action: 'PING' }, (res2) => {
                                  if (res2 && res2.status === 'PONG') {
+                                      console.log('[ZohoIDE] PONG received on retry!');
                                       sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, product: res2.product });
                                  } else {
-                                      console.log('[ZohoIDE] PING failed after injection:', res2);
-                                      sendResponse({ connected: false, error: 'Bridge not responding after injection' });
+                                      if (attempts < maxAttempts) {
+                                          setTimeout(pollPing, 500);
+                                      } else {
+                                          console.log('[ZohoIDE] PING failed after retries.');
+                                          sendResponse({ connected: false, error: 'Bridge not responding after injection' });
+                                      }
                                  }
                              });
-                         }, 800); // Wait for bridge.js injection (500ms in content.js + extra buffer)
+                         };
+
+                         setTimeout(pollPing, 1000); // Initial wait 1s
+
                      }).catch((e) => {
                          console.error('[ZohoIDE] Injection failed:', e);
-                         sendResponse({ connected: false, error: 'Injection failed' });
+                         sendResponse({ connected: false, error: 'Injection failed: ' + e.message });
                      });
                      return;
                  }
 
                  if (response && response.status === 'PONG') {
+                     console.log('[ZohoIDE] PONG received immediately!');
                      sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, product: response.product });
                  } else {
+                     console.log('[ZohoIDE] PING response invalid:', response);
                      sendResponse({ connected: false, error: 'No PONG response' });
                  }
              });
