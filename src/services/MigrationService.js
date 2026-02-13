@@ -1,114 +1,55 @@
-import { DB } from '../core/db.js';
+import { DB as db } from "../core/db.js";
+import store from "../core/store.js";
+
+// Utility for hashing (moved here or can be in a utils file, but putting it here for now as requested)
+async function calculateHash(content) {
+    if (!content) return null;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 class MigrationService {
-    async migrate() {
-        if (typeof chrome === "undefined" || !chrome.storage) return;
+    async runPhase5Migration() {
+        console.log('[Migration] Starting Phase 5: Hash Backfill...');
+        try {
+            const files = await db.getAll('Files');
+            let updatedCount = 0;
 
-        // Check if DB is empty
-        const count = await DB.dexie.Files.count();
-        if (count > 0) {
-            console.log('[ZohoIDE] Dexie DB already populated. Skipping migration.');
-            return;
-        }
+            for (const file of files) {
+                // If we have originalCode (legacy) but no lastSyncedHash (new system)
+                // We assume originalCode was the last known "Clean" state from Zoho
+                if (file.originalCode && !file.lastSyncedHash) {
+                    const hash = await calculateHash(file.originalCode);
+                    file.lastSyncedHash = hash;
 
-        const result = await new Promise(resolve => {
-            chrome.storage.local.get([
-                'saved_functions_tree',
-                'project_mappings',
-                'user_renames',
-                'zide_models_data',
-                'json_mappings',
-                'theme',
-                'font_size',
-                'activation_behavior'
-            ], resolve);
-        });
-
-        console.log('[ZohoIDE] Starting Migration to Dexie DB...');
-
-        // 1. Migrate Config
-        const configItems = [
-            { key: 'theme', value: result.theme },
-            { key: 'font_size', value: result.font_size },
-            { key: 'activation_behavior', value: result.activation_behavior }
-        ];
-        for (const item of configItems) {
-            if (item.value) await DB.dexie.Config.put(item);
-        }
-
-        // 2. Migrate Files (from saved_functions_tree)
-        if (result.saved_functions_tree) {
-            const tree = result.saved_functions_tree;
-            const files = [];
-            const buffers = [];
-
-            for (const orgId in tree) {
-                for (const system in tree[orgId]) {
-                    for (const folder in tree[orgId][system]) {
-                        for (const fileId in tree[orgId][system][folder]) {
-                            const file = tree[orgId][system][folder][fileId];
-
-                            // Try to get originalCode from models data if available
-                            let originalCode = file.code;
-                            const modelKey = `${orgId}:${system}:${fileId}`;
-                            if (result.zide_models_data && result.zide_models_data[modelKey]) {
-                                originalCode = result.zide_models_data[modelKey].originalCode || file.code;
-                            }
-
-                            files.push({
-                                id: fileId,
-                                orgId: orgId,
-                                system: system,
-                                folder: folder,
-                                name: file.name,
-                                timestamp: file.timestamp,
-                                metadata: file.metadata,
-                                isOnline: false // Default to offline for migrated files
-                            });
-
-                            buffers.push({
-                                id: fileId,
-                                content: file.code,
-                                originalContent: originalCode
-                            });
-                        }
+                    // Ensure local hash is also set if code exists
+                    if (!file.localHash && file.code) {
+                        file.localHash = await calculateHash(file.code);
                     }
+
+                    // Put back into DB (DB wrapper handles split updates if needed)
+                    // Note: db.put splits 'code' into Buffers table.
+                    // We need to be careful not to overwrite 'code' if it's already in Buffers.
+                    // The db.put implementation in db.js handles this by checking if code/originalCode are present.
+                    // Here we are modifying the file object directly.
+
+                    await db.put('Files', file);
+                    updatedCount++;
                 }
             }
-
-            if (files.length > 0) {
-                await DB.dexie.Files.bulkPut(files);
-                await DB.dexie.Buffers.bulkPut(buffers);
-                console.log(`[ZohoIDE] Migrated ${files.length} files.`);
+            if (updatedCount > 0) {
+                console.log(`[Migration] Backfilled hashes for ${updatedCount} files.`);
+            } else {
+                console.log('[Migration] No files needed backfilling.');
             }
+        } catch (error) {
+            console.error('[Migration] Failed:', error);
         }
-
-        // 3. Migrate Interfaces (from json_mappings)
-        // json_mappings -> Owner: SYSTEM (Legacy had no file ownership)
-        if (result.json_mappings) {
-            const interfaces = [];
-            for (const name in result.json_mappings) {
-                interfaces.push({
-                    id: `global:${name}`,
-                    name: name,
-                    structure: result.json_mappings[name],
-                    ownerId: 'global',
-                    ownerType: 'GLOBAL',
-                    sharedScope: 'GLOBAL'
-                });
-            }
-             if (interfaces.length > 0) {
-                await DB.dexie.Interfaces.bulkPut(interfaces);
-                console.log(`[ZohoIDE] Migrated ${interfaces.length} interfaces.`);
-            }
-        }
-
-        // project_mappings are skipped as per spec.
-
-        await DB.dexie.Config.put({ key: 'is_migrated', value: true });
-        console.log('[ZohoIDE] Migration Complete.');
     }
 }
 
-const migrationService = new MigrationService();
-export default migrationService;
+export const migrationService = new MigrationService();
+export { calculateHash };
