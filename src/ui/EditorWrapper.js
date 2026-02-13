@@ -1,10 +1,11 @@
-// src/ui/EditorWrapper.js
 import store from "../core/store.js";
 import fileManager from "../services/FileManager.js";
+import { DelugeLsp } from "../features/DelugeLsp.js";
 
 class EditorWrapper {
     constructor() {
         this.editor = null;
+        this.lsp = null;
         this.init();
     }
 
@@ -76,6 +77,10 @@ class EditorWrapper {
             cursorStyle: "line",
             glyphMargin: true
         });
+
+        // Initialize LSP
+        this.lsp = new DelugeLsp(this.editor);
+        this.lsp.start();
 
         // Global Access for Legacy
         window.editor = this.editor;
