@@ -1,6 +1,7 @@
-// src/ui/ProjectExplorer.js
 import fileManager from "../services/FileManager.js";
 import store from "../core/store.js";
+import interfaceManager from "../services/InterfaceManager.js";
+import { DB } from "../core/db.js";
 
 class ProjectExplorer {
     constructor() {
@@ -64,17 +65,102 @@ class ProjectExplorer {
                 store.state.savedFunctions[orgId][system][folder][file.id] = file;
             });
 
-            const history = await fileManager.getAllFiles(); // Actually History table is different
-            // History loading logic in ide.js uses DB.getAll('History')
-            // I should use DB directly or FileManager if I added getHistory
-            // I'll use DB directly here for simplicity or assume FileManager handles it?
-            // FileManager.saveFile adds history. I didn't add getHistory to FileManager.
-            // I will skip History rendering for now or use DB global if available.
-
             this.renderExplorer();
 
         } catch (e) {
             console.error("loadExplorerData failed:", e);
+        }
+    }
+
+    async safeDeleteFile(fileId, fileName) {
+        try {
+            // 1. Check for Orphans
+            const orphans = await interfaceManager.checkOrphans(fileId);
+
+            if (orphans.length > 0) {
+                // 2. Trigger Modal
+                const modal = document.getElementById('adoption-modal');
+                const list = document.getElementById('orphaned-interfaces-list');
+                const msg = document.getElementById('adoption-message');
+
+                if (!modal || !list || !msg) {
+                    console.error("Adoption modal elements not found in DOM");
+                    return;
+                }
+
+                msg.innerHTML = `<strong>${fileName}</strong> owns <strong>${orphans.length}</strong> shared interfaces.<br>If you delete it, other files may lose autocomplete.`;
+
+                list.innerHTML = orphans.map(i => `
+                    <div class="orphan-item" style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #444;">
+                        <span style="display:flex; align-items:center; gap:5px;">
+                            <span class="material-icons" style="font-size:14px; color:#8be9fd;">link</span>
+                            <span>${i.name}</span>
+                        </span>
+                        <span class="badge" style="background:#444; padding:2px 5px; border-radius:3px; font-size:10px;">${i.ownerType}</span>
+                    </div>
+                `).join('');
+
+                modal.style.display = 'flex';
+
+                // 3. Handle Actions
+
+                const confirmBtn = document.getElementById('adoption-confirm');
+                const cancelBtn = document.getElementById('adoption-cancel');
+                const closeBtn = document.getElementById('adoption-modal-close');
+
+                // OPTION A: Promote (Adopt)
+                confirmBtn.onclick = async () => {
+                    const file = await fileManager.getFile(fileId);
+                    // Promote to the File's System (e.g., 'crm') or Org
+                    const newOwnerId = file.orgId || "global";
+                    const newOwnerType = "SYSTEM"; // Promoting usually goes to System level
+
+                    await interfaceManager.promoteInterfaces(
+                        orphans.map(o => o.id),
+                        newOwnerId,
+                        newOwnerType
+                    );
+
+                    // Now safe to delete file
+                    await fileManager.deleteFile(fileId);
+                    modal.style.display = 'none';
+                    if (window.showStatus) window.showStatus(`Deleted file. Interfaces moved to System.`, 'success');
+                    this.loadExplorerData();
+                };
+
+                // OPTION B: Delete Everything
+                cancelBtn.innerText = "Delete Everything";
+                cancelBtn.onclick = async () => {
+                    if(confirm("Are you sure? Shared interfaces will be lost.")) {
+                        // Delete the interfaces too
+                        for(const o of orphans) {
+                            await DB.delete('Interfaces', o.id);
+                        }
+                        await fileManager.deleteFile(fileId);
+                        modal.style.display = 'none';
+                         if (window.showStatus) window.showStatus(`Deleted file and its interfaces.`, 'info');
+                        this.loadExplorerData();
+                    }
+                };
+
+                // Add a "Cancel" X button logic to just close modal without deleting
+                closeBtn.onclick = () => {
+                    modal.style.display = 'none';
+                };
+
+                return; // STOP here, wait for user input
+            }
+
+            // 4. No Orphans? Standard Delete.
+            if (confirm(`Remove ${fileName} from IDE Explorer?`)) {
+                await fileManager.deleteFile(fileId);
+                await this.loadExplorerData();
+                 if (window.showStatus) window.showStatus('File deleted.', 'success');
+            }
+
+        } catch (e) {
+            console.error('[ZohoIDE] Delete failed:', e);
+             if (window.showStatus) window.showStatus('Delete failed: ' + e.message, 'error');
         }
     }
 
@@ -127,10 +213,37 @@ class ProjectExplorer {
                         const isActive = store.state.currentFile && store.state.currentFile.id === funcId;
                         if (isActive) funcItem.classList.add("active");
 
-                        funcItem.innerHTML = `<span class="material-icons" style="font-size:14px; color:#ce9178;">description</span>
-                        <span style="flex:1;">${func.name}</span>`;
+                        funcItem.style.display = "flex";
+                        funcItem.style.alignItems = "center";
+                        funcItem.style.justifyContent = "space-between";
 
-                        funcItem.onclick = () => {
+                        const contentSpan = document.createElement("span");
+                        contentSpan.style.display = "flex";
+                        contentSpan.style.alignItems = "center";
+                        contentSpan.style.flex = "1";
+                        contentSpan.style.overflow = "hidden";
+                        contentSpan.innerHTML = `<span class="material-icons" style="font-size:14px; color:#ce9178; margin-right:5px;">description</span>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${func.name}</span>`;
+
+                        const delBtn = document.createElement("span");
+                        delBtn.className = "material-icons explorer-action-btn";
+                        delBtn.style.fontSize = "14px";
+                        delBtn.style.opacity = "0.5";
+                        delBtn.style.cursor = "pointer";
+                        delBtn.innerText = "close";
+                        delBtn.title = "Delete File";
+                        delBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            this.safeDeleteFile(funcId, func.name);
+                        };
+                        delBtn.onmouseenter = () => delBtn.style.opacity = "1";
+                        delBtn.onmouseleave = () => delBtn.style.opacity = "0.5";
+
+                        funcItem.appendChild(contentSpan);
+                        funcItem.appendChild(delBtn);
+
+                        funcItem.onclick = (e) => {
+                            if (e.target === delBtn) return;
                             // Select File
                             window.dispatchEvent(new CustomEvent("file-selected", { detail: {
                                 orgId, system, folder, funcId, code: func.code, metadata: func.metadata

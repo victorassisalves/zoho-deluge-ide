@@ -1,6 +1,7 @@
 // Bridge script for Zoho Deluge IDE
 (function() {
     const log = (...args) => console.log('[ZohoIDE Bridge]', ...args);
+    const editorCache = new WeakMap();
 
     const Engines = {
         Monaco: {
@@ -48,7 +49,14 @@
                     for (let el of aceEls) {
                         if (el.env && el.env.editor) return el.env.editor.getValue();
                         if (window.ace && window.ace.edit) {
-                            try { return window.ace.edit(el).getValue(); } catch(e) {}
+                            try {
+                                let editor = editorCache.get(el);
+                                if (!editor) {
+                                    editor = window.ace.edit(el);
+                                    editorCache.set(el, editor);
+                                }
+                                return editor.getValue();
+                            } catch(e) {}
                         }
                     }
                     return null;
@@ -70,7 +78,15 @@
                     for (let el of aceEls) {
                         if (el.env && el.env.editor) { el.env.editor.setValue(code); success = true; }
                         else if (window.ace && window.ace.edit) {
-                            try { window.ace.edit(el).setValue(code); success = true; } catch(e) {}
+                            try {
+                                let editor = editorCache.get(el);
+                                if (!editor) {
+                                    editor = window.ace.edit(el);
+                                    editorCache.set(el, editor);
+                                }
+                                editor.setValue(code);
+                                success = true;
+                            } catch(e) {}
                         }
                     }
                     return success;
