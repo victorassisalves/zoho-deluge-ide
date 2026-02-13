@@ -50,6 +50,38 @@ class InterfaceManager {
         await db.delete("Interfaces", id);
     }
 
+    async checkOrphans(fileId) {
+        const interfaces = await db.getAll("Interfaces");
+        // Find interfaces owned by this file that are NOT Local-only
+        // We check both ownerType and sharedScope to be robust
+        return interfaces.filter(i =>
+            i.ownerId === fileId &&
+            (i.ownerType !== "FILE" || (i.sharedScope && i.sharedScope !== "LOCAL"))
+        );
+    }
+
+    async promoteInterfaces(interfaceIds, newOwnerId, newOwnerType) {
+        const interfaces = await db.getAll("Interfaces");
+        const updates = [];
+
+        for (const i of interfaces) {
+            if (interfaceIds.includes(i.id)) {
+                // If it was Folder scoped, we might want to upgrade it, but we are setting to newOwnerType anyway.
+                // We ensure sharedScope is also updated to match newOwnerType
+
+                i.ownerId = newOwnerId;
+                i.ownerType = newOwnerType;
+                i.sharedScope = newOwnerType;
+
+                updates.push(i);
+            }
+        }
+
+        if (updates.length > 0) {
+            for (const up of updates) await db.put("Interfaces", up);
+        }
+    }
+
     // Logic from ide.js
 
     tryFixJson(str) {
