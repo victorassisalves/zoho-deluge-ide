@@ -32,6 +32,18 @@ class EditorWrapper {
         const container = document.getElementById("editor-container");
         if (!container) return;
 
+        // Configure Monaco Environment for MV3 CSP
+        window.MonacoEnvironment = {
+            getWorkerUrl: function (moduleId, label) {
+                const basePath = '/assets/monaco-editor/min/vs/assets/';
+                if (label === 'json') return basePath + 'json.worker-DKiEKt88.js';
+                if (label === 'css' || label === 'scss' || label === 'less') return basePath + 'css.worker-HnVq6Ewq.js';
+                if (label === 'html' || label === 'handlebars' || label === 'razor') return basePath + 'html.worker-B51mlPHg.js';
+                if (label === 'typescript' || label === 'javascript') return basePath + 'ts.worker-CMbG-7ft.js';
+                return basePath + 'editor.worker-Be8ye1pW.js';
+            }
+        };
+
         monaco.editor.defineTheme("dracula", {
             base: "vs-dark",
             inherit: true,

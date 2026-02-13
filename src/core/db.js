@@ -1,4 +1,10 @@
-import Dexie from '../../assets/dexie.min.js';
+// Use global Dexie from assets/dexie.min.js which is a UMD build
+// We import it here just to get the reference if it supports ESM,
+// but since the file is UMD/minified without explicit exports, we might need to rely on the global.
+
+import '../../assets/dexie.min.js';
+// If Dexie attaches to window/global, we can just use it.
+const Dexie = window.Dexie || globalThis.Dexie;
 
 const dexieDB = new Dexie('DelugeIDE_DB');
 dexieDB.version(1).stores({
