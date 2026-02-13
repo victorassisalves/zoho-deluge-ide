@@ -6,7 +6,32 @@ class EditorWrapper {
     constructor() {
         this.editor = null;
         this.lsp = null;
+        this.configureMonacoWorkers();
         this.init();
+    }
+
+    configureMonacoWorkers() {
+        window.MonacoEnvironment = {
+            getWorker: function (moduleId, label) {
+                // The base path relative to the extension root
+                const basePath = 'assets/monaco-editor/min/vs/assets/';
+
+                let workerFilename = 'editor.worker-Be8ye1pW.js'; // Default
+
+                if (label === 'json') {
+                    workerFilename = 'json.worker-DKiEKt88.js';
+                } else if (label === 'css' || label === 'scss' || label === 'less') {
+                    workerFilename = 'css.worker-HnVq6Ewq.js';
+                } else if (label === 'html' || label === 'handlebars' || label === 'razor') {
+                    workerFilename = 'html.worker-B51mlPHg.js';
+                } else if (label === 'typescript' || label === 'javascript') {
+                    workerFilename = 'ts.worker-CMbG-7ft.js';
+                }
+
+                // Return a physical Worker pointing to the file
+                return new Worker(chrome.runtime.getURL(basePath + workerFilename));
+            }
+        };
     }
 
     init() {
