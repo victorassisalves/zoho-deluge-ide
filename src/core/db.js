@@ -1,4 +1,11 @@
-import { Dexie } from '../../assets/dexie.min.js';
+// src/core/db.js
+
+// We assume Dexie is loaded globally by loader-init.js
+const Dexie = window.Dexie;
+
+if (!Dexie) {
+    console.error("[ZohoIDE] Dexie not found in window scope. Check loader-init.js order.");
+}
 
 const dexieDB = new Dexie('DelugeIDE_DB');
 dexieDB.version(1).stores({

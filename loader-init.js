@@ -6,7 +6,21 @@ console.log("[ZohoIDE] Loader starting...");
 
 window.MonacoEnvironment = {
     getWorkerUrl: function (workerId, label) {
-        return chrome.runtime.getURL("assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js");
+        // Use full URL to avoid relative path issues
+        const baseUrl = chrome.runtime.getURL("");
+        if (label === 'json') {
+             return baseUrl + 'assets/monaco-editor/min/vs/assets/json.worker-DKiEKt88.js';
+        }
+        if (label === 'css' || label === 'scss' || label === 'less') {
+             return baseUrl + 'assets/monaco-editor/min/vs/assets/css.worker-HnVq6Ewq.js';
+        }
+        if (label === 'html' || label === 'handlebars' || label === 'razor') {
+             return baseUrl + 'assets/monaco-editor/min/vs/assets/html.worker-B51mlPHg.js';
+        }
+        if (label === 'typescript' || label === 'javascript') {
+             return baseUrl + 'assets/monaco-editor/min/vs/assets/ts.worker-CMbG-7ft.js';
+        }
+        return baseUrl + 'assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
     }
 };
 
@@ -37,6 +51,9 @@ require(["vs/editor/editor.main"], async function() {
         await loadScript("assets/firebase-auth-compat.js");
         await loadScript("assets/firebase-firestore-compat.js");
 
+        // Load Dexie as global while define is hidden
+        await loadScript("assets/dexie.min.js");
+
         window.define = originalDefine;
 
         try {
@@ -63,7 +80,6 @@ require(["vs/editor/editor.main"], async function() {
         await loadScript("snippet_logic.js");
         await loadScript("api_data.js");
 
-        // Removed ide.js (Monolithic Logic)
         console.log("[ZohoIDE] Modular logic loaded.");
 
     } catch (err) {
