@@ -20,13 +20,11 @@ const CloudUI = {
 
         // Hierarchy buttons
         document.getElementById('create-team-btn')?.addEventListener('click', () => this.handleCreateTeam());
-        document.getElementById('create-workspace-btn')?.addEventListener('click', () => this.handleCreateWorkspace());
         document.getElementById('create-project-btn')?.addEventListener('click', () => this.handleCreateProject());
         document.getElementById('create-file-btn')?.addEventListener('click', () => this.handleCreateFile());
 
         // Selectors
-        document.getElementById('team-selector')?.addEventListener('change', (e) => this.loadWorkspaces(e.target.value));
-        document.getElementById('workspace-selector')?.addEventListener('change', (e) => this.loadProjects(e.target.value));
+        document.getElementById('team-selector')?.addEventListener('change', (e) => this.loadProjects(e.target.value));
         document.getElementById('project-selector')?.addEventListener('change', (e) => this.loadFiles(e.target.value));
     },
 
@@ -100,10 +98,10 @@ const CloudUI = {
 
         if (!localCode || localCode.trim() === '' || localCode.startsWith('// Start coding')) return;
 
-        if (confirm('You have local code. Would you like to migrate it to a new Cloud Workspace?')) {
+        if (confirm('You have local code. Would you like to migrate it to a new Cloud Project?')) {
             try {
-                const workspaceId = await CloudService.createWorkspace(this.activeOrgId, 'My Cloud Workspace');
-                const projectId = await CloudService.createProject(workspaceId, localName, localUrl);
+                // Create project directly (no workspace) - linked to Personal (null teamId)
+                const projectId = await CloudService.createProject(this.activeOrgId, null, localName, localUrl);
                 const fileId = await CloudService.createFile(projectId, this.activeOrgId, 'Main', localCode, localUrl, localMappings);
 
                 this.activeFileId = fileId;
@@ -162,34 +160,12 @@ const CloudUI = {
         });
         selector.appendChild(fragment);
 
-        this.loadWorkspaces(null);
+        this.loadProjects(null);
     },
 
-    async loadWorkspaces(teamId) {
+    async loadProjects(teamId) {
         if (!this.activeOrgId) return;
-        const workspaces = await CloudService.getWorkspaces(this.activeOrgId, teamId);
-        const selector = document.getElementById('workspace-selector');
-        if (!selector) return;
-        selector.innerHTML = '<option value="">Select Workspace...</option>';
-
-        const fragment = document.createDocumentFragment();
-        workspaces.forEach(w => {
-            const opt = document.createElement('option');
-            opt.value = w.id;
-            opt.innerText = w.name;
-            fragment.appendChild(opt);
-        });
-        selector.appendChild(fragment);
-
-        const projSelector = document.getElementById('project-selector');
-        if (projSelector) projSelector.innerHTML = '';
-        const fileList = document.getElementById('cloud-file-list');
-        if (fileList) fileList.innerHTML = '';
-    },
-
-    async loadProjects(workspaceId) {
-        if (!workspaceId) return;
-        const projects = await CloudService.getProjects(workspaceId);
+        const projects = await CloudService.getProjects(this.activeOrgId, teamId);
         const selector = document.getElementById('project-selector');
         if (!selector) return;
         selector.innerHTML = '<option value="">Select Project...</option>';
@@ -241,22 +217,12 @@ const CloudUI = {
         }
     },
 
-    async handleCreateWorkspace() {
-        const teamId = document.getElementById('team-selector').value;
-        const name = prompt('Workspace Name:');
-        if (name) {
-            await CloudService.createWorkspace(this.activeOrgId, name, teamId || null);
-            this.loadWorkspaces(teamId);
-        }
-    },
-
     async handleCreateProject() {
-        const workspaceId = document.getElementById('workspace-selector').value;
-        if (!workspaceId) { alert('Select a workspace first'); return; }
+        const teamId = document.getElementById('team-selector').value;
         const name = prompt('Project Name:');
         if (name) {
-            await CloudService.createProject(workspaceId, name);
-            this.loadProjects(workspaceId);
+            await CloudService.createProject(this.activeOrgId, teamId || null, name);
+            this.loadProjects(teamId);
         }
     },
 
