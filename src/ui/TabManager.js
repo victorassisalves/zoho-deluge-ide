@@ -1,4 +1,3 @@
-// src/ui/TabManager.js
 import syncService from "../services/SyncService.js";
 import store from "../core/store.js";
 import fileManager from "../services/FileManager.js";
@@ -47,6 +46,8 @@ class TabManager {
                                     if (store.state.currentFile && this.getRenameKey(store.state.currentFile.data) === key) {
                                         window.dispatchEvent(new CustomEvent("update-drift-ui", { detail: { tabId: tab.tabId, status } }));
                                     }
+                                    // Re-render list to update dot
+                                    this.renderOpenEditors();
                                 }
                             });
                         }
@@ -86,9 +87,21 @@ class TabManager {
             const isCurrent = store.state.currentFile && (store.state.currentFile.tabId === tab.tabId);
             if (isCurrent) item.classList.add("active");
 
-            const displayName = tab.title || "Untitled"; // Simplified display name logic for brevity
+            const displayName = tab.title || "Untitled";
+
+            // Phase 5: Status Dot Logic
+            const key = this.getRenameKey(tab);
+            const mInfo = store.state.models[key];
+            const status = mInfo ? mInfo.syncStatus : 'UNKNOWN';
+
+            let statusClass = 'status-dot';
+            if (status === 'SYNCED') statusClass += ' synced';
+            else if (status === 'DRIFT_LOCAL_NEWER') statusClass += ' modified';
+            else if (status === 'DRIFT_REMOTE_NEWER') statusClass += ' drift';
+            else if (status === 'CONFLICT') statusClass += ' conflict';
 
             item.innerHTML = `
+                <div class="${statusClass}" title="${status}"></div>
                 <span class="system-icon">${(tab.system || "Z")[0]}</span>
                 <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayName}</span>
             `;

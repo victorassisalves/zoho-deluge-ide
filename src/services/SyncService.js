@@ -1,6 +1,6 @@
-// src/services/SyncService.js
 import { DB as db } from "../core/db.js";
 import store from "../core/store.js";
+import { calculateHash } from "./MigrationService.js";
 
 class SyncService {
     constructor() {
@@ -15,17 +15,43 @@ class SyncService {
         const file = await db.get("Files", fileId);
         if (!file) return "UNKNOWN";
 
-        const originalCode = file.originalCode || "";
         const localCode = file.code || "";
+        // If we don't have a lastSyncedHash, we try to fall back to calculating it from originalCode
+        // or just assume UNKNOWN/SYNCED based on direct string comparison if migration hasn't run.
+        let baseHash = file.lastSyncedHash;
+        if (!baseHash && file.originalCode) {
+            baseHash = await calculateHash(file.originalCode);
+        }
 
-        const localModified = localCode !== originalCode;
-        const remoteModified = remoteCode !== originalCode;
+        const localHash = await calculateHash(localCode);
+        const remoteHash = await calculateHash(remoteCode);
 
-        if (!localModified && !remoteModified) return "SYNCED";
-        if (localModified && !remoteModified) return "DRIFT_LOCAL_NEWER";
-        if (!localModified && remoteModified) return "DRIFT_REMOTE_NEWER";
-        if (localModified && remoteModified) {
-            return localCode === remoteCode ? "SYNCED" : "CONFLICT";
+        // If hashes are identical, we are good.
+        if (localHash === remoteHash) return "SYNCED";
+
+        // If we have a base hash, we can do 3-way check
+        if (baseHash) {
+            const localModified = localHash !== baseHash;
+            const remoteModified = remoteHash !== baseHash;
+
+            if (!localModified && !remoteModified) return "SYNCED"; // Should be covered by first check, but for completeness
+            if (localModified && !remoteModified) return "DRIFT_LOCAL_NEWER";
+            if (!localModified && remoteModified) return "DRIFT_REMOTE_NEWER";
+            if (localModified && remoteModified) {
+                return localHash === remoteHash ? "SYNCED" : "CONFLICT";
+            }
+        } else {
+            // Fallback for legacy / unmigrated files
+             const originalCode = file.originalCode || "";
+             const localModified = localCode !== originalCode;
+             const remoteModified = remoteCode !== originalCode;
+
+             if (!localModified && !remoteModified) return "SYNCED";
+             if (localModified && !remoteModified) return "DRIFT_LOCAL_NEWER";
+             if (!localModified && remoteModified) return "DRIFT_REMOTE_NEWER";
+             if (localModified && remoteModified) {
+                 return localCode === remoteCode ? "SYNCED" : "CONFLICT";
+             }
         }
 
         return "UNKNOWN";
@@ -36,6 +62,7 @@ class SyncService {
         if (file) {
             file.originalCode = code;
             file.code = code;
+            file.lastSyncedHash = await calculateHash(code); // Update Hash
             await db.put("Files", file);
 
             // Add History Snapshot
@@ -73,9 +100,6 @@ class SyncService {
                 chrome.runtime.sendMessage({ action: "GET_ZOHO_CODE", tabId: targetTabId }, async (response) => {
                     if (response && response.code) {
                         const key = window.getRenameKey ? window.getRenameKey(targetTab) : `${targetTab.orgId}:${targetTab.system}:${targetTab.functionId}`; // Fallback if getRenameKey not available yet
-                        // Logic to update model is handled by caller or we dispatch event
-                        // But ide.js updated model directly.
-                        // Here we return code so controller can update model.
 
                         await this.markSynced(targetTab.functionId, response.code);
 
@@ -112,10 +136,21 @@ class SyncService {
             return;
         }
 
-        // Check for errors (Caller should handle Monaco marker check if possible, but we can't easily access monaco here without passing it)
-        // Assuming caller checks errors or we skip it for now.
-        // In ide.js: const markers = monaco.editor.getModelMarkers...
-        // We will assume valid code for now or check if editor provides validation status.
+        const key = window.getRenameKey ? window.getRenameKey(targetTab) : `${targetTab.orgId}:${targetTab.system}:${targetTab.functionId}`;
+        const currentStatus = store.state.models[key]?.syncStatus;
+
+        // --- PHASE 5: CONFLICT GUARD ---
+        if (currentStatus === 'CONFLICT' || currentStatus === 'DRIFT_REMOTE_NEWER') {
+            const confirmMsg = currentStatus === 'CONFLICT'
+                ? "⚠️ CONFLICT DETECTED\n\nZoho has changes that you do not have.\nPushing will OVERWRITE them forever.\n\nAre you sure you want to force push?"
+                : "⚠️ REMOTE IS NEWER\n\nZoho has a newer version.\nPushing will overwrite it.\n\nAre you sure?";
+
+            if (!confirm(confirmMsg)) {
+                this.log("Warning", "Push cancelled by user (Conflict Guard).");
+                return; // Stop execution
+            }
+        }
+        // -------------------------------
 
         const code = editor.getValue();
         this.log("System", "Pushing code...");
@@ -130,12 +165,9 @@ class SyncService {
                     if (response && response.success) {
                         this.log("Success", "Code pushed.");
 
-                        // Update local originalCode
-                        const key = window.getRenameKey ? window.getRenameKey(targetTab) : `${targetTab.orgId}:${targetTab.system}:${targetTab.functionId}`;
+                        // Update local originalCode and Hash
                         if (store.state.models[key]) {
                             store.state.models[key].originalCode = code;
-                            // saveModelsToStorage should be triggered by model change or manual
-                            // But here we just updated metadata
                         }
 
                         await this.markSynced(targetTab.functionId, code);

@@ -1764,3 +1764,99 @@ html.sidepanel-mode .resizer {
 .tree-sub {
     padding-left: 10px;
 }
+
+/* --- Phase 5: Drift Detection UI --- */
+
+/* Material Status Chips (Header) */
+#status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 16px; /* Pill Shape */
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255, 255, 255, 0.05); /* Default */
+    border: 1px solid transparent;
+    cursor: pointer;
+    margin-right: 10px;
+    white-space: nowrap;
+}
+
+#status-indicator:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Status Variants */
+.status-synced {
+    background: rgba(80, 250, 123, 0.1) !important;
+    border-color: rgba(80, 250, 123, 0.3) !important;
+    color: #50fa7b !important;
+    box-shadow: 0 0 8px rgba(80, 250, 123, 0.1);
+}
+
+.status-drift {
+    background: rgba(255, 184, 108, 0.1) !important;
+    border-color: rgba(255, 184, 108, 0.3) !important;
+    color: #ffb86c !important;
+}
+
+.status-conflict {
+    background: rgba(255, 85, 85, 0.1) !important;
+    border-color: rgba(255, 85, 85, 0.3) !important;
+    color: #ff5555 !important;
+    animation: pulse-red 2s infinite;
+}
+
+.status-offline {
+    background: rgba(98, 114, 164, 0.1) !important;
+    border-color: rgba(98, 114, 164, 0.3) !important;
+    color: #6272a4 !important;
+}
+
+/* Dynamic Buttons */
+.actions button {
+    transition: all 0.2s ease;
+}
+
+/* Warning State (Yellow) - Use for Pull */
+.btn-warning {
+    background: rgba(255, 184, 108, 0.15) !important;
+    color: #ffb86c !important;
+    border: 1px solid rgba(255, 184, 108, 0.4) !important;
+    box-shadow: 0 0 8px rgba(255, 184, 108, 0.1);
+}
+
+/* Danger State (Red) - Use for Push */
+.btn-danger {
+    background: rgba(255, 85, 85, 0.15) !important;
+    color: #ff5555 !important;
+    border: 1px solid rgba(255, 85, 85, 0.4) !important;
+    box-shadow: 0 0 8px rgba(255, 85, 85, 0.2);
+}
+
+/* Animations */
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(255, 85, 85, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(255, 85, 85, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 85, 85, 0); }
+}
+
+/* Sidebar Dots */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+    flex-shrink: 0;
+    background-color: transparent;
+}
+
+.status-dot.synced { background-color: #50fa7b; box-shadow: 0 0 4px #50fa7b; }
+.status-dot.modified { background-color: #ffb86c; } /* Local change */
+.status-dot.drift { background-color: #ffb86c; border: 1px solid #ff5555; } /* Remote change */
+.status-dot.conflict { background-color: #ff5555; animation: pulse-red 1s infinite; }
+.status-dot.unknown { background-color: #444; }

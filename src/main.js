@@ -1,10 +1,11 @@
-// src/main.js
 import store from "./core/store.js";
 import { DB } from "./core/db.js";
+
 import fileManager from "./services/FileManager.js";
 import interfaceManager from "./services/InterfaceManager.js";
 import syncService from "./services/SyncService.js";
 import aiService from "./services/AIService.js";
+import { migrationService } from "./services/MigrationService.js";
 
 import projectExplorer from "./ui/ProjectExplorer.js";
 import tabManager from "./ui/TabManager.js";
@@ -29,12 +30,17 @@ function log(type, message) {
 function showStatus(message, type = "info") {
     const statusEl = document.getElementById("status-indicator");
     if (statusEl) {
-        statusEl.innerText = message;
-        statusEl.style.cursor = "pointer";
-        statusEl.onclick = () => { showStatus("Reconnecting..."); tabManager.syncAppTabs(); };
-        statusEl.style.color = type === "success" ? "#4ec9b0" : (type === "error" ? "#f44747" : "#888");
+        // Legacy status handling (for non-drift messages)
+        // If message is "Saved locally", show it temporarily then revert?
+        // Ideally we should use a toast or snackbar, but for now specific messages might override the sync status briefly.
+        // However, the new sync status is robust. We might want to separate "System Status" from "Sync Status".
+        // The current ID "status-indicator" is being repurposed for Sync Status in the header.
+        // Let's check where showStatus is used.
+        // It is used for "Saved locally" and "Reconnecting...".
+        // Maybe we log it instead or use a separate notification area.
+        // For now, I'll log it and let the drift UI handle the main indicator.
+        log(type, message);
     }
-    log(type, message);
 }
 
 // Controller Logic
@@ -161,7 +167,8 @@ async function saveLocally() {
     try {
         await fileManager.saveFile(fileData);
         log("Success", `Saved ${name} to Explorer.`);
-        showStatus("Saved locally", "success");
+        // showStatus("Saved locally", "success");
+        log("Success", "Saved locally");
         projectExplorer.loadExplorerData();
     } catch (e) {
         log("Error", "Save failed: " + e.message);
@@ -184,6 +191,9 @@ async function bootstrap() {
 
     initResizers();
 
+    // Run migration in background
+    migrationService.runPhase5Migration().catch(e => console.error(e));
+
     // Event Wiring
     window.addEventListener("file-selected", (e) => selectSavedFile(e.detail));
     window.addEventListener("tab-selected", (e) => selectTabFile(e.detail.tab));
@@ -195,19 +205,69 @@ async function bootstrap() {
 
     window.addEventListener("update-drift-ui", (e) => {
         const { tabId, status } = e.detail;
+
+        // 1. Reset Buttons
+        const pushBtn = document.getElementById('push-btn');
+        const pullBtn = document.getElementById('pull-btn');
+        if (pushBtn) { pushBtn.className = ''; pushBtn.title = "Sync (Ctrl+Shift+S)"; }
+        if (pullBtn) { pullBtn.className = ''; pullBtn.title = "Pull (Ctrl+Shift+P)"; }
+
+        // 2. Status Map
         const statusMap = {
-            "SYNCED": { label: "Synced", color: "#50fa7b" },
-            "DRIFT_LOCAL_NEWER": { label: "Local Ahead", color: "#ffb86c" },
-            "DRIFT_REMOTE_NEWER": { label: "Remote Ahead", color: "#ffb86c" },
-            "CONFLICT": { label: "Conflict!", color: "#ff5555" },
-            "DRIFT": { label: "Drift Detected", color: "#ffb86c" },
-            "OFFLINE": { label: "Offline", color: "#888" }
+            'SYNCED': {
+                html: '<span class="material-icons" style="font-size:14px;">check_circle</span> Synced',
+                css: 'status-synced',
+                desc: 'Code matches Zoho.'
+            },
+            'DRIFT_LOCAL_NEWER': {
+                html: '<span class="material-icons" style="font-size:14px;">edit</span> Modified',
+                css: 'status-drift',
+                desc: 'You have unsaved changes.'
+            },
+            'DRIFT_REMOTE_NEWER': {
+                html: '<span class="material-icons" style="font-size:14px;">cloud_download</span> Remote Newer',
+                css: 'status-drift',
+                desc: 'Zoho has newer changes. Please Pull.'
+            },
+            'CONFLICT': {
+                html: '<span class="material-icons" style="font-size:14px;">warning</span> Conflict',
+                css: 'status-conflict',
+                desc: 'Both versions changed. Manual fix required.'
+            },
+            'OFFLINE': {
+                html: '<span class="material-icons" style="font-size:14px;">cloud_off</span> Offline',
+                css: 'status-offline',
+                desc: 'Tab closed.'
+            }
         };
-        const info = statusMap[status] || { label: "Ready", color: "#888" };
+
+        const info = statusMap[status] || { html: 'Ready', css: '' };
+
+        // 3. Update Header Chip
         const syncStatusEl = document.getElementById("sync-status");
         if (syncStatusEl) {
-            syncStatusEl.innerText = info.label;
-            syncStatusEl.style.color = info.color;
+            syncStatusEl.innerHTML = info.html;
+            syncStatusEl.className = '';
+            if (info.css) syncStatusEl.classList.add(info.css);
+            syncStatusEl.title = info.desc;
+            syncStatusEl.style.color = ""; // Reset inline color
+        }
+
+        // 4. Update Buttons
+        if (status === 'DRIFT_REMOTE_NEWER') {
+            if (pullBtn) {
+                pullBtn.classList.add('btn-warning');
+                pullBtn.title = "⚠️ Remote is newer! Click to update local code.";
+            }
+        }
+        else if (status === 'CONFLICT') {
+            if (pushBtn) {
+                pushBtn.classList.add('btn-danger');
+                pushBtn.title = "🛑 Conflict! Push will overwrite remote changes.";
+            }
+            if (pullBtn) {
+                pullBtn.classList.add('btn-warning');
+            }
         }
     });
 
