@@ -7,6 +7,34 @@ class TypeScanner {
     }
 
     /**
+     * Attaches the scanner to an editor instance to listen for changes.
+     * @param {Object} editor - monaco.editor.IStandaloneCodeEditor
+     */
+    attach(editor) {
+        if (!editor) return;
+
+        const model = editor.getModel();
+        if (model) {
+            this.scan(model);
+        }
+
+        editor.onDidChangeModelContent(() => {
+            const currentModel = editor.getModel();
+            if (currentModel) {
+                this.scan(currentModel);
+            }
+        });
+
+        // Also listen for model changes (tabs switching)
+        editor.onDidChangeModel(() => {
+            const currentModel = editor.getModel();
+            if (currentModel) {
+                this.scan(currentModel);
+            }
+        });
+    }
+
+    /**
      * Scans the model for @type annotations.
      * @param {Object} model - monaco.editor.ITextModel
      */
