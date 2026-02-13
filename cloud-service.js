@@ -122,47 +122,32 @@ const CloudService = {
 
     // --- Workspaces & Projects ---
 
-    async getWorkspaces(orgId, teamId = null) {
+    async getProjects(orgId, teamId = null) {
         if (!orgId) return [];
-        let query = this.db.collection('workspaces').where('orgId', '==', orgId);
+        let query = this.db.collection('projects').where('orgId', '==', orgId);
+
         if (teamId) {
             query = query.where('teamId', '==', teamId);
         } else {
             query = query.where('ownerId', '==', this.auth.currentUser.uid).where('type', '==', 'standalone');
         }
+
         const snapshot = await query.get();
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     },
 
-    async createWorkspace(orgId, name, teamId = null) {
+    async createProject(orgId, teamId, name, url = null) {
         const data = {
             orgId: orgId,
             name: name,
+            url: url,
             type: teamId ? 'team' : 'standalone',
             ownerId: this.auth.currentUser.uid,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         if (teamId) data.teamId = teamId;
 
-        const docRef = await this.db.collection('workspaces').add(data);
-        return docRef.id;
-    },
-
-    async getProjects(workspaceId) {
-        if (!workspaceId) return [];
-        const snapshot = await this.db.collection('projects')
-            .where('workspaceId', '==', workspaceId)
-            .get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    },
-
-    async createProject(workspaceId, name, url = null) {
-        const docRef = await this.db.collection('projects').add({
-            workspaceId: workspaceId,
-            name: name,
-            url: url,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        const docRef = await this.db.collection('projects').add(data);
         return docRef.id;
     },
 
