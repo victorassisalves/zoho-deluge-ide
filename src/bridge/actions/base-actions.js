@@ -1,56 +1,41 @@
-export function setEditorCode(code) {
-    let success = false;
-    try {
-        if (window.monaco && window.monaco.editor) {
-            const models = window.monaco.editor.getModels();
-            if (models && models.length > 0) { models[0].setValue(code); success = true; }
-        }
-    } catch (e) {}
-    if (success) return true;
-
-    try {
-        const aceEls = document.querySelectorAll('.ace_editor');
-        for (let aceEl of aceEls) {
-            if (aceEl.env && aceEl.env.editor) { aceEl.env.editor.setValue(code); success = true; }
-            else if (window.ace && window.ace.edit) {
-                try { window.ace.edit(aceEl).setValue(code); success = true; } catch(e) {}
-            }
-        }
-    } catch (e) {}
-    if (success) return true;
-
-    try {
-        const cmEls = document.querySelectorAll('.CodeMirror');
-        for (let cmEl of cmEls) {
-            if (cmEl.CodeMirror) { cmEl.CodeMirror.setValue(code); success = true; }
-        }
-    } catch (e) {}
-    if (success) return true;
-
-    try {
-        const delugeEditor = document.querySelector('[id*="delugeEditor"], [id*="scriptEditor"], .deluge-editor');
-        if (delugeEditor) {
-            delugeEditor.value = code;
-            if (delugeEditor.env && delugeEditor.env.editor) delugeEditor.env.editor.setValue(code);
-            delugeEditor.dispatchEvent(new Event('input', { bubbles: true }));
-            delugeEditor.dispatchEvent(new Event('change', { bubbles: true }));
-            success = true;
-        }
-    } catch (e) {}
-    return success;
-}
-
 export function robustClick(el) {
     if (!el) return false;
     try {
-        el.click();
-        // Dispatch additional events for frameworks like Lyte or React
-        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-        el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-        el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-        el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+        console.log('[ZohoIDE Bridge] Clicking element:', el.tagName, el.id, el.className);
+
+        // Dispatch a sequence of events to mimic real user interaction
+        const events = [
+            { type: 'mousedown', cls: MouseEvent },
+            { type: 'pointerdown', cls: PointerEvent },
+            { type: 'mouseup', cls: MouseEvent },
+            { type: 'pointerup', cls: PointerEvent },
+            { type: 'click', cls: MouseEvent }
+        ];
+
+        events.forEach(({ type, cls }) => {
+            try {
+                const event = new cls(type, {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    buttons: 1
+                });
+                el.dispatchEvent(event);
+            } catch (e) {}
+        });
+
+        // If it's a lyte-button or has a specific 'click' attribute (common in Zoho)
+        // we might need to trigger its internal handlers if they didn't fire
+        if (el.tagName.toLowerCase() === 'lyte-button' && el.executeAction) {
+            try { el.executeAction('click', new MouseEvent('click')); } catch(e) {}
+        }
+
+        // Final fallback
+        if (el.click) el.click();
+
         return true;
     } catch(e) {
+        console.log('[ZohoIDE Bridge] Click error:', e);
         return false;
     }
 }
@@ -58,9 +43,13 @@ export function robustClick(el) {
 export function clickBySelectors(selectors) {
     for (let sel of selectors) {
         try {
-            const el = document.querySelector(sel);
-            if (el && el.offsetParent !== null) { // Check if visible
-                if (robustClick(el)) return true;
+            const els = document.querySelectorAll(sel);
+            for (let el of els) {
+                // Check if visible
+                const isVisible = !!(el.offsetParent !== null || el.offsetWidth > 0);
+                if (el && isVisible) {
+                    if (robustClick(el)) return true;
+                }
             }
         } catch(e) {}
     }
@@ -68,9 +57,9 @@ export function clickBySelectors(selectors) {
 }
 
 export function clickByText(type) {
-    const buttons = document.querySelectorAll('button, .lyte-button, a.btn, input[type="button"], [role="button"]');
+    const buttons = document.querySelectorAll('button, .lyte-button, a.btn, input[type="button"], input[type="submit"], [role="button"]');
     for (let btn of buttons) {
-        if (btn.offsetParent === null) continue; // Skip hidden
+        if (btn.offsetParent === null && btn.offsetWidth === 0) continue; // Skip hidden
         const txt = (btn.innerText || btn.textContent || btn.value || btn.getAttribute('aria-label') || '').toLowerCase().trim();
         if (type === 'save') {
             if (txt === 'save' || txt === 'update' || txt.includes('save script') || txt.includes('update script') || txt.includes('save & close')) {

@@ -1,65 +1,93 @@
 import { getZohoProduct } from './detectors.js';
-import { getEditorCode } from './scrapers.js';
-import { setEditorCode, clickByText, clickBySelectors } from './actions/base-actions.js';
+import { getEditorCode, setEditorCode } from './scrapers.js';
+import { CRMConfig } from './products/crm.js';
+import { CreatorConfig } from './products/creator.js';
+import { FlowConfig } from './products/flow.js';
+import { BooksConfig } from './products/books.js';
+import { GenericConfig } from './products/generic.js';
+import { clickBySelectors, clickByText } from './actions/base-actions.js';
 
-console.log('[ZohoIDE] Modular Bridge Loaded');
+console.log('[ZohoIDE Bridge] Modular Bridge Initialized');
 
-const selectors = {
-    save: [
-        'button[id="save_script"]', '#save_script', '#save_btn',
-        '#crmsave', 'lyte-button[data-id="save"]', 'lyte-button[data-id="update"]',
-        'lyte-button[data-zcqa="save"]', 'lyte-button[data-zcqa="update"]',
-        'lyte-button[data-zcqa="functionSavev2"]', '.dxEditorPrimaryBtn',
-        '.crm-save-btn', '.zc-save-btn', '.save-btn', '.zc-update-btn', '.save_btn',
-        'input#saveBtn', 'input[value="Save"]', 'input[value="Update"]'
-    ],
-    execute: [
-        'button[id="execute_script"]', '#execute_script', 'button[id="run_script"]', '#run_script',
-        '#crmexecute', 'span[data-zcqa="delgv2execPlay"]', '.dx_execute_icon',
-        '#runscript', '.zc-execute-btn', '.execute-btn',
-        'lyte-button[data-zcqa="execute"]', 'lyte-button[data-zcqa="run"]',
-        '.lyte-button[data-id="execute"]', '.lyte-button[data-id="run"]',
-        '.execute_btn', '#execute_btn', 'input#executeBtn',
-        'input[value="Execute"]', 'input[value="Run"]'
-    ]
+const ProductConfigs = {
+    crm: CRMConfig,
+    creator: CreatorConfig,
+    flow: FlowConfig,
+    books: BooksConfig,
+    generic: GenericConfig
 };
 
-window.addEventListener('message', (e) => {
-    let msg;
-    try {
-        msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-    } catch (err) {
-        // Fallback for old prefix
-        if (typeof e.data === 'string' && e.data.startsWith('ZIDE_MSG:')) {
-            try { msg = JSON.parse(e.data.substring(9)); } catch (e2) { return; }
-        } else { return; }
+function getCurrentConfig() {
+    const url = window.location.href;
+    // Try to match by URL first (more accurate than hostname in some cases)
+    for (const [key, config] of Object.entries(ProductConfigs)) {
+        if (config.match && config.match(url)) return { name: key, config };
     }
-
-    if (msg && (msg.source === 'EXTENSION' || msg._zide_msg_) && msg.source !== 'PAGE') {
-        let resp = {};
-        if (msg.action === 'PING') {
-            resp = { status: 'PONG', product: getZohoProduct() };
-        } else if (msg.action === 'GET_ZOHO_CODE') {
-            resp = { code: getEditorCode() };
-        } else if (msg.action === 'SET_ZOHO_CODE') {
-            resp = { success: setEditorCode(msg.code) };
-        } else if (msg.action === 'SAVE_ZOHO_CODE') {
-            resp = { success: triggerAction('save') };
-        } else if (msg.action === 'EXECUTE_ZOHO_CODE') {
-            resp = { success: triggerAction('execute') };
-        }
-
-        window.postMessage(JSON.stringify({
-            _zide_msg_: true,
-            source: 'PAGE',
-            action: msg.action,
-            response: resp
-        }), '*');
-    }
-});
+    return { name: 'generic', config: GenericConfig };
+}
 
 function triggerAction(type) {
-    let success = clickBySelectors(selectors[type]);
-    if (!success) success = clickByText(type);
+    const { name, config } = getCurrentConfig();
+    console.log(`[ZohoIDE Bridge] Triggering ${type} for ${name}`);
+
+    let success = false;
+    const selectors = config[type];
+    if (selectors && selectors.length > 0) {
+        success = clickBySelectors(selectors);
+    }
+
+    if (!success) {
+        console.log(`[ZohoIDE Bridge] Selector click failed, trying text fallback...`);
+        success = clickByText(type);
+    }
+
     return success;
 }
+
+window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
+    const data = event.detail;
+    if (!data || !data.action) return;
+
+    let response = {};
+    const { action, eventId } = data;
+
+    try {
+        if (action === 'PING') {
+            const { name } = getCurrentConfig();
+            response = { status: 'PONG', product: name };
+        }
+        else if (action === 'GET_ZOHO_CODE') {
+            const code = getEditorCode();
+            if (code !== null) response = { code };
+            else response = { error: 'No code found' };
+        }
+        else if (action === 'SET_ZOHO_CODE') {
+            const success = setEditorCode(data.code);
+            response = { success };
+        }
+        else if (action === 'SAVE_ZOHO_CODE') {
+            response = { success: triggerAction('save') };
+        }
+        else if (action === 'EXECUTE_ZOHO_CODE') {
+            response = { success: triggerAction('execute') };
+        }
+        else if (action === 'GET_ZOHO_METADATA') {
+            const { config } = getCurrentConfig();
+            if (config.getMetadata) {
+                response = config.getMetadata();
+            } else {
+                response = GenericConfig.getMetadata();
+            }
+            // Add extra info
+            response.url = window.location.href;
+            response.title = document.title;
+        }
+    } catch (e) {
+        console.error('[ZohoIDE Bridge] Error handling action:', action, e);
+        response = { error: e.message };
+    }
+
+    window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
+        detail: { eventId, action, response }
+    }));
+});

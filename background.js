@@ -113,11 +113,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let targetTabId = isSidePanel ? sender.tab.id : null;
 
     if (request.action === 'CHECK_CONNECTION') {
+        const verifyConnection = (tab) => {
+             // Try to PING the tab to see if bridge is alive
+             chrome.tabs.sendMessage(tab.id, { action: 'PING' }, (response) => {
+                 if (chrome.runtime.lastError) {
+                     // Try injecting if runtime error (meaning no listener)
+                     console.log('[ZohoIDE] Injecting content script for tab', tab.id);
+                     chrome.scripting.executeScript({
+                        target: { tabId: tab.id },
+                        files: ['content.js']
+                     }).then(() => {
+                         // Wait a bit and retry
+                         setTimeout(() => {
+                             chrome.tabs.sendMessage(tab.id, { action: 'PING' }, (res2) => {
+                                 if (res2 && res2.status === 'PONG') {
+                                      sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, product: res2.product });
+                                 } else {
+                                      console.log('[ZohoIDE] PING failed after injection:', res2);
+                                      sendResponse({ connected: false, error: 'Bridge not responding after injection' });
+                                 }
+                             });
+                         }, 800); // Wait for bridge.js injection (500ms in content.js + extra buffer)
+                     }).catch((e) => {
+                         console.error('[ZohoIDE] Injection failed:', e);
+                         sendResponse({ connected: false, error: 'Injection failed' });
+                     });
+                     return;
+                 }
+
+                 if (response && response.status === 'PONG') {
+                     sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, product: response.product });
+                 } else {
+                     sendResponse({ connected: false, error: 'No PONG response' });
+                 }
+             });
+        };
+
         if (targetTabId) {
-            chrome.tabs.get(targetTabId, (tab) => sendResponse({ connected: true, tabTitle: tab.title, url: tab.url }));
+            chrome.tabs.get(targetTabId, (tab) => verifyConnection(tab));
         } else {
             findZohoTab((tab) => {
-                if (tab) sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone: true });
+                if (tab) verifyConnection(tab);
                 else sendResponse({ connected: false });
             });
         }
@@ -153,11 +189,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
             lastZohoTabId = tabId;
             try {
+                // Ensure PING works first to confirm context?
+                // Or just proceed with injection traversal logic.
+                // The original logic was robust enough with frame traversal.
+
                 const results = await chrome.scripting.executeScript({
                     target: { tabId: tabId, allFrames: true },
                     world: 'MAIN',
                     func: () => {
-                        // Check for common editor objects and elements in the main world
                         const hasMonaco = !!(window.monaco && (window.monaco.editor || window.monaco.languages));
                         const hasAce = !!(window.ace && window.ace.edit) || !!document.querySelector('.ace_editor, .zace-editor, lyte-ace-editor');
                         const hasCodeMirror = !!document.querySelector('.CodeMirror');
@@ -188,8 +227,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         const response = await new Promise((resolve, reject) => {
                             chrome.tabs.sendMessage(tabId, request, { frameId: frame.frameId }, (res) => {
                                 if (chrome.runtime.lastError) {
-                                    console.warn('[ZohoIDE] sendMessage runtime error:', chrome.runtime.lastError);
-                                    reject(chrome.runtime.lastError);
+                                    // console.warn('[ZohoIDE] sendMessage runtime error:', chrome.runtime.lastError);
+                                    resolve({ error: chrome.runtime.lastError.message });
                                 }
                                 else resolve(res);
                             });
@@ -211,7 +250,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
         };
 
-        // Priority: Explicit tabId > sender tab (sidepanel) > find active tab
         const activeTabId = request.tabId || targetTabId;
         if (activeTabId) handleAction(activeTabId);
         else findZohoTab(tab => tab ? handleAction(tab.id) : sendResponse({ error: 'No Zoho tab found' }));
@@ -230,16 +268,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'ZO_FOCUS_GAINED') {
         const tabId = sender.tab ? sender.tab.id : null;
         if (tabId && request.metadata) {
-            // Generate stable fileId
             const meta = request.metadata;
             const id = (meta.functionId && meta.functionId !== "unknown") ? meta.functionId : (meta.url || "global");
-            // Match TabManager.js getRenameKey logic roughly
             const fileId = `${meta.orgId}:${meta.system}:${id}`;
 
-            // Register Tab
             registerTab(tabId, fileId);
 
-            // Forward to IDE
             broadcastToIDE({
                 type: 'ZO_FOCUS_GAINED',
                 tabId: tabId,
@@ -297,7 +331,6 @@ function getOrgFromUrl(url) {
         const parts = u.pathname.split('/');
 
         if (u.host.includes('crm')) {
-            // Patterns: /crm/MyClient/..., /crm/org123/..., /crm/org/MyClient/...
             if (parts[1] === 'crm') {
                 if (parts[2] && parts[2] !== 'org') return parts[2];
                 if (parts[2] === 'org' && parts[3]) return parts[3];
@@ -305,11 +338,8 @@ function getOrgFromUrl(url) {
         }
 
         if (u.host.includes('creator')) {
-            // Patterns: /admin/app/AppName, /builder/app/AppName, /owner/AppName
             let appIdx = parts.indexOf('app');
             if (appIdx !== -1 && parts[appIdx+1]) return parts[appIdx+1];
-
-            // Fallback for /owner/AppName
             if (parts[1] && !['admin', 'builder', 'zp'].includes(parts[1])) {
                 return parts[2] || parts[1];
             }
@@ -330,7 +360,6 @@ async function getTabMetadata(tabId) {
     const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms));
 
     try {
-        // Get editor status from all frames
         const editorResults = await Promise.race([
             chrome.scripting.executeScript({
                 target: { tabId: tabId, allFrames: true },
@@ -345,7 +374,6 @@ async function getTabMetadata(tabId) {
             timeout(1500)
         ]).catch(() => []);
 
-        // Probe ALL frames for metadata
         const frames = await new Promise(resolve => {
             chrome.webNavigation.getAllFrames({ tabId: tabId }, (f) => resolve(f || []));
         });
@@ -357,7 +385,6 @@ async function getTabMetadata(tabId) {
                     else {
                         if (res) {
                             res.frameId = frame.frameId;
-                            // Attach editor status to metadata
                             const editorRes = editorResults.find(r => r.frameId === frame.frameId);
                             res.hasEditor = !!editorRes?.result;
                         }
@@ -370,7 +397,6 @@ async function getTabMetadata(tabId) {
         const allMeta = (await Promise.all(metaPromises)).filter(m => m && m.system);
         if (allMeta.length === 0) return null;
 
-        // Sort: Prefer frames with an editor, then frames with a functionId, then the top frame
         return allMeta.sort((a, b) => {
             if (a.hasEditor !== b.hasEditor) return a.hasEditor ? -1 : 1;
             if (a.functionId !== b.functionId) {

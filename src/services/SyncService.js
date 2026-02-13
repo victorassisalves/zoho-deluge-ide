@@ -16,8 +16,6 @@ class SyncService {
         if (!file) return "UNKNOWN";
 
         const localCode = file.code || "";
-        // If we don't have a lastSyncedHash, we try to fall back to calculating it from originalCode
-        // or just assume UNKNOWN/SYNCED based on direct string comparison if migration hasn't run.
         let baseHash = file.lastSyncedHash;
         if (!baseHash && file.originalCode) {
             baseHash = await calculateHash(file.originalCode);
@@ -26,22 +24,19 @@ class SyncService {
         const localHash = await calculateHash(localCode);
         const remoteHash = await calculateHash(remoteCode);
 
-        // If hashes are identical, we are good.
         if (localHash === remoteHash) return "SYNCED";
 
-        // If we have a base hash, we can do 3-way check
         if (baseHash) {
             const localModified = localHash !== baseHash;
             const remoteModified = remoteHash !== baseHash;
 
-            if (!localModified && !remoteModified) return "SYNCED"; // Should be covered by first check, but for completeness
+            if (!localModified && !remoteModified) return "SYNCED";
             if (localModified && !remoteModified) return "DRIFT_LOCAL_NEWER";
             if (!localModified && remoteModified) return "DRIFT_REMOTE_NEWER";
             if (localModified && remoteModified) {
                 return localHash === remoteHash ? "SYNCED" : "CONFLICT";
             }
         } else {
-            // Fallback for legacy / unmigrated files
              const originalCode = file.originalCode || "";
              const localModified = localCode !== originalCode;
              const remoteModified = remoteCode !== originalCode;
@@ -62,10 +57,9 @@ class SyncService {
         if (file) {
             file.originalCode = code;
             file.code = code;
-            file.lastSyncedHash = await calculateHash(code); // Update Hash
+            file.lastSyncedHash = await calculateHash(code);
             await db.put("Files", file);
 
-            // Add History Snapshot
             if (db.dexie.History) {
                 await db.dexie.History.add({
                     fileId: fileId,
@@ -76,8 +70,6 @@ class SyncService {
             }
         }
     }
-
-    // Logic from ide.js
 
     async pullFromZoho(editor) {
         const now = Date.now();
@@ -93,13 +85,22 @@ class SyncService {
             return;
         }
 
-        this.log("System", "Pulling code...");
+        // Check product context
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+            chrome.runtime.sendMessage({ action: "CHECK_CONNECTION", tabId: targetTabId }, (res) => {
+                if (res && res.connected) {
+                    this.log("System", `Pulling code from ${res.product || 'Zoho'}...`);
+                }
+            });
+        } else {
+             this.log("System", "Pulling code...");
+        }
 
         if (typeof chrome !== "undefined" && chrome.runtime) {
             return new Promise((resolve, reject) => {
                 chrome.runtime.sendMessage({ action: "GET_ZOHO_CODE", tabId: targetTabId }, async (response) => {
                     if (response && response.code) {
-                        const key = window.getRenameKey ? window.getRenameKey(targetTab) : `${targetTab.orgId}:${targetTab.system}:${targetTab.functionId}`; // Fallback if getRenameKey not available yet
+                        const key = window.getRenameKey ? window.getRenameKey(targetTab) : `${targetTab.orgId}:${targetTab.system}:${targetTab.functionId}`;
 
                         await this.markSynced(targetTab.functionId, response.code);
 
@@ -123,7 +124,6 @@ class SyncService {
         const state = store.state;
         let targetTab = state.activeTabs.find(t => t.tabId === state.currentFile?.tabId);
 
-        // Fallback
         if (!targetTab && state.currentFile) {
             targetTab = state.activeTabs.find(t => t.functionId === state.currentFile.id || (t.functionName === state.currentFile.data?.name && t.orgId === state.currentFile.data?.orgId));
         }
@@ -136,10 +136,21 @@ class SyncService {
             return;
         }
 
+        // Check product context
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+             chrome.runtime.sendMessage({ action: "CHECK_CONNECTION", tabId: targetTabId }, (res) => {
+                 if (res && res.connected) {
+                     let action = triggerExecute ? "Executing in" : (triggerSave ? "Saving to" : "Pushing to");
+                     this.log("System", `${action} ${res.product || 'Zoho'}...`);
+                 }
+             });
+        } else {
+            this.log("System", "Pushing code...");
+        }
+
         const key = window.getRenameKey ? window.getRenameKey(targetTab) : `${targetTab.orgId}:${targetTab.system}:${targetTab.functionId}`;
         const currentStatus = store.state.models[key]?.syncStatus;
 
-        // --- PHASE 5: CONFLICT GUARD ---
         if (currentStatus === 'CONFLICT' || currentStatus === 'DRIFT_REMOTE_NEWER') {
             const confirmMsg = currentStatus === 'CONFLICT'
                 ? "⚠️ CONFLICT DETECTED\n\nZoho has changes that you do not have.\nPushing will OVERWRITE them forever.\n\nAre you sure you want to force push?"
@@ -147,13 +158,11 @@ class SyncService {
 
             if (!confirm(confirmMsg)) {
                 this.log("Warning", "Push cancelled by user (Conflict Guard).");
-                return; // Stop execution
+                return;
             }
         }
-        // -------------------------------
 
         const code = editor.getValue();
-        this.log("System", "Pushing code...");
 
         if (triggerSave) {
             chrome.runtime.sendMessage({ action: "OPEN_ZOHO_EDITOR", tabId: targetTabId });
@@ -165,7 +174,6 @@ class SyncService {
                     if (response && response.success) {
                         this.log("Success", "Code pushed.");
 
-                        // Update local originalCode and Hash
                         if (store.state.models[key]) {
                             store.state.models[key].originalCode = code;
                         }
@@ -210,7 +218,6 @@ class SyncService {
     }
 
     log(type, message) {
-        // Dispatch event for UI to pick up
         const event = new CustomEvent("ide-log", { detail: { type, message } });
         window.dispatchEvent(event);
         console.log(`[${type}] ${message}`);
