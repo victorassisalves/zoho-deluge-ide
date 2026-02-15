@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zoho Deluge Advanced IDE",
-  "version": "2.0.0",
+  "version": "3.0.21",
   "description": "A full-featured IDE for Zoho Deluge with Workspaces and Online Sync.",
   "permissions": [
     "tabs",
@@ -30,7 +30,13 @@
     "https://deluge.zoho.com.cn/*"
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": "assets/icon.svg"
+  },
+  "icons": {
+    "16": "assets/icon.svg",
+    "48": "assets/icon.svg",
+    "128": "assets/icon.svg"
   },
   "background": {
     "service_worker": "background.js"
@@ -56,7 +62,7 @@
         "https://deluge.zoho.com.cn/*"
       ],
       "js": [
-        "content.js"
+        "src/main.js"
       ],
       "run_at": "document_start",
       "all_frames": true,
