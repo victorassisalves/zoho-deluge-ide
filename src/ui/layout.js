@@ -1,5 +1,5 @@
-import { h } from 'https://esm.sh/preact';
-import htm from 'https://esm.sh/htm';
+import { h } from '../../assets/vendor/preact.module.js';
+import htm from '../../assets/vendor/htm.module.js';
 import { StatusBar } from './components/StatusBar.js';
 import { Notification } from './components/Notification.js';
 
