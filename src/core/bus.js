@@ -1,4 +1,4 @@
-import { Logger } from './logger.js';
+import { logger as Logger } from '../utils/logger.js';
 class EventBus {
     constructor() { this.listeners = {}; }
     on(event, callback) {
