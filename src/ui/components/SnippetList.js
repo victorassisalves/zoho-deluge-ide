@@ -1,6 +1,6 @@
-import { h } from '../../assets/vendor/preact.module.js';
-import { useState, useEffect } from '../../assets/vendor/hooks.module.js';
-import htm from '../../assets/vendor/htm.module.js';
+import { h } from '../../../assets/vendor/preact.module.js';
+import { useState, useEffect } from '../../../assets/vendor/hooks.module.js';
+import htm from '../../../assets/vendor/htm.module.js';
 import { SnippetRepository } from '../../data/repositories/snippet-repo.js';
 import { eventBus } from '../../core/bus.js';
 import { EVENTS } from '../../core/events.js';
