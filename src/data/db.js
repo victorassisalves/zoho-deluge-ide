@@ -1,4 +1,4 @@
-import Dexie from '../../assets/vendor/dexie.js';
+import { Dexie } from '../../assets/vendor/dexie.js';
 
 export class DelugeIDEAppDB extends Dexie {
     constructor() {
