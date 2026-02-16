@@ -18,51 +18,56 @@ export const genericStrategy = {
     },
 
     /**
-     * Extracts code from the editor instance.
-     * Note: Accessing 'ace' or 'CodeMirror' globals requires this script
-     * to run in the MAIN world (or have access to window object).
+     * Extracts code from the editor instance via Main World Bridge.
+     * @param {HTMLElement} element
+     * @returns {string} The code (synchronous best effort, or async via promise handled by caller?)
+     * Note: This architecture expects sync return currently.
+     * But we need async postMessage.
+     *
+     * HACK: For now, we return innerText as a fallback while triggering the async pull.
+     * A better solution would be to make the whole Pull chain async.
      */
     pull(element) {
-        try {
-            if (element.classList.contains('ace_editor')) {
-                // Try global Ace first, then fallback to env attached to element
-                const editor = window.ace ? window.ace.edit(element) : element.env?.editor;
-                return editor ? editor.getValue() : element.innerText;
-            }
-            if (element.classList.contains('CodeMirror')) {
-                // CodeMirror often attaches the instance to the DOM element property
-                return element.CodeMirror ? element.CodeMirror.getValue() : element.innerText;
-            }
-            // Monaco fallback / standard text
-            return element.innerText || "";
-        } catch (error) {
-            Logger.error("[GenericStrategy] Pull failed:", error);
-            // Fallback to text content to avoid breaking the user experience
-            return element.innerText || "";
-        }
+        // Send request to main world
+        const reqId = Date.now().toString();
+
+        // Use a Promise-based approach if the caller supports it?
+        // But BridgeManager.handlePull expects a return value immediately for SET_VALUE event.
+        // We will return innerText as a fallback, but also dispatch the request.
+
+        window.postMessage({
+            type: 'ZOHO_IDE_PULL',
+            selector: this._getSelector(element),
+            reqId: reqId
+        }, '*');
+
+        // We listen for the result once
+        return new Promise((resolve) => {
+            const handler = (event) => {
+                if (event.data && event.data.type === 'ZOHO_IDE_PULL_RESULT' /* && event.data.reqId === reqId */) {
+                    window.removeEventListener('message', handler);
+                    resolve(event.data.code);
+                }
+            };
+            window.addEventListener('message', handler);
+
+            // Timeout fallback
+            setTimeout(() => {
+                window.removeEventListener('message', handler);
+                resolve(element.innerText || ""); // Fallback
+            }, 1000);
+        });
     },
 
     /**
-     * Injects code into the editor.
+     * Injects code into the editor via Main World Bridge.
      */
     push(element, code) {
-        try {
-            if (element.classList.contains('ace_editor')) {
-                const editor = window.ace ? window.ace.edit(element) : element.env?.editor;
-                if (editor) {
-                    editor.setValue(code);
-                    editor.clearSelection(); // Prevent annoying full-text selection
-                }
-            } else if (element.classList.contains('CodeMirror') && element.CodeMirror) {
-                element.CodeMirror.setValue(code);
-            } else {
-                // Fallback: This usually won't trigger internal state updates in React/Vue apps
-                // but is better than nothing for legacy forms.
-                element.innerText = code;
-            }
-        } catch (error) {
-            Logger.error("[GenericStrategy] Push failed:", error);
-        }
+        window.postMessage({
+            type: 'ZOHO_IDE_PUSH',
+            selector: this._getSelector(element),
+            code: code
+        }, '*');
     },
 
     /**
@@ -90,5 +95,12 @@ export const genericStrategy = {
             Logger.error("[GenericStrategy] Execute failed:", error);
             return false;
         }
+    },
+
+    _getSelector(element) {
+        if (element.id) return '#' + element.id;
+        if (element.classList.contains('ace_editor')) return '.ace_editor';
+        if (element.classList.contains('CodeMirror')) return '.CodeMirror';
+        return '.monaco-editor'; // Fallback
     }
 };

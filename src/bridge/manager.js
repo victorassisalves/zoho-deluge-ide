@@ -5,6 +5,8 @@
  */
 import { connectionSentinel } from '../core/connection.js';
 import { genericStrategy } from './strategies/generic.js';
+import { interfaceManager } from './interface.js';
+import { mainWorldInjector } from './injector.js';
 import { eventBus } from '../core/bus.js';
 import { EVENTS } from '../core/events.js';
 import { logger as Logger } from '../utils/logger.js';
@@ -21,9 +23,15 @@ class BridgeManager {
         // 2. Start Sentinel
         connectionSentinel.start(this.strategy);
 
+        // 3. Start Interface (The Controls - F2 / Shortcuts)
+        interfaceManager.init();
+
+        // 4. Inject Main World Bridge
+        mainWorldInjector.inject();
+
         Logger.info('[BridgeManager] Initialized');
 
-        // 3. Setup Listeners
+        // 4. Setup Listeners
         this._setupListeners();
     }
 
@@ -55,14 +63,17 @@ class BridgeManager {
         }
     }
 
-    handlePull() {
+    async handlePull() {
         if (!connectionSentinel.activeEditor) {
              Logger.warn('[BridgeManager] Cannot pull: No active editor');
              return;
         }
 
         try {
-            const code = this.strategy.pull(connectionSentinel.activeEditor);
+            const result = await this.strategy.pull(connectionSentinel.activeEditor);
+            // Handle both Promise and direct string return (in case strategy is sync)
+            const code = result; // await resolves it if it's a promise
+
             eventBus.emit(EVENTS.EDITOR.SET_VALUE, { code });
             Logger.info('[BridgeManager] Pulled code from editor');
         } catch (error) {

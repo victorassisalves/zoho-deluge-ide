@@ -49,12 +49,14 @@ require(['vs/editor/editor.main'], async function() {
 
         await loadScript('src/main.js', true);
 
-        await loadScript('deluge-lang.js');
-        await loadScript('snippet_logic.js');
-        await loadScript('api_data.js');
-        await loadScript('ide.js');
+        // 🟢 PREVENT ZOMBIE CONFLICT
+        // Legacy scripts (ide.js, etc.) are disabled in favor of the new V1 Architecture.
+        // await loadScript('deluge-lang.js');
+        // await loadScript('snippet_logic.js');
+        // await loadScript('api_data.js');
+        // await loadScript('ide.js');
 
-        console.log('[ZohoIDE] Monolithic logic loaded.');
+        console.log('[ZohoIDE] V1 Architecture loaded. Legacy disabled.');
 
     } catch (err) {
         console.error('[ZohoIDE] Initialization Error:', err);
