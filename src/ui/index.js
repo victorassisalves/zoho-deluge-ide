@@ -11,10 +11,29 @@ export const uiEngine = {
     mountPoint: null,
     shadowRoot: null,
     isVisible: false,
+    mode: 'overlay', // 'overlay' | 'standalone'
 
-    init() {
+    init(mode = 'overlay') {
+        this.mode = mode;
         try {
-            Logger.info("[UI] Initializing IDE Shell...");
+            Logger.info(`[UI] Initializing IDE Shell in ${mode} mode...`);
+
+            if (mode === 'standalone') {
+                // In standalone mode (ide.html), the layout is already handled by ide.html/ide.js?
+                // Wait, ide.html has a structure. If we want to replace it with V1 Layout, we mount to body.
+                // But ide.html has explicit HTML structure.
+                // If we are migrating to V1, we should probably respect the existing HTML for now
+                // OR render V1 Layout into a specific container.
+
+                // For now, let's assume 'standalone' means "Do not create Shadow DOM or FAB, just handle logic if needed".
+                // But uiEngine.init() seems to be about MOUNTING the UI.
+                // If we are in ide.html, the UI is already there (via legacy or partial V1).
+
+                Logger.info("[UI] Standalone mode: Skipping Shadow DOM injection.");
+                return;
+            }
+
+            // --- OVERLAY MODE (Injected into Zoho Page) ---
 
             // 1. Create a container that won't be easily affected by Zoho scripts
             this.mountPoint = document.createElement('div');
@@ -52,6 +71,8 @@ export const uiEngine = {
     },
 
     toggle() {
+        if (this.mode === 'standalone') return; // Standalone is always visible
+
         this.isVisible = !this.isVisible;
         const container = this.shadowRoot.querySelector('.ide-root-container');
         if (container) {
@@ -63,8 +84,6 @@ export const uiEngine = {
                 container.style.transform = 'translateX(100%)';
                 // Disable pointer events on the mount point when hidden to allow clicking underlying elements
                 this.mountPoint.style.pointerEvents = 'none';
-                // But wait, the FAB is separate. If FAB is inside shadow DOM, it might be affected.
-                // If FAB is injected into document body, it's fine.
             }
         }
     },

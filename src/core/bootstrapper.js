@@ -16,25 +16,30 @@ class Bootstrapper {
 
     /**
      * Executes the primary startup sequence.
+     * @param {string} context - 'content' or 'standalone'
      */
-    async init() {
+    async init(context = 'content') {
         if (this.isInitialized) return;
 
         try {
-            Logger.info("[Boot] Initializing Zoho Deluge IDE V1...");
+            Logger.info(`[Boot] Initializing Zoho Deluge IDE V1 (${context})...`);
 
             // Stage 1: Persistence (Ensure data is ready before UI)
             Logger.debug("[Boot] Stage 1: Running migrations...");
             await migrateLocalStorage();
 
-            // Stage 2: Coordination (Start Sentinel & Event Routing)
-            Logger.debug("[Boot] Stage 2: Starting Bridge Manager...");
-            bridgeManager.init();
+            // Stage 2: Coordination
+            if (context === 'content') {
+                Logger.debug("[Boot] Stage 2: Starting Bridge Manager (Content)...");
+                bridgeManager.init(); // Injects script
+            }
+
             interfaceManager.init();
 
-            // Stage 3: Presentation (Mount the Face of the IDE)
+            // Stage 3: Presentation
             Logger.debug("[Boot] Stage 3: Mounting UI Shell...");
-            uiEngine.init();
+            const uiMode = context === 'content' ? 'overlay' : 'standalone';
+            uiEngine.init(uiMode);
 
             this.isInitialized = true;
             Logger.info("[Boot] Extension fully operational.");
