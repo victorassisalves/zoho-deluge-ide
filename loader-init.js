@@ -5,16 +5,13 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 console.log('[ZohoIDE] Loader starting...');
 
 window.MonacoEnvironment = {
+    // Force Monaco to run without Web Workers to bypass CSP issues
+    staticSelf: true,
     getWorkerUrl: function (workerId, label) {
-        // Force the correct absolute path from the extension root
-        // UPDATED: Using the actual file found: assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js
-        const workerPath = 'assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
-        // Create a proxy worker via Data URI that imports the actual worker script.
-        // This bypasses some path resolution issues and allows us to set the baseUrl.
-        return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-            self.MonacoEnvironment = { baseUrl: '${chrome.runtime.getURL('assets/monaco-editor/min/vs/')}' };
-            importScripts('${chrome.runtime.getURL(workerPath)}');
-        `)}`;
+        // Points to the file, but staticSelf: true typically forces main thread execution
+        // using the fallback logic. If Monaco attempts to create a worker and fails (which we ensure via CSP),
+        // it will run on the main thread.
+        return chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
     }
 };
 
@@ -35,7 +32,7 @@ function loadScript(src, isModule = false) {
 }
 
 require(['vs/editor/editor.main'], async function() {
-    console.log('[ZohoIDE] Monaco Core loaded.');
+    console.log('[ZohoIDE] Monaco Core loaded in Main Thread.');
 
     try {
         const originalDefine = window.define;
@@ -55,16 +52,18 @@ require(['vs/editor/editor.main'], async function() {
 
         await loadScript('src/main.js', true);
 
-        // DISABLE THE MONOLITH FOR NOW TO STOP CONFLICTS
+        // --- THE ZOMBIE KILL-SWITCH ---
+        // COMMENT OUT OR REMOVE THESE UNTIL V1 IS STABLE
         /*
         await loadScript('deluge-lang.js');
         await loadScript('snippet_logic.js');
         await loadScript('api_data.js');
         await loadScript('ide.js');
         */
-        console.log('[ZohoIDE] V1 Modular logic loading...');
+
+        console.log('[ZohoIDE] V1 Modular Framework Active.');
 
     } catch (err) {
-        console.error('[ZohoIDE] Initialization Error:', err);
+        console.error('[ZohoIDE] Boot Error:', err);
     }
 });

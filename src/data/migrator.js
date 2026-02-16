@@ -1,4 +1,5 @@
 import { db } from './db.js';
+// Ensure 'logger' is lowercase
 import { logger } from '../core/index.js';
 
 export async function migrateLocalStorage() {
