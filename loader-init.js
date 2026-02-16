@@ -10,7 +10,7 @@ window.MonacoEnvironment = {
     },
     getWorker: function (workerId, label) {
         const url = chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
-        return new Worker(url);
+        return new Worker(url, { type: 'module' });
     }
 };
 
