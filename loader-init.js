@@ -9,6 +9,12 @@ window.MonacoEnvironment = {
         // 🟢 FORCE Absolute Path using chrome.runtime.getURL
         // This resolves to: chrome-extension://[ID]/assets/monaco-editor/...
         return chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
+    },
+    getWorker: function (workerId, label) {
+        // Explicitly create a Classic Worker (no type: 'module') to avoid "Failed to execute 'importScripts'"
+        // if Monaco decides to wrap it or use options we don't want.
+        const url = chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
+        return new Worker(url);
     }
 };
 
