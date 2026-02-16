@@ -1,42 +1,20 @@
 {
   "manifest_version": 3,
   "name": "Zoho Deluge Advanced IDE",
-  "version": "3.0.28",
-  "description": "A full-featured IDE for Zoho Deluge with Workspaces and Online Sync.",
+  "version": "3.1.0",
+  "description": "V1 Structural Base - No Firebase",
   "permissions": [
     "tabs",
     "scripting",
-    "activeTab",
-    "storage",
-    "identity"
+    "storage"
   ],
   "host_permissions": [
     "https://*.zoho.com/*",
-    "https://*.zoho.eu/*",
-    "https://*.zoho.in/*",
-    "https://*.zoho.com.au/*",
-    "https://*.zoho.jp/*",
-    "https://generativelanguage.googleapis.com/*",
-    "https://*.firebaseio.com/*",
-    "https://*.googleapis.com/*",
-    "https://*.firebaseapp.com/*",
-    "https://deluge.zoho.com/*",
-    "https://deluge.zoho.eu/*",
-    "https://deluge.zoho.in/*",
-    "https://deluge.zoho.com.au/*",
-    "https://deluge.zoho.jp/*",
-    "https://deluge.zoho.ca/*",
-    "https://deluge.zoho.uk/*",
-    "https://deluge.zoho.com.cn/*"
+    "https://deluge.zoho.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": "assets/icon.svg"
-  },
-  "icons": {
-    "16": "assets/icon.svg",
-    "48": "assets/icon.svg",
-    "128": "assets/icon.svg"
   },
   "background": {
     "service_worker": "background.js"
@@ -69,9 +47,6 @@
       "match_about_blank": true
     }
   ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
-  },
   "commands": {
     "activate-ide": {
       "suggested_key": {
@@ -103,21 +78,9 @@
     {
       "resources": [
         "assets/*",
-        "assets/vendor/*",
-        "assets/monaco-editor/min/vs/assets/*",
         "src/*",
-        "src/**/*",
         "ide.html",
-        "bridge.js",
-        "firebase-config.js",
-        "deluge-lang.js",
-        "ide.js",
-        "my_snippets.js",
-        "snippet_logic.js",
-        "api_data.js",
-        "loader-init.js",
-        "cloud-service.js",
-        "cloud-ui.js"
+        "loader-init.js"
       ],
       "matches": [
         "<all_urls>"

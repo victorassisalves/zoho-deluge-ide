@@ -1,22 +1,31 @@
-import { logger as Logger } from '../utils/logger.js';
+/**
+ * src/core/bus.js
+ * Central Event Bus - Universal Export Pattern
+ */
 class EventBus {
-    constructor() { this.listeners = {}; }
-    on(event, callback) {
-        if (!this.listeners[event]) this.listeners[event] = [];
-        this.listeners[event].push(callback);
-        return () => this.off(event, callback);
+    constructor() {
+        this.events = {};
     }
-    off(event, callback) {
-        if (!this.listeners[event]) return;
-        this.listeners[event] = this.listeners[event].filter(l => l !== callback);
+
+    on(event, listener) {
+        if (!this.events[event]) this.events[event] = [];
+        this.events[event].push(listener);
     }
-    emit(event, payload) {
-        Logger.debug(`[BUS] ⚡ ${event}`, payload);
-        if (this.listeners[event]) {
-            this.listeners[event].forEach(cb => {
-                try { cb(payload); } catch (e) { Logger.error(`Error in listener for ${event}`, e); }
-            });
-        }
+
+    emit(event, data) {
+        if (!this.events[event]) return;
+        this.events[event].forEach(listener => listener(data));
+    }
+
+    off(event, listener) {
+        if (!this.events[event]) return;
+        this.events[event] = this.events[event].filter(l => l !== listener);
     }
 }
-export const eventBus = new EventBus();
+
+const bus = new EventBus();
+
+// Export as Named
+export { bus, bus as eventBus };
+// Export as Default
+export default bus;
