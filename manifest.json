@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zoho Deluge Advanced IDE",
-  "version": "3.0.24",
+  "version": "3.0.25",
   "description": "A full-featured IDE for Zoho Deluge with Workspaces and Online Sync.",
   "permissions": [
     "tabs",
@@ -62,7 +62,7 @@
         "https://deluge.zoho.com.cn/*"
       ],
       "js": [
-        "src/main.js"
+        "src/content-loader.js"
       ],
       "run_at": "document_start",
       "all_frames": true,
