@@ -31,10 +31,6 @@ export const genericStrategy = {
         // Send request to main world
         const reqId = Date.now().toString();
 
-        // Use a Promise-based approach if the caller supports it?
-        // But BridgeManager.handlePull expects a return value immediately for SET_VALUE event.
-        // We will return innerText as a fallback, but also dispatch the request.
-
         window.postMessage({
             type: 'ZOHO_IDE_PULL',
             selector: this._getSelector(element),
@@ -72,24 +68,34 @@ export const genericStrategy = {
 
     /**
      * Heuristic execution: Finds and clicks the "Run" or "Save" button.
+     * @param {string} action - 'save', 'execute', or undefined (auto)
      */
-    execute() {
+    execute(action) {
         try {
             // Broad query for actionable elements
             const candidates = document.querySelectorAll('button, input[type="button"], .button, [role="button"]');
-            const keywords = ['run', 'execute', 'save', 'update', 'submit'];
+
+            // Define keywords based on action
+            let keywords = [];
+            if (action === 'save') {
+                keywords = ['save', 'update', 'submit'];
+            } else if (action === 'execute') {
+                keywords = ['run', 'execute'];
+            } else {
+                keywords = ['run', 'execute', 'save', 'update', 'submit'];
+            }
 
             for (const btn of candidates) {
                 const text = (btn.innerText || btn.value || '').toLowerCase();
 
                 // Check if any keyword is present
                 if (keywords.some(k => text.includes(k))) {
-                    Logger.info(`[GenericStrategy] Triggering execute on button: "${text}"`);
+                    Logger.info(`[GenericStrategy] Triggering ${action || 'auto'} on button: "${text}"`);
                     btn.click();
                     return true;
                 }
             }
-            Logger.warn("[GenericStrategy] No execution button found.");
+            Logger.warn(`[GenericStrategy] No execution button found for action: ${action}`);
             return false;
         } catch (error) {
             Logger.error("[GenericStrategy] Execute failed:", error);
