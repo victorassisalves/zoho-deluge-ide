@@ -1,69 +1,59 @@
-if (window.location.search.includes("mode=sidepanel") || window.location.hash.includes("sidepanel")) {
-    document.documentElement.classList.add("sidepanel-mode");
-}
+console.log('[ZohoIDE] Bootloader starting...');
 
-console.log('[ZohoIDE] Loader starting...');
-
+// FORCE Main Thread execution.
+// This disables Web Workers entirely, preventing CSP and Network errors.
 window.MonacoEnvironment = {
-    // Force Monaco to run without Web Workers to bypass CSP issues
-    staticSelf: true,
-    getWorkerUrl: function (workerId, label) {
-        // Points to the file, but staticSelf: true typically forces main thread execution
-        // using the fallback logic. If Monaco attempts to create a worker and fails (which we ensure via CSP),
-        // it will run on the main thread.
-        return chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
-    }
+    staticSelf: true
 };
 
+// Configure RequireJS
 require.config({
-    paths: { 'vs': 'assets/monaco-editor/min/vs' }
+    paths: { 'vs': chrome.runtime.getURL('assets/monaco-editor/min/vs') },
+    waitTime: 60 // Wait 60s before timing out
 });
 
-function loadScript(src, isModule = false) {
+// Helper to load ES Modules safely
+function loadModule(src) {
     return new Promise((resolve, reject) => {
-        console.log('[ZohoIDE] Loading script:', src);
-        var script = document.createElement('script');
-        script.src = src;
-        if (isModule) script.type = 'module';
-        script.onload = () => resolve();
-        script.onerror = (e) => reject(e);
-        document.body.appendChild(script);
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL(src);
+        script.type = 'module';
+        script.onload = resolve;
+        script.onerror = (e) => reject(new Error(`Failed to load ${src}`));
+        (document.head || document.documentElement).appendChild(script);
     });
 }
 
+// Helper to load Standard Scripts (Firebase, etc)
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL(src);
+        script.onload = resolve;
+        script.onerror = (e) => reject(new Error(`Failed to load ${src}`));
+        (document.head || document.documentElement).appendChild(script);
+    });
+}
+
+// THE BOOT SEQUENCE
 require(['vs/editor/editor.main'], async function() {
-    console.log('[ZohoIDE] Monaco Core loaded in Main Thread.');
+    console.log('[ZohoIDE] Monaco Editor Core Loaded (Main Thread).');
 
     try {
-        const originalDefine = window.define;
-        window.define = undefined;
-
+        // 1. Initialize Firebase (if needed)
+        // window.define = undefined; // Sometimes needed for non-AMD scripts
         await loadScript('assets/firebase-app-compat.js');
         await loadScript('assets/firebase-auth-compat.js');
         await loadScript('assets/firebase-firestore-compat.js');
 
-        window.define = originalDefine;
+        // await loadScript('firebase-config.js');
 
-        await loadScript('firebase-config.js');
-        await loadScript('cloud-service.js');
-        await loadScript('cloud-ui.js');
+        // 2. Load the Hexagonal Architecture Entry Point
+        await loadModule('src/main.js');
 
-        console.log('[ZohoIDE] Firebase initialized.');
-
-        await loadScript('src/main.js', true);
-
-        // --- THE ZOMBIE KILL-SWITCH ---
-        // COMMENT OUT OR REMOVE THESE UNTIL V1 IS STABLE
-        /*
-        await loadScript('deluge-lang.js');
-        await loadScript('snippet_logic.js');
-        await loadScript('api_data.js');
-        await loadScript('ide.js');
-        */
-
-        console.log('[ZohoIDE] V1 Modular Framework Active.');
+        console.log('[ZohoIDE] V1 Framework Active.');
 
     } catch (err) {
-        console.error('[ZohoIDE] Boot Error:', err);
+        console.error('[ZohoIDE] Critical Boot Failure:', err);
     }
 });

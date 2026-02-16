@@ -1,8 +1,10 @@
 import logger from '../utils/logger.js';
-// Explicitly export lowercase 'logger' to match the migrator's expectation
-export { logger };
-export { eventBus } from './bus.js';
-export { EVENTS } from './events.js';
-export { config } from './config.js';
-export { connectionSentinel } from './connection.js';
-export { bootstrapper } from './bootstrapper.js';
+import bus from './bus.js';
+import { EVENTS } from './events.js';
+import { config } from './config.js';
+
+// Export as lowercase (standard) AND Uppercase (legacy/safety)
+export { logger, logger as Logger };
+export { bus, bus as eventBus };
+export { EVENTS };
+export { config };
