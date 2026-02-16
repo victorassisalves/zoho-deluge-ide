@@ -1,6 +1,6 @@
-import { h } from 'https://esm.sh/preact';
-import { useState, useEffect } from 'https://esm.sh/preact/hooks';
-import htm from 'https://esm.sh/htm';
+import { h } from '../../../assets/vendor/preact.module.js';
+import { useState, useEffect } from '../../../assets/vendor/hooks.module.js';
+import htm from '../../../assets/vendor/htm.module.js';
 import { eventBus, EVENTS } from '../../core/index.js';
 
 const html = htm.bind(h);
@@ -12,12 +12,12 @@ export function StatusBar() {
         const onActive = (payload) => setStatus({ connected: true, strategy: payload.strategy });
         const onLost = () => setStatus({ connected: false, strategy: null });
 
-        eventBus.on(EVENTS.CONNECTION.ACTIVE, onActive);
-        eventBus.on(EVENTS.CONNECTION.LOST, onLost);
+        const unsubActive = eventBus.on(EVENTS.CONNECTION.ACTIVE, onActive);
+        const unsubLost = eventBus.on(EVENTS.CONNECTION.LOST, onLost);
 
         return () => {
-            eventBus.off(EVENTS.CONNECTION.ACTIVE, onActive);
-            eventBus.off(EVENTS.CONNECTION.LOST, onLost);
+            unsubActive();
+            unsubLost();
         };
     }, []);
 

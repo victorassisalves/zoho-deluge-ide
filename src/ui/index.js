@@ -1,5 +1,5 @@
-import { h, render } from 'https://esm.sh/preact';
-import htm from 'https://esm.sh/htm';
+import { h, render } from '../../assets/vendor/preact.module.js';
+import htm from '../../assets/vendor/htm.module.js';
 import { Layout } from './layout.js';
 import { logger as Logger } from '../utils/logger.js';
 
