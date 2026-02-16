@@ -6,6 +6,7 @@
 import { logger as Logger } from '../utils/logger.js';
 import { migrateLocalStorage } from '../data/migrator.js';
 import { bridgeManager } from '../bridge/manager.js';
+import { interfaceManager } from '../bridge/interface.js';
 import { uiEngine } from '../ui/index.js';
 
 class Bootstrapper {
@@ -29,6 +30,7 @@ class Bootstrapper {
             // Stage 2: Coordination (Start Sentinel & Event Routing)
             Logger.debug("[Boot] Stage 2: Starting Bridge Manager...");
             bridgeManager.init();
+            interfaceManager.init();
 
             // Stage 3: Presentation (Mount the Face of the IDE)
             Logger.debug("[Boot] Stage 3: Mounting UI Shell...");

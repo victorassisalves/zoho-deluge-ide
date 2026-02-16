@@ -2,6 +2,7 @@ import { h } from '../../assets/vendor/preact.module.js';
 import htm from '../../assets/vendor/htm.module.js';
 import { StatusBar } from './components/StatusBar.js';
 import { Notification } from './components/Notification.js';
+import { SnippetList } from './components/SnippetList.js';
 
 const html = htm.bind(h);
 
@@ -13,13 +14,13 @@ export function Layout() {
             </header>
 
             <main class="ide-body">
-                <aside class="ide-sidebar">
-                    <div class="sidebar-placeholder">Snippets</div>
-                </aside>
-
                 <section class="ide-editor-panel">
                     <div class="editor-placeholder">Select a snippet to begin coding</div>
                 </section>
+
+                <aside class="ide-sidebar-right">
+                    <${SnippetList} />
+                </aside>
             </main>
 
             <footer class="ide-footer">
