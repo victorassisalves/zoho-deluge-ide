@@ -70,7 +70,7 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self';"
   },
   "commands": {
     "activate-ide": {
@@ -102,11 +102,13 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "assets/*",
+        "assets/vendor/*",
+        "assets/monaco-editor/min/vs/base/worker/workerMain.js",
+        "assets/monaco-editor/min/vs/assets/*",
         "src/*",
         "src/**/*",
         "ide.html",
-        "assets/*",
-        "assets/**/*",
         "bridge.js",
         "firebase-config.js",
         "deluge-lang.js",

@@ -5,12 +5,10 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 console.log('[ZohoIDE] Loader starting...');
 
 window.MonacoEnvironment = {
-    getWorkerUrl: function (workerId, label) {
+    getWorkerUrl: function (moduleId, label) {
+        // 🟢 FORCE Absolute Path using chrome.runtime.getURL
+        // This resolves to: chrome-extension://[ID]/assets/monaco-editor/...
         return chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
-    },
-    getWorker: function (workerId, label) {
-        const url = chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
-        return new Worker(url, { type: 'module' });
     }
 };
 
