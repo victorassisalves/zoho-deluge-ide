@@ -5,16 +5,16 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 console.log('[ZohoIDE] Loader starting...');
 
 window.MonacoEnvironment = {
-    getWorkerUrl: function (moduleId, label) {
-        // 🟢 FORCE Absolute Path using chrome.runtime.getURL
-        // This resolves to: chrome-extension://[ID]/assets/monaco-editor/...
-        return chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
-    },
-    getWorker: function (workerId, label) {
-        // Explicitly create a Classic Worker (no type: 'module') to avoid "Failed to execute 'importScripts'"
-        // if Monaco decides to wrap it or use options we don't want.
-        const url = chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
-        return new Worker(url);
+    getWorkerUrl: function (workerId, label) {
+        // Force the correct absolute path from the extension root
+        // UPDATED: Using the actual file found: assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js
+        const workerPath = 'assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
+        // Create a proxy worker via Data URI that imports the actual worker script.
+        // This bypasses some path resolution issues and allows us to set the baseUrl.
+        return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+            self.MonacoEnvironment = { baseUrl: '${chrome.runtime.getURL('assets/monaco-editor/min/vs/')}' };
+            importScripts('${chrome.runtime.getURL(workerPath)}');
+        `)}`;
     }
 };
 
@@ -55,14 +55,14 @@ require(['vs/editor/editor.main'], async function() {
 
         await loadScript('src/main.js', true);
 
-        // 🟢 PREVENT ZOMBIE CONFLICT
-        // Legacy scripts (ide.js, etc.) are disabled in favor of the new V1 Architecture.
-        // await loadScript('deluge-lang.js');
-        // await loadScript('snippet_logic.js');
-        // await loadScript('api_data.js');
-        // await loadScript('ide.js');
-
-        console.log('[ZohoIDE] V1 Architecture loaded. Legacy disabled.');
+        // DISABLE THE MONOLITH FOR NOW TO STOP CONFLICTS
+        /*
+        await loadScript('deluge-lang.js');
+        await loadScript('snippet_logic.js');
+        await loadScript('api_data.js');
+        await loadScript('ide.js');
+        */
+        console.log('[ZohoIDE] V1 Modular logic loading...');
 
     } catch (err) {
         console.error('[ZohoIDE] Initialization Error:', err);

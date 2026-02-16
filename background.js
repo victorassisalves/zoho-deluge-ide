@@ -1,5 +1,111 @@
 // Background script for Zoho Deluge IDE
 
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('[Background] Service Worker Active');
+});
+
+// Vital for MV3: Keep the worker alive for message handling
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'PING') {
+    sendResponse({ status: 'PONG' });
+    return true;
+  }
+
+  // Existing logic...
+  let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
+  let targetTabId = isSidePanel ? sender.tab.id : null;
+
+  if (message.action === 'CHECK_CONNECTION') {
+      if (targetTabId) {
+          chrome.tabs.get(targetTabId, (tab) => sendResponse({ connected: true, tabTitle: tab.title, url: tab.url }));
+      } else {
+          findZohoTab((tab) => {
+              if (tab) sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone: true });
+              else sendResponse({ connected: false });
+          });
+      }
+      return true;
+  }
+
+  if (message.action === 'OPEN_ZOHO_EDITOR') {
+      const handleOpen = (tabId) => {
+          chrome.tabs.update(tabId, { active: true });
+          chrome.windows.update(sender.tab ? sender.tab.windowId : tabId, { focused: true });
+      };
+      if (targetTabId) handleOpen(targetTabId);
+      else findZohoTab(tab => tab && handleOpen(tab.id));
+      sendResponse({ success: true });
+      return true;
+  }
+
+  if (message.action === 'GET_ZOHO_CODE' || message.action === 'SET_ZOHO_CODE' || message.action === 'SAVE_ZOHO_CODE' || message.action === 'EXECUTE_ZOHO_CODE') {
+      const handleAction = async (tabId) => {
+          // lastZohoTabId = tabId; // removed unused var
+          try {
+              const results = await chrome.scripting.executeScript({
+                  target: { tabId: tabId, allFrames: true },
+                  world: 'MAIN',
+                  func: () => {
+                      // Check for common editor objects and elements in the main world
+                      const hasMonaco = !!(window.monaco && (window.monaco.editor || window.monaco.languages));
+                      const hasAce = !!(window.ace && window.ace.edit) || !!document.querySelector('.ace_editor, .zace-editor, lyte-ace-editor');
+                      const hasCodeMirror = !!document.querySelector('.CodeMirror');
+                      const hasDelugeEditor = !!document.querySelector('[id*="delugeEditor"], .deluge-editor, [id*="script"], textarea.deluge-editor');
+                      const hasZEditor = !!(window.ZEditor || window.Zace || window.delugeEditor);
+
+                      return hasMonaco || hasAce || hasCodeMirror || hasDelugeEditor || hasZEditor;
+                  }
+              });
+
+              if (!results || results.length === 0) {
+                  sendResponse({ error: 'No frames found in tab' });
+                  return;
+              }
+
+              // Prefer frames where result is true
+              const sortedFrames = results.sort((a, b) => {
+                  if (a.result === b.result) return 0;
+                  return a.result ? -1 : 1;
+              });
+
+              let lastErr = null;
+              for (const frame of sortedFrames) {
+                  try {
+                      const response = await new Promise((resolve, reject) => {
+                          chrome.tabs.sendMessage(tabId, message, { frameId: frame.frameId }, (res) => {
+                              if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+                              else resolve(res);
+                          });
+                      });
+                      if (response && (message.action === 'GET_ZOHO_CODE' ? !!response.code : !!response.success)) {
+                          sendResponse(response);
+                          return;
+                      }
+                      if (response && response.error) lastErr = response.error;
+                  } catch (e) {
+                      // console.warn(`[ZohoIDE] Frame ${frame.frameId} fail:`, e);
+                  }
+              }
+              sendResponse({ error: lastErr || 'No editor found in any frame' });
+          } catch (err) {
+              sendResponse({ error: 'Frame traversal failed: ' + err.message });
+          }
+      };
+
+      if (targetTabId) handleAction(targetTabId);
+      else findZohoTab(tab => tab ? handleAction(tab.id) : sendResponse({ error: 'No Zoho tab found' }));
+      return true;
+  }
+
+  if (message.action === 'ZOHO_CONSOLE_UPDATE') {
+      chrome.runtime.sendMessage({
+          action: 'IDE_CONSOLE_UPDATE',
+          data: message.data,
+          sourceTabId: sender.tab ? sender.tab.id : null
+      });
+  }
+});
+
 let lastZohoTabId = null;
 
 function openIDETab() {
@@ -23,7 +129,7 @@ function openIDESidePanel() {
                 if (chrome.runtime.lastError) {
                     chrome.scripting.executeScript({
                         target: { tabId: activeTab.id },
-                        files: ['content.js']
+                        files: ['src/content-loader.js'] // Updated to use loader
                     }).then(() => {
                         setTimeout(() => {
                             chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' });
@@ -57,101 +163,6 @@ chrome.commands.onCommand.addListener((command) => {
                     else openIDETab();
                 });
             }
-        });
-    }
-});
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
-    let targetTabId = isSidePanel ? sender.tab.id : null;
-
-    if (request.action === 'CHECK_CONNECTION') {
-        if (targetTabId) {
-            chrome.tabs.get(targetTabId, (tab) => sendResponse({ connected: true, tabTitle: tab.title, url: tab.url }));
-        } else {
-            findZohoTab((tab) => {
-                if (tab) sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone: true });
-                else sendResponse({ connected: false });
-            });
-        }
-        return true;
-    }
-
-    if (request.action === 'OPEN_ZOHO_EDITOR') {
-        const handleOpen = (tabId) => {
-            chrome.tabs.update(tabId, { active: true });
-            chrome.windows.update(sender.tab ? sender.tab.windowId : tabId, { focused: true });
-        };
-        if (targetTabId) handleOpen(targetTabId);
-        else findZohoTab(tab => tab && handleOpen(tab.id));
-        sendResponse({ success: true });
-        return true;
-    }
-
-    if (request.action === 'GET_ZOHO_CODE' || request.action === 'SET_ZOHO_CODE' || request.action === 'SAVE_ZOHO_CODE' || request.action === 'EXECUTE_ZOHO_CODE') {
-        const handleAction = async (tabId) => {
-            lastZohoTabId = tabId;
-            try {
-                const results = await chrome.scripting.executeScript({
-                    target: { tabId: tabId, allFrames: true },
-                    world: 'MAIN',
-                    func: () => {
-                        // Check for common editor objects and elements in the main world
-                        const hasMonaco = !!(window.monaco && (window.monaco.editor || window.monaco.languages));
-                        const hasAce = !!(window.ace && window.ace.edit) || !!document.querySelector('.ace_editor, .zace-editor, lyte-ace-editor');
-                        const hasCodeMirror = !!document.querySelector('.CodeMirror');
-                        const hasDelugeEditor = !!document.querySelector('[id*="delugeEditor"], .deluge-editor, [id*="script"], textarea.deluge-editor');
-                        const hasZEditor = !!(window.ZEditor || window.Zace || window.delugeEditor);
-
-                        return hasMonaco || hasAce || hasCodeMirror || hasDelugeEditor || hasZEditor;
-                    }
-                });
-
-                if (!results || results.length === 0) {
-                    sendResponse({ error: 'No frames found in tab' });
-                    return;
-                }
-
-                // Prefer frames where result is true
-                const sortedFrames = results.sort((a, b) => {
-                    if (a.result === b.result) return 0;
-                    return a.result ? -1 : 1;
-                });
-
-                let lastErr = null;
-                for (const frame of sortedFrames) {
-                    try {
-                        const response = await new Promise((resolve, reject) => {
-                            chrome.tabs.sendMessage(tabId, request, { frameId: frame.frameId }, (res) => {
-                                if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-                                else resolve(res);
-                            });
-                        });
-                        if (response && (request.action === 'GET_ZOHO_CODE' ? !!response.code : !!response.success)) {
-                            sendResponse(response);
-                            return;
-                        }
-                        if (response && response.error) lastErr = response.error;
-                    } catch (e) {
-                        console.warn(`[ZohoIDE] Frame ${frame.frameId} fail:`, e);
-                    }
-                }
-                sendResponse({ error: lastErr || 'No editor found in any frame' });
-            } catch (err) {
-                sendResponse({ error: 'Frame traversal failed: ' + err.message });
-            }
-        };
-
-        if (targetTabId) handleAction(targetTabId);
-        else findZohoTab(tab => tab ? handleAction(tab.id) : sendResponse({ error: 'No Zoho tab found' }));
-        return true;
-    }
-
-    if (request.action === 'ZOHO_CONSOLE_UPDATE') {
-        chrome.runtime.sendMessage({
-            action: 'IDE_CONSOLE_UPDATE',
-            data: request.data,
-            sourceTabId: sender.tab ? sender.tab.id : null
         });
     }
 });
