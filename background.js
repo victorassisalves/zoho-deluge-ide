@@ -6,12 +6,13 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Vital for MV3: Keep the worker alive for message handling
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // console.log('[Background] Received:', message);
+
   if (message.type === 'PING') {
     sendResponse({ status: 'PONG' });
-    return true;
+    return false; // Sync response
   }
 
-  // Existing logic...
   let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
   let targetTabId = isSidePanel ? sender.tab.id : null;
 
@@ -24,35 +25,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               else sendResponse({ connected: false });
           });
       }
-      return true;
+      return true; // Async
   }
 
   if (message.action === 'OPEN_ZOHO_EDITOR') {
       const handleOpen = (tabId) => {
           chrome.tabs.update(tabId, { active: true });
-          chrome.windows.update(sender.tab ? sender.tab.windowId : tabId, { focused: true });
+          if (sender.tab) chrome.windows.update(sender.tab.windowId, { focused: true });
+          else chrome.windows.update(tabId, { focused: true }); // Need window id of tab
+          // Actually, chrome.tabs.update brings tab to front in its window.
+          // We need chrome.windows.update to focus the window.
+          chrome.tabs.get(tabId, (tab) => {
+              if (tab) chrome.windows.update(tab.windowId, { focused: true });
+          });
       };
       if (targetTabId) handleOpen(targetTabId);
       else findZohoTab(tab => tab && handleOpen(tab.id));
       sendResponse({ success: true });
-      return true;
+      return false; // Sync
   }
 
   if (message.action === 'GET_ZOHO_CODE' || message.action === 'SET_ZOHO_CODE' || message.action === 'SAVE_ZOHO_CODE' || message.action === 'EXECUTE_ZOHO_CODE') {
       const handleAction = async (tabId) => {
-          // lastZohoTabId = tabId; // removed unused var
           try {
               const results = await chrome.scripting.executeScript({
                   target: { tabId: tabId, allFrames: true },
                   world: 'MAIN',
                   func: () => {
-                      // Check for common editor objects and elements in the main world
                       const hasMonaco = !!(window.monaco && (window.monaco.editor || window.monaco.languages));
                       const hasAce = !!(window.ace && window.ace.edit) || !!document.querySelector('.ace_editor, .zace-editor, lyte-ace-editor');
                       const hasCodeMirror = !!document.querySelector('.CodeMirror');
                       const hasDelugeEditor = !!document.querySelector('[id*="delugeEditor"], .deluge-editor, [id*="script"], textarea.deluge-editor');
                       const hasZEditor = !!(window.ZEditor || window.Zace || window.delugeEditor);
-
                       return hasMonaco || hasAce || hasCodeMirror || hasDelugeEditor || hasZEditor;
                   }
               });
@@ -62,31 +66,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   return;
               }
 
-              // Prefer frames where result is true
               const sortedFrames = results.sort((a, b) => {
                   if (a.result === b.result) return 0;
                   return a.result ? -1 : 1;
               });
 
               let lastErr = null;
+              let handled = false;
               for (const frame of sortedFrames) {
                   try {
                       const response = await new Promise((resolve, reject) => {
                           chrome.tabs.sendMessage(tabId, message, { frameId: frame.frameId }, (res) => {
-                              if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+                              if (chrome.runtime.lastError) resolve({ error: chrome.runtime.lastError.message });
                               else resolve(res);
                           });
                       });
+
                       if (response && (message.action === 'GET_ZOHO_CODE' ? !!response.code : !!response.success)) {
                           sendResponse(response);
-                          return;
+                          handled = true;
+                          break;
                       }
                       if (response && response.error) lastErr = response.error;
                   } catch (e) {
-                      // console.warn(`[ZohoIDE] Frame ${frame.frameId} fail:`, e);
+                      // continue
                   }
               }
-              sendResponse({ error: lastErr || 'No editor found in any frame' });
+              if (!handled) sendResponse({ error: lastErr || 'No editor found in any frame' });
           } catch (err) {
               sendResponse({ error: 'Frame traversal failed: ' + err.message });
           }
@@ -94,7 +100,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       if (targetTabId) handleAction(targetTabId);
       else findZohoTab(tab => tab ? handleAction(tab.id) : sendResponse({ error: 'No Zoho tab found' }));
-      return true;
+      return true; // Async
   }
 
   if (message.action === 'ZOHO_CONSOLE_UPDATE') {
@@ -103,7 +109,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           data: message.data,
           sourceTabId: sender.tab ? sender.tab.id : null
       });
+      // No response needed usually, but good practice
+      sendResponse({ received: true });
+      return false;
   }
+
+  // Default fallthrough
+  return false;
 });
 
 let lastZohoTabId = null;
@@ -125,11 +137,12 @@ function openIDESidePanel() {
     chrome.tabs.query({ active: true, currentWindow: true }, (activeTabs) => {
         const activeTab = activeTabs[0];
         if (activeTab && isZohoUrl(activeTab.url)) {
+            // Updated injection to use loader
             chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' }, (response) => {
                 if (chrome.runtime.lastError) {
                     chrome.scripting.executeScript({
                         target: { tabId: activeTab.id },
-                        files: ['src/content-loader.js'] // Updated to use loader
+                        files: ['src/content-loader.js']
                     }).then(() => {
                         setTimeout(() => {
                             chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' });
