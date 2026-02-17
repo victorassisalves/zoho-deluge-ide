@@ -5,8 +5,17 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 console.log('[ZohoIDE] Loader starting...');
 
 window.MonacoEnvironment = {
-    getWorkerUrl: function (workerId, label) {
-        return chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
+    getWorker: async function (workerId, label) {
+        const url = chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
+        try {
+            const response = await fetch(url);
+            const text = await response.text();
+            const blob = new Blob([text], { type: 'application/javascript' });
+            return new Worker(URL.createObjectURL(blob));
+        } catch (e) {
+            console.warn('[ZohoIDE] Worker fetch failed, falling back to URL:', e);
+            return new Worker(url);
+        }
     }
 };
 

@@ -110,6 +110,19 @@ function initEditor() {
             }
         });
 
+        // Listen for internal events if in Integrated Mode
+        if (window.ZideEventBus && window.ZideEvents) {
+            window.ZideEventBus.on(window.ZideEvents.EDITOR.SET_VALUE, (payload) => {
+                if (editor && payload.code) {
+                    editor.setValue(payload.code);
+                    log('Success', 'Code updated from Bridge.');
+                }
+            });
+            window.ZideEventBus.on(window.ZideEvents.UI.NOTIFY, (payload) => {
+                showStatus(payload.message, payload.type);
+            });
+        }
+
         if (typeof chrome !== "undefined" && chrome.runtime) {
             chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (request.action === "CMD_SYNC_SAVE") {
@@ -1097,6 +1110,14 @@ function pullFromZoho() {
         return;
     }
     log('System', 'Pulling code...');
+
+    // Integrated Mode (BridgeManager)
+    if (window.ZideEventBus && window.ZideEvents) {
+        window.ZideEventBus.emit(window.ZideEvents.EDITOR.PULL);
+        return;
+    }
+
+    // Standalone Mode (Background Messaging)
     if (typeof chrome !== "undefined" && chrome.runtime) {
         chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, (response) => {
             if (response && response.code) {
@@ -1128,6 +1149,23 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 
     const code = editor.getValue();
     log('System', 'Pushing code...');
+
+    // Integrated Mode (BridgeManager)
+    if (window.ZideEventBus && window.ZideEvents) {
+        window.ZideEventBus.emit(window.ZideEvents.EDITOR.PUSH, { code: code });
+        if (triggerExecute) {
+             // Wait for push to complete inside manager, or just trigger run after short delay?
+             // BridgeManager handles Push -> Save automatically now.
+             // We just need to trigger Run separately or let BridgeManager handle it?
+             // BridgeManager doesn't auto-run on Push.
+             setTimeout(() => {
+                 window.ZideEventBus.emit(window.ZideEvents.EXECUTION.RUN);
+             }, 800);
+        }
+        return;
+    }
+
+    // Standalone Mode (Background Messaging)
     if (typeof chrome !== "undefined" && chrome.runtime) {
         chrome.runtime.sendMessage({ action: 'SET_ZOHO_CODE', code: code }, (response) => {
             if (response && response.success) {
