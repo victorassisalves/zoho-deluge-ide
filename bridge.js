@@ -214,7 +214,7 @@
 
     log('Bridge initialized in frame:', window.location.href);
 
-    window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
+    document.addEventListener('ZOHO_IDE_ACTION', async (event) => {
         const data = event.detail;
         if (!data || !data.action) return;
 
@@ -261,7 +261,7 @@
             response = { status: 'PONG' };
         }
 
-        window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
+        document.dispatchEvent(new CustomEvent('ZOHO_IDE_RESPONSE', {
             detail: { eventId, action, response }
         }));
     });

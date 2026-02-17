@@ -26,6 +26,10 @@ class Bootstrapper {
             Logger.debug("[Boot] Stage 1: Running migrations...");
             await migrateLocalStorage();
 
+            // Stage 1.5: Injection (Inject Bridge Script into Main World)
+            Logger.debug("[Boot] Stage 1.5: Injecting Bridge Script...");
+            this._injectBridge();
+
             // Stage 2: Coordination (Start Sentinel & Event Routing)
             Logger.debug("[Boot] Stage 2: Starting Bridge Manager...");
             bridgeManager.init();
@@ -38,6 +42,23 @@ class Bootstrapper {
             Logger.info("[Boot] Extension fully operational.");
         } catch (error) {
             Logger.error("[Boot] Critical initialization failure:", error);
+        }
+    }
+
+    /**
+     * Injects the Bridge script into the Main World to access editor instances.
+     */
+    _injectBridge() {
+        try {
+            const script = document.createElement('script');
+            script.src = chrome.runtime.getURL('bridge.js');
+            script.onload = () => {
+                Logger.debug("[Boot] Bridge script injected.");
+                script.remove();
+            };
+            (document.head || document.documentElement).appendChild(script);
+        } catch (e) {
+            Logger.error("[Boot] Failed to inject bridge script:", e);
         }
     }
 }

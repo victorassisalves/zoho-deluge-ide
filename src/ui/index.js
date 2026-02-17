@@ -2,6 +2,8 @@ import { h, render } from '../../assets/vendor/preact.module.js';
 import htm from '../../assets/vendor/htm.module.js';
 import { Layout } from './layout.js';
 import { logger as Logger } from '../utils/logger.js';
+import { eventBus } from '../core/bus.js';
+import { EVENTS } from '../core/events.js';
 
 const html = htm.bind(h);
 
@@ -16,6 +18,8 @@ export const uiEngine = {
             // 1. Create a container that won't be easily affected by Zoho scripts
             this.mountPoint = document.createElement('div');
             this.mountPoint.id = 'zoho-deluge-ide-root';
+            // Start hidden
+            this.mountPoint.style.display = 'none';
             document.body.appendChild(this.mountPoint);
 
             // 2. Attach Shadow DOM for style isolation
@@ -30,9 +34,25 @@ export const uiEngine = {
             render(html`<${Layout} />`, this.shadowRoot);
 
             Logger.info("[UI] IDE Shell mounted successfully.");
+
+            // 5. Setup Listeners
+            this.setupListeners();
         } catch (error) {
             Logger.error("[UI] Critical mount failure:", error);
         }
+    },
+
+    setupListeners() {
+        eventBus.on(EVENTS.UI.TOGGLE, (payload) => this.toggle(payload));
+    },
+
+    toggle(payload) {
+        const currentDisplay = this.mountPoint.style.display;
+        const isVisible = currentDisplay !== 'none';
+        const shouldShow = (payload && typeof payload.show === 'boolean') ? payload.show : !isVisible;
+
+        this.mountPoint.style.display = shouldShow ? 'block' : 'none';
+        Logger.info(`[UI] Toggled visibility: ${shouldShow ? 'VISIBLE' : 'HIDDEN'}`);
     },
 
     getBaseStyles() {

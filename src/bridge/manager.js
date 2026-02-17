@@ -15,7 +15,7 @@ class BridgeManager {
     }
 
     init() {
-        // 1. Determine strategy
+        // 1. Determine strategy (for detection)
         this.strategy = this._getStrategyForUrl();
 
         // 2. Start Sentinel
@@ -25,10 +25,11 @@ class BridgeManager {
 
         // 3. Setup Listeners
         this._setupListeners();
+        this._setupExternalListeners();
     }
 
     _getStrategyForUrl() {
-        // For V1, always return genericStrategy
+        // For V1, always return genericStrategy for detection
         return genericStrategy;
     }
 
@@ -43,52 +44,92 @@ class BridgeManager {
         eventBus.on(EVENTS.EDITOR.PUSH, (payload) => this.handlePush(payload));
     }
 
-    handleRun() {
-        if (!this.strategy) return;
+    _setupExternalListeners() {
+        if (typeof chrome === 'undefined' || !chrome.runtime) return;
 
-        const success = this.strategy.execute();
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            // Forward Side Panel Injection to UI
+            if (request.action === 'INJECT_SIDE_PANEL') {
+                if (EVENTS.UI.TOGGLE) {
+                    eventBus.emit(EVENTS.UI.TOGGLE, { show: true });
+                } else {
+                    // Fallback if event not yet defined
+                    eventBus.emit('ui:toggle', { show: true });
+                }
+                sendResponse({ success: true });
+            }
+        });
+    }
 
-        if (success) {
+    /**
+     * Communicates with the injected bridge.js in the Main World.
+     */
+    async sendToBridge(action, data = {}) {
+        return new Promise((resolve) => {
+            const eventId = Math.random().toString(36).substring(7);
+
+            const handler = (e) => {
+                if (e.detail && e.detail.eventId === eventId) {
+                    document.removeEventListener('ZOHO_IDE_RESPONSE', handler);
+                    resolve(e.detail.response);
+                }
+            };
+            document.addEventListener('ZOHO_IDE_RESPONSE', handler);
+
+            document.dispatchEvent(new CustomEvent('ZOHO_IDE_ACTION', {
+                detail: { action, eventId, ...data }
+            }));
+
+            // Timeout fallback
+            setTimeout(() => {
+                document.removeEventListener('ZOHO_IDE_RESPONSE', handler);
+                resolve({ error: 'Timeout waiting for bridge response' });
+            }, 3000);
+        });
+    }
+
+    async handleRun() {
+        Logger.info('[BridgeManager] Triggering execution...');
+        const response = await this.sendToBridge('EXECUTE_ZOHO_CODE');
+
+        if (response && response.success) {
             eventBus.emit(EVENTS.UI.NOTIFY, { type: 'success', message: 'Execution triggered' });
         } else {
             eventBus.emit(EVENTS.UI.NOTIFY, { type: 'error', message: 'Execution failed or not supported' });
         }
     }
 
-    handlePull() {
-        if (!connectionSentinel.activeEditor) {
-             Logger.warn('[BridgeManager] Cannot pull: No active editor');
-             return;
-        }
+    async handlePull() {
+        Logger.info('[BridgeManager] Pulling code...');
+        const response = await this.sendToBridge('GET_ZOHO_CODE');
 
-        try {
-            const code = this.strategy.pull(connectionSentinel.activeEditor);
-            eventBus.emit(EVENTS.EDITOR.SET_VALUE, { code });
+        if (response && response.code) {
+            eventBus.emit(EVENTS.EDITOR.SET_VALUE, { code: response.code });
             Logger.info('[BridgeManager] Pulled code from editor');
-        } catch (error) {
-            Logger.error('[BridgeManager] Pull error:', error);
+            eventBus.emit(EVENTS.UI.NOTIFY, { type: 'success', message: 'Code pulled successfully' });
+        } else {
+            Logger.error('[BridgeManager] Pull error:', response?.error);
             eventBus.emit(EVENTS.UI.NOTIFY, { type: 'error', message: 'Failed to pull code' });
         }
     }
 
-    handlePush(payload) {
+    async handlePush(payload) {
         if (!payload || typeof payload.code !== 'string') {
             Logger.error('[BridgeManager] Invalid push payload:', payload);
             return;
         }
 
-        if (!connectionSentinel.activeEditor) {
-            Logger.warn('[BridgeManager] Cannot push: No active editor');
-            eventBus.emit(EVENTS.UI.NOTIFY, { type: 'warning', message: 'No editor connected' });
-            return;
-        }
+        Logger.info('[BridgeManager] Pushing code...');
+        const response = await this.sendToBridge('SET_ZOHO_CODE', { code: payload.code });
 
-        try {
-            this.strategy.push(connectionSentinel.activeEditor, payload.code);
+        if (response && response.success) {
             Logger.info('[BridgeManager] Pushed code to editor');
             eventBus.emit(EVENTS.UI.NOTIFY, { type: 'success', message: 'Code updated in Zoho' });
-        } catch (error) {
-            Logger.error('[BridgeManager] Push error:', error);
+
+            // Automatically trigger save after push
+            await this.sendToBridge('SAVE_ZOHO_CODE');
+        } else {
+            Logger.error('[BridgeManager] Push error:', response?.error);
             eventBus.emit(EVENTS.UI.NOTIFY, { type: 'error', message: 'Failed to push code' });
         }
     }
