@@ -1,9 +1,9 @@
 /**
- * Cloud Service for Zoho Deluge IDE
+ * Firebase Store for Zoho Deluge IDE
  * Handles Firestore and Auth operations
  */
 
-const CloudService = {
+const FirebaseStore = {
     db: null,
     auth: null,
     currentUser: null,
@@ -12,7 +12,7 @@ const CloudService = {
         if (typeof firebase !== 'undefined') {
             this.db = firebase.firestore();
             this.auth = firebase.auth();
-            console.log('[ZohoIDE] CloudService initialized');
+            console.log('[ZohoIDE] FirebaseStore initialized');
         }
     },
 
@@ -211,5 +211,6 @@ const CloudService = {
 };
 
 if (typeof firebase !== 'undefined') {
-    CloudService.init();
+    FirebaseStore.init();
 }
+window.FirebaseStore = FirebaseStore;

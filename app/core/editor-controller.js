@@ -92,13 +92,25 @@ function initEditor() {
             id: 'zide-push-zoho',
             label: 'Push to Zoho',
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS],
-            run: () => { pushToZoho(true); }
+            run: () => {
+                if (window.ZohoRunner) {
+                    window.ZohoRunner.save(editor.getValue());
+                } else {
+                    pushToZoho(true);
+                }
+            }
         });
         editor.addAction({
             id: 'zide-push-execute-zoho',
             label: 'Push and Execute',
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter],
-            run: () => { pushToZoho(true, true); }
+            run: () => {
+                if (window.ZohoRunner) {
+                    window.ZohoRunner.execute(editor.getValue());
+                } else {
+                    pushToZoho(true, true);
+                }
+            }
         });
         editor.addAction({
             id: 'zide-pull-zoho',
@@ -179,6 +191,16 @@ function initEditor() {
         setupEventHandlers();
         checkConnection();
         setInterval(checkConnection, 5000);
+
+        // Listen for Pull Response
+        if (window.Bus) {
+             window.Bus.listen('editor:pull_response', (data) => {
+                 if (data.code) {
+                     editor.setValue(data.code);
+                     log('Success', 'Code pulled from Zoho via Bus.');
+                 }
+             });
+        }
 
     } catch (e) {
         console.error("[ZohoIDE] initEditor Error:", e);
@@ -265,8 +287,14 @@ function setupEventHandlers() {
     });
 
     bind('pull-btn', 'click', pullFromZoho);
-    bind('push-btn', 'click', () => pushToZoho(true));
-    bind('execute-btn', 'click', () => pushToZoho(true, true));
+    bind('push-btn', 'click', () => {
+        if (window.ZohoRunner) window.ZohoRunner.save(editor.getValue());
+        else pushToZoho(true);
+    });
+    bind('execute-btn', 'click', () => {
+        if (window.ZohoRunner) window.ZohoRunner.execute(editor.getValue());
+        else pushToZoho(true, true);
+    });
     bind('save-btn', 'click', saveLocally);
 
     bind('project-name-input', 'input', (e) => {
@@ -1097,11 +1125,15 @@ function pullFromZoho() {
         return;
     }
     log('System', 'Pulling code...');
-    if (typeof chrome !== "undefined" && chrome.runtime) {
+
+    if (window.ZohoRunner) {
+        window.ZohoRunner.pull();
+    } else if (typeof chrome !== "undefined" && chrome.runtime) {
+        // Fallback
         chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, (response) => {
             if (response && response.code) {
                 editor.setValue(response.code);
-                log('Success', 'Code pulled.');
+                log('Success', 'Code pulled (legacy).');
             } else { log('Error', response?.error || 'No code found.'); }
         });
     }
@@ -1184,8 +1216,8 @@ function saveLocally() {
     const vars = extractVarsFromCode(code);
     const projectUrl = zideProjectUrl || 'global';
     // Cloud Sync
-    if (window.activeCloudFileId && typeof CloudService !== 'undefined') {
-        CloudService.saveFile(window.activeCloudFileId, {
+    if (window.activeCloudFileId && typeof FirebaseStore !== 'undefined') {
+        FirebaseStore.saveFile(window.activeCloudFileId, {
             code: code,
             interfaceMappings: window.interfaceMappings || {},
             url: zideProjectUrl

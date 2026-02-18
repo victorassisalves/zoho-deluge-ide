@@ -11,7 +11,7 @@ window.MonacoEnvironment = {
 };
 
 require.config({
-    paths: { 'vs': 'assets/monaco-editor/min/vs' }
+    paths: { 'vs': '../assets/monaco-editor/min/vs' }
 });
 
 function loadScript(src, isModule = false) {
@@ -33,26 +33,30 @@ require(['vs/editor/editor.main'], async function() {
         const originalDefine = window.define;
         window.define = undefined;
 
-        await loadScript('assets/firebase-app-compat.js');
-        await loadScript('assets/firebase-auth-compat.js');
-        await loadScript('assets/firebase-firestore-compat.js');
+        await loadScript('../assets/firebase-app-compat.js');
+        await loadScript('../assets/firebase-auth-compat.js');
+        await loadScript('../assets/firebase-firestore-compat.js');
 
         window.define = originalDefine;
 
-        await loadScript('firebase-config.js');
-        await loadScript('cloud-service.js');
-        await loadScript('cloud-ui.js');
+        await loadScript('../firebase-config.js');
+        await loadScript('services/firebase-store.js');
+        await loadScript('ui/cloud-ui.js');
 
         console.log('[ZohoIDE] Firebase initialized.');
 
-        await loadScript('src/main.js', true);
+        await loadScript('../src/main.js', true);
 
-        await loadScript('deluge-lang.js');
-        await loadScript('snippet_logic.js');
-        await loadScript('api_data.js');
-        await loadScript('ide.js');
+        await loadScript('../deluge-lang.js');
+        await loadScript('modules/snippets/snippet-manager.js');
+        await loadScript('../api_data.js');
 
-        console.log('[ZohoIDE] Monolithic logic loaded.');
+        // Modular Core
+        await loadScript('core/bus.js', true);
+        await loadScript('services/zoho-runner.js', true);
+        await loadScript('core/editor-controller.js');
+
+        console.log('[ZohoIDE] Modular logic loaded.');
 
     } catch (err) {
         console.error('[ZohoIDE] Initialization Error:', err);

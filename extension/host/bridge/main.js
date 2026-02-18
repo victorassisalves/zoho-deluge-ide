@@ -24,38 +24,28 @@ const selectors = {
     ]
 };
 
-window.addEventListener('message', (e) => {
-    let msg;
-    try {
-        msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-    } catch (err) {
-        // Fallback for old prefix
-        if (typeof e.data === 'string' && e.data.startsWith('ZIDE_MSG:')) {
-            try { msg = JSON.parse(e.data.substring(9)); } catch (e2) { return; }
-        } else { return; }
+window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
+    const data = event.detail;
+    if (!data || !data.action) return;
+
+    let response = {};
+    const { action, eventId } = data;
+
+    if (action === 'GET_ZOHO_CODE') {
+        response = { code: getEditorCode() };
+    } else if (action === 'SET_ZOHO_CODE') {
+        response = { success: setEditorCode(data.code) };
+    } else if (action === 'SAVE_ZOHO_CODE') {
+        response = { success: triggerAction('save') };
+    } else if (action === 'EXECUTE_ZOHO_CODE') {
+        response = { success: triggerAction('execute') };
+    } else if (action === 'PING') {
+        response = { status: 'PONG', product: getZohoProduct() };
     }
 
-    if (msg && (msg.source === 'EXTENSION' || msg._zide_msg_) && msg.source !== 'PAGE') {
-        let resp = {};
-        if (msg.action === 'PING') {
-            resp = { status: 'PONG', product: getZohoProduct() };
-        } else if (msg.action === 'GET_ZOHO_CODE') {
-            resp = { code: getEditorCode() };
-        } else if (msg.action === 'SET_ZOHO_CODE') {
-            resp = { success: setEditorCode(msg.code) };
-        } else if (msg.action === 'SAVE_ZOHO_CODE') {
-            resp = { success: triggerAction('save') };
-        } else if (msg.action === 'EXECUTE_ZOHO_CODE') {
-            resp = { success: triggerAction('execute') };
-        }
-
-        window.postMessage(JSON.stringify({
-            _zide_msg_: true,
-            source: 'PAGE',
-            action: msg.action,
-            response: resp
-        }), '*');
-    }
+    window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
+        detail: { eventId, action, response }
+    }));
 });
 
 function triggerAction(type) {
