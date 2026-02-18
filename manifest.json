@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zoho Deluge Advanced IDE",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A full-featured IDE for Zoho Deluge with Workspaces and Online Sync.",
   "permissions": [
     "tabs",
@@ -56,7 +56,7 @@
         "https://deluge.zoho.com.cn/*"
       ],
       "js": [
-        "content.js"
+        "extension/host/content.js"
       ],
       "run_at": "document_start",
       "all_frames": true,
@@ -94,18 +94,15 @@
     {
       "resources": [
         "src/*",
-        "ide.html",
+        "app/*",
+        "extension/host/*",
+        "shared/*",
         "assets/*",
-        "bridge.js",
-        "firebase-config.js",
-        "deluge-lang.js",
-        "ide.js",
-        "my_snippets.js",
-        "snippet_logic.js",
-        "api_data.js",
         "loader-init.js",
-        "cloud-service.js",
-        "cloud-ui.js"
+        "my_snippets.js",
+        "deluge-lang.js",
+        "api_data.js",
+        "firebase-config.js"
       ],
       "matches": [
         "<all_urls>"

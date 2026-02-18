@@ -1,16 +1,18 @@
 // Content script to interact with Zoho Deluge editors
-console.log('[ZohoIDE] Content script loaded');
+console.log('[ZohoIDE] Host content script loaded');
+
+let MSG; // Will be loaded dynamically
 
 // 1. Inject the modular bridge
 function injectBridge() {
     if (document.getElementById('zoho-deluge-bridge-modular')) return;
     const s = document.createElement('script');
     s.id = 'zoho-deluge-bridge-modular';
-    s.src = chrome.runtime.getURL('bridge.js');
+    s.src = chrome.runtime.getURL('extension/host/bridge.bundle.js');
     const target = document.head || document.documentElement;
     if (target) {
         target.appendChild(s);
-        console.log('[ZohoIDE] Bridge injected');
+        console.log('[ZohoIDE] Bridge injected from extension/host/');
     }
 }
 
@@ -23,7 +25,18 @@ if (document.readyState === 'loading') {
 }
 window.addEventListener('load', injectBridge);
 
-// 2. Listen for messages from the extension
+// Load Protocol
+(async () => {
+    try {
+        const protocolModule = await import(chrome.runtime.getURL('shared/protocol.js'));
+        MSG = protocolModule.MSG;
+        console.log('[ZohoIDE] Protocol loaded in Host');
+    } catch (e) {
+        console.error('[ZohoIDE] Failed to load protocol:', e);
+    }
+})();
+
+// 2. Listen for messages from the extension (Background -> Content)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Immediate actions that don't need relay
     if (request.action === 'INJECT_SIDE_PANEL') {
@@ -39,36 +52,76 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Actions to relay to the bridge using CustomEvent to avoid Zoho's onmessage listeners
     const relayActions = ['GET_ZOHO_CODE', 'SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE', 'PING'];
     if (relayActions.includes(request.action)) {
-        const eventId = Math.random().toString(36).substring(2);
-        const detail = {
-            eventId,
-            action: request.action,
-            ...request
-        };
-
-        const responseHandler = (event) => {
-            const data = event.detail;
-            if (data && data.eventId === eventId) {
-                window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
-                sendResponse(data.response);
-            }
-        };
-
-        window.addEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
-
-        // Dispatch to bridge
-        window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', { detail }));
-
-        // Timeout if no response
-        setTimeout(() => {
-            window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
-            // Don't sendResponse here to avoid duplicate or late responses,
-            // the original sendResponse might still be valid if it hasn't timed out.
-        }, 5000);
-
+        relayToBridge(request.action, request, sendResponse);
         return true; // Keep channel open
     }
 });
+
+// 3. Listen for messages from the Client (Iframe -> Content)
+window.addEventListener('message', (event) => {
+    if (!MSG) return; // Protocol not loaded yet
+
+    // Handle Client requests
+    const data = event.data;
+    if (!data || typeof data !== 'object') return;
+
+    if (data.type === MSG.CODE_EXECUTE) {
+        console.log('[ZohoIDE] Host received EXECUTE command from Client');
+        if (data.code) {
+            relayToBridge('SET_ZOHO_CODE', { code: data.code }, (res) => {
+                 if (res && res.success) {
+                     relayToBridge('SAVE_ZOHO_CODE', {}, (saveRes) => {
+                        // Wait a bit for save to process before execute?
+                        setTimeout(() => {
+                            relayToBridge('EXECUTE_ZOHO_CODE', {}, (response) => {});
+                        }, 500);
+                     });
+                 }
+            });
+        } else {
+            relayToBridge('EXECUTE_ZOHO_CODE', {}, (response) => {});
+        }
+    } else if (data.type === MSG.CODE_SAVE) {
+        console.log('[ZohoIDE] Host received SAVE command from Client');
+        if (data.code) {
+            relayToBridge('SET_ZOHO_CODE', { code: data.code }, (res) => {
+                 if (res && res.success) {
+                     relayToBridge('SAVE_ZOHO_CODE', {}, (response) => {});
+                 }
+            });
+        } else {
+            relayToBridge('SAVE_ZOHO_CODE', {}, (response) => {});
+        }
+    }
+});
+
+
+function relayToBridge(action, data, sendResponse) {
+    const eventId = Math.random().toString(36).substring(2);
+    const detail = {
+        eventId,
+        action: action,
+        ...data
+    };
+
+    const responseHandler = (event) => {
+        const data = event.detail;
+        if (data && data.eventId === eventId) {
+            window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+            if (sendResponse) sendResponse(data.response);
+        }
+    };
+
+    window.addEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+
+    // Dispatch to bridge
+    window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', { detail }));
+
+    // Timeout if no response
+    setTimeout(() => {
+        window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+    }, 5000);
+}
 
 function injectSidePanel() {
     if (document.getElementById('zoho-ide-panel-container')) {
@@ -85,7 +138,7 @@ function injectSidePanel() {
     resizeHandle.innerHTML = '<div style="width:2px; height:20px; background:#666; border-radius:1px;"></div>';
 
     const iframe = document.createElement('iframe');
-    iframe.src = chrome.runtime.getURL('ide.html?mode=sidepanel');
+    iframe.src = chrome.runtime.getURL('app/index.html?mode=sidepanel');
     iframe.style.cssText = 'flex:1; border:none; height:100%; width:100%;';
 
     const closeBtn = document.createElement('div');

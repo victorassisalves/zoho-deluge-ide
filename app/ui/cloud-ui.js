@@ -31,7 +31,7 @@ const CloudUI = {
     },
 
     listenToAuth() {
-        CloudService.onAuthStateChanged(async (user) => {
+        FirebaseStore.onAuthStateChanged(async (user) => {
             const loggedOut = document.getElementById('auth-logged-out');
             const loggedIn = document.getElementById('auth-logged-in');
             const hierarchy = document.getElementById('cloud-hierarchy-section');
@@ -46,15 +46,15 @@ const CloudUI = {
                 document.getElementById('user-display').innerText = user.email;
 
                 try {
-                    let userDoc = await CloudService.db.collection('users').doc(user.uid).get();
+                    let userDoc = await FirebaseStore.db.collection('users').doc(user.uid).get();
 
                     if (!userDoc.exists) {
                         console.log('[ZohoIDE] User doc missing, creating profile...');
-                        const domain = CloudService.getDomain(user.email);
-                        let orgId = await CloudService.findOrgByDomain(domain);
-                        if (!orgId) orgId = await CloudService.createOrganization(domain, user.uid);
+                        const domain = FirebaseStore.getDomain(user.email);
+                        let orgId = await FirebaseStore.findOrgByDomain(domain);
+                        if (!orgId) orgId = await FirebaseStore.createOrganization(domain, user.uid);
 
-                        await CloudService.db.collection('users').doc(user.uid).set({
+                        await FirebaseStore.db.collection('users').doc(user.uid).set({
                             uid: user.uid,
                             email: user.email,
                             domain: domain,
@@ -62,13 +62,13 @@ const CloudUI = {
                             teams: [],
                             createdAt: firebase.firestore.FieldValue.serverTimestamp()
                         });
-                        userDoc = await CloudService.db.collection('users').doc(user.uid).get();
+                        userDoc = await FirebaseStore.db.collection('users').doc(user.uid).get();
                     }
 
                     if (userDoc.exists) {
                         const userData = userDoc.data();
                         this.activeOrgId = userData.orgId;
-                        const orgDoc = await CloudService.db.collection('organizations').doc(this.activeOrgId).get();
+                        const orgDoc = await FirebaseStore.db.collection('organizations').doc(this.activeOrgId).get();
                         if (orgDoc.exists) {
                             document.getElementById('org-display').innerText = orgDoc.data().name || 'My Space';
                         }
@@ -102,9 +102,9 @@ const CloudUI = {
 
         if (confirm('You have local code. Would you like to migrate it to a new Cloud Workspace?')) {
             try {
-                const workspaceId = await CloudService.createWorkspace(this.activeOrgId, 'My Cloud Workspace');
-                const projectId = await CloudService.createProject(workspaceId, localName, localUrl);
-                const fileId = await CloudService.createFile(projectId, this.activeOrgId, 'Main', localCode, localUrl, localMappings);
+                const workspaceId = await FirebaseStore.createWorkspace(this.activeOrgId, 'My Cloud Workspace');
+                const projectId = await FirebaseStore.createProject(workspaceId, localName, localUrl);
+                const fileId = await FirebaseStore.createFile(projectId, this.activeOrgId, 'Main', localCode, localUrl, localMappings);
 
                 this.activeFileId = fileId;
                 window.activeCloudFileId = fileId;
@@ -121,7 +121,7 @@ const CloudUI = {
         const email = document.getElementById('auth-email').value;
         const pass = document.getElementById('auth-password').value;
         try {
-            await CloudService.login(email, pass);
+            await FirebaseStore.login(email, pass);
         } catch (err) {
             alert('Login failed: ' + err.message);
         }
@@ -135,7 +135,7 @@ const CloudUI = {
             return;
         }
         try {
-            await CloudService.signUp(email, pass);
+            await FirebaseStore.signUp(email, pass);
             alert('Account created successfully');
         } catch (err) {
             alert('Signup failed: ' + err.message);
@@ -143,12 +143,12 @@ const CloudUI = {
     },
 
     async handleLogout() {
-        await CloudService.logout();
+        await FirebaseStore.logout();
     },
 
     async loadTeams() {
         if (!this.activeOrgId) return;
-        const teams = await CloudService.getTeams(this.activeOrgId);
+        const teams = await FirebaseStore.getTeams(this.activeOrgId);
         const selector = document.getElementById('team-selector');
         if (!selector) return;
         selector.innerHTML = '<option value="">Personal (No Team)</option>';
@@ -163,7 +163,7 @@ const CloudUI = {
 
     async loadWorkspaces(teamId) {
         if (!this.activeOrgId) return;
-        const workspaces = await CloudService.getWorkspaces(this.activeOrgId, teamId);
+        const workspaces = await FirebaseStore.getWorkspaces(this.activeOrgId, teamId);
         const selector = document.getElementById('workspace-selector');
         if (!selector) return;
         selector.innerHTML = '<option value="">Select Workspace...</option>';
@@ -181,7 +181,7 @@ const CloudUI = {
 
     async loadProjects(workspaceId) {
         if (!workspaceId) return;
-        const projects = await CloudService.getProjects(workspaceId);
+        const projects = await FirebaseStore.getProjects(workspaceId);
         const selector = document.getElementById('project-selector');
         if (!selector) return;
         selector.innerHTML = '<option value="">Select Project...</option>';
@@ -197,7 +197,7 @@ const CloudUI = {
 
     async loadFiles(projectId) {
         if (!projectId) return;
-        const files = await CloudService.getFilesByProject(projectId);
+        const files = await FirebaseStore.getFilesByProject(projectId);
         this.renderFileList(files);
     },
 
@@ -221,7 +221,7 @@ const CloudUI = {
     async handleCreateTeam() {
         const name = prompt('Team Name:');
         if (name) {
-            await CloudService.createTeam(this.activeOrgId, name);
+            await FirebaseStore.createTeam(this.activeOrgId, name);
             this.loadTeams();
         }
     },
@@ -230,7 +230,7 @@ const CloudUI = {
         const teamId = document.getElementById('team-selector').value;
         const name = prompt('Workspace Name:');
         if (name) {
-            await CloudService.createWorkspace(this.activeOrgId, name, teamId || null);
+            await FirebaseStore.createWorkspace(this.activeOrgId, name, teamId || null);
             this.loadWorkspaces(teamId);
         }
     },
@@ -240,7 +240,7 @@ const CloudUI = {
         if (!workspaceId) { alert('Select a workspace first'); return; }
         const name = prompt('Project Name:');
         if (name) {
-            await CloudService.createProject(workspaceId, name);
+            await FirebaseStore.createProject(workspaceId, name);
             this.loadProjects(workspaceId);
         }
     },
@@ -252,7 +252,7 @@ const CloudUI = {
         if (name) {
             const code = (typeof editor !== 'undefined' && editor) ? editor.getValue() : '';
             const url = window.zideProjectUrl || '';
-            const fileId = await CloudService.createFile(projectId, this.activeOrgId, name, code, url);
+            const fileId = await FirebaseStore.createFile(projectId, this.activeOrgId, name, code, url);
             this.loadFiles(projectId);
             alert('File created and linked to cloud');
         }
@@ -282,7 +282,7 @@ const CloudUI = {
     async checkForCloudFiles(url) {
         if (!this.activeOrgId || url === 'global') return;
         try {
-            const files = await CloudService.getFilesByUrl(this.activeOrgId, url);
+            const files = await FirebaseStore.getFilesByUrl(this.activeOrgId, url);
             if (files.length > 0) {
                 if (typeof showStatus === 'function') showStatus(files.length + ' cloud file(s) found for this URL', 'info');
                 this.renderFileList(files);

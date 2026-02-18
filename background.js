@@ -3,7 +3,7 @@
 let lastZohoTabId = null;
 
 function openIDETab() {
-    const ideUrl = chrome.runtime.getURL('ide.html');
+    const ideUrl = chrome.runtime.getURL('app/index.html');
     chrome.tabs.query({}, (tabs) => {
         const existingTab = tabs.find(t => t.url && t.url.startsWith(ideUrl));
         if (existingTab) {
@@ -23,7 +23,7 @@ function openIDESidePanel() {
                 if (chrome.runtime.lastError) {
                     chrome.scripting.executeScript({
                         target: { tabId: activeTab.id },
-                        files: ['content.js']
+                        files: ['extension/host/content.js']
                     }).then(() => {
                         setTimeout(() => {
                             chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' });
