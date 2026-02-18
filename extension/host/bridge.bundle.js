@@ -13,41 +13,103 @@ function getZohoProduct() {
 
 
 // --- scrapers.js ---
+const log = (...args) => console.log('[ZohoIDE Bridge Scraper]', ...args);
+
 function getEditorCode() {
+    // 1. Monaco
     if (window.monaco && window.monaco.editor) {
-        const ms = window.monaco.editor.getModels();
-        if (ms && ms.length > 0) return ms[0].getValue();
+        try {
+            const models = window.monaco.editor.getModels();
+            if (models && models.length > 0) {
+                // Prefer models with content and relevant language
+                let model = models.find(m => m.getValue().length > 0 && (m.getLanguageId() === 'deluge' || m.getLanguageId() === 'javascript'));
+                if (!model) model = models.find(m => m.getValue().length > 0);
+                if (!model) model = models[0];
+                return model.getValue();
+            }
+        } catch(e) { log('Monaco getCode error:', e); }
     }
-    const ace = document.querySelectorAll('.ace_editor');
-    for (let el of ace) {
-        if (el.env && el.env.editor) return el.env.editor.getValue();
-    }
+
+    // 2. Ace
+    try {
+        // Try ZEditor/Zace first (common in Zoho Creator)
+        if (window.ZEditor && window.ZEditor.getValue) return window.ZEditor.getValue();
+        if (window.Zace && window.Zace.getValue) return window.Zace.getValue();
+
+        // Try lyte-ace-editor component
+        const lyteAce = document.querySelector('lyte-ace-editor');
+        if (lyteAce && lyteAce.getEditor) {
+            const ed = lyteAce.getEditor();
+            if (ed && ed.getValue) return ed.getValue();
+        }
+
+        const aceEls = document.querySelectorAll('.ace_editor, .zace-editor');
+        for (let el of aceEls) {
+            if (el.env && el.env.editor) return el.env.editor.getValue();
+            if (window.ace && window.ace.edit) {
+                try { return window.ace.edit(el).getValue(); } catch(e) {}
+            }
+        }
+    } catch(e) { log('Ace getCode error:', e); }
+
+    // 3. CodeMirror
+    try {
+        const cmEls = document.querySelectorAll('.CodeMirror');
+        for (let el of cmEls) if (el.CodeMirror) return el.CodeMirror.getValue();
+    } catch(e) {}
+
+    // 4. Fallback (Textarea/Input)
+    try {
+        const el = document.querySelector('[id*="delugeEditor"], .deluge-editor, textarea[id*="script"]');
+        if (el) return el.value || el.innerText;
+    } catch(e) {}
+
     return null;
 }
 
 
 // --- actions/base-actions.js ---
+const log = (...args) => console.log('[ZohoIDE Bridge Actions]', ...args);
+
 function setEditorCode(code) {
     let success = false;
+
+    // 1. Monaco
     try {
         if (window.monaco && window.monaco.editor) {
             const models = window.monaco.editor.getModels();
-            if (models && models.length > 0) { models[0].setValue(code); success = true; }
-        }
-    } catch (e) {}
-    if (success) return true;
-
-    try {
-        const aceEls = document.querySelectorAll('.ace_editor');
-        for (let aceEl of aceEls) {
-            if (aceEl.env && aceEl.env.editor) { aceEl.env.editor.setValue(code); success = true; }
-            else if (window.ace && window.ace.edit) {
-                try { window.ace.edit(aceEl).setValue(code); success = true; } catch(e) {}
+            if (models && models.length > 0) {
+                let model = models.find(m => m.getLanguageId() === 'deluge' || m.getLanguageId() === 'javascript');
+                if (!model) model = models[0];
+                model.setValue(code);
+                success = true;
             }
         }
-    } catch (e) {}
+    } catch (e) { log('Monaco set error', e); }
     if (success) return true;
 
+    // 2. Ace
+    try {
+        if (window.ZEditor && window.ZEditor.setValue) { window.ZEditor.setValue(code); return true; }
+        if (window.Zace && window.Zace.setValue) { window.Zace.setValue(code); return true; }
+
+        const lyteAce = document.querySelector('lyte-ace-editor');
+        if (lyteAce && lyteAce.getEditor) {
+            const ed = lyteAce.getEditor();
+            if (ed && ed.setValue) { ed.setValue(code); return true; }
+        }
+
+        const aceEls = document.querySelectorAll('.ace_editor, .zace-editor');
+        for (let el of aceEls) {
+            if (el.env && el.env.editor) { el.env.editor.setValue(code); success = true; }
+            else if (window.ace && window.ace.edit) {
+                try { window.ace.edit(el).setValue(code); success = true; } catch(e) {}
+            }
+        }
+    } catch (e) { log('Ace set error', e); }
+    if (success) return true;
+
+    // 3. CodeMirror
     try {
         const cmEls = document.querySelectorAll('.CodeMirror');
         for (let cmEl of cmEls) {
@@ -56,8 +118,9 @@ function setEditorCode(code) {
     } catch (e) {}
     if (success) return true;
 
+    // 4. Fallback
     try {
-        const delugeEditor = document.querySelector('[id*="delugeEditor"], [id*="scriptEditor"], .deluge-editor');
+        const delugeEditor = document.querySelector('[id*="delugeEditor"], [id*="scriptEditor"], .deluge-editor, textarea[id*="script"]');
         if (delugeEditor) {
             delugeEditor.value = code;
             if (delugeEditor.env && delugeEditor.env.editor) delugeEditor.env.editor.setValue(code);
@@ -66,20 +129,42 @@ function setEditorCode(code) {
             success = true;
         }
     } catch (e) {}
+
     return success;
 }
 
 function robustClick(el) {
     if (!el) return false;
     try {
-        el.click();
-        // Dispatch additional events for frameworks like Lyte or React
-        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-        el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-        el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-        el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+        // Dispatch a sequence of events to mimic real user interaction
+        const events = [
+            { type: 'mousedown', cls: MouseEvent },
+            { type: 'pointerdown', cls: PointerEvent },
+            { type: 'mouseup', cls: MouseEvent },
+            { type: 'pointerup', cls: PointerEvent },
+            { type: 'click', cls: MouseEvent }
+        ];
+
+        events.forEach(({ type, cls }) => {
+            try {
+                const event = new cls(type, {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    buttons: 1
+                });
+                el.dispatchEvent(event);
+            } catch (e) {}
+        });
+
+        // Lyte button specific
+        if (el.tagName && el.tagName.toLowerCase() === 'lyte-button' && el.executeAction) {
+            try { el.executeAction('click', new MouseEvent('click')); } catch(e) {}
+        }
+
         return true;
     } catch(e) {
+        log('Click error:', e);
         return false;
     }
 }
@@ -87,9 +172,12 @@ function robustClick(el) {
 function clickBySelectors(selectors) {
     for (let sel of selectors) {
         try {
-            const el = document.querySelector(sel);
-            if (el && el.offsetParent !== null) { // Check if visible
-                if (robustClick(el)) return true;
+            const els = document.querySelectorAll(sel);
+            for (let el of els) {
+                const isVisible = !!(el.offsetParent !== null || el.offsetWidth > 0);
+                if (el && isVisible) {
+                    if (robustClick(el)) return true;
+                }
             }
         } catch(e) {}
     }
@@ -97,19 +185,12 @@ function clickBySelectors(selectors) {
 }
 
 function clickByText(type) {
-    const buttons = document.querySelectorAll('button, .lyte-button, a.btn, input[type="button"], [role="button"]');
-    for (let btn of buttons) {
-        if (btn.offsetParent === null) continue; // Skip hidden
-        const txt = (btn.innerText || btn.textContent || btn.value || btn.getAttribute('aria-label') || '').toLowerCase().trim();
-        if (type === 'save') {
-            if (txt === 'save' || txt === 'update' || txt.includes('save script') || txt.includes('update script') || txt.includes('save & close')) {
-                if (robustClick(btn)) return true;
-            }
-        } else if (type === 'execute') {
-            if (txt === 'execute' || txt === 'run' || txt.includes('execute script') || txt.includes('run script')) {
-                if (robustClick(btn)) return true;
-            }
-        }
+    const candidates = document.querySelectorAll('button, input[type="button"], input[type="submit"], .lyte-button, [role="button"]');
+    for (let el of candidates) {
+        if (el.offsetParent === null && el.offsetWidth === 0) continue;
+        const txt = (el.innerText || el.textContent || el.value || el.getAttribute('aria-label') || '').toLowerCase().trim();
+        if (type === 'save' && (txt === 'save' || txt === 'update' || txt.includes('save script') || txt.includes('save & close'))) return robustClick(el);
+        if (type === 'execute' && (txt === 'execute' || txt === 'run' || txt.includes('execute script'))) return robustClick(el);
     }
     return false;
 }
