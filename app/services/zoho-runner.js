@@ -11,6 +11,12 @@ export const ZohoRunner = {
         // Send save command
         window.Bus.send(MSG.CODE_SAVE, { code });
         console.log('[ZohoRunner] Sent Save command');
+    },
+
+    pull: () => {
+        // Send pull command
+        window.Bus.send(MSG.CODE_PULL);
+        console.log('[ZohoRunner] Sent Pull command');
     }
 };
 

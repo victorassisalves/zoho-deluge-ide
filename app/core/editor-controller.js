@@ -192,6 +192,16 @@ function initEditor() {
         checkConnection();
         setInterval(checkConnection, 5000);
 
+        // Listen for Pull Response
+        if (window.Bus) {
+             window.Bus.listen('editor:pull_response', (data) => {
+                 if (data.code) {
+                     editor.setValue(data.code);
+                     log('Success', 'Code pulled from Zoho via Bus.');
+                 }
+             });
+        }
+
     } catch (e) {
         console.error("[ZohoIDE] initEditor Error:", e);
         console.error('[ZohoIDE] Monaco Load Error:', e);
@@ -1115,11 +1125,15 @@ function pullFromZoho() {
         return;
     }
     log('System', 'Pulling code...');
-    if (typeof chrome !== "undefined" && chrome.runtime) {
+
+    if (window.ZohoRunner) {
+        window.ZohoRunner.pull();
+    } else if (typeof chrome !== "undefined" && chrome.runtime) {
+        // Fallback
         chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, (response) => {
             if (response && response.code) {
                 editor.setValue(response.code);
-                log('Success', 'Code pulled.');
+                log('Success', 'Code pulled (legacy).');
             } else { log('Error', response?.error || 'No code found.'); }
         });
     }

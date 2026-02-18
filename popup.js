@@ -1,7 +1,7 @@
 document.getElementById('open-ide').addEventListener('click', () => {
     chrome.windows.getCurrent((win) => {
         chrome.tabs.create({
-            url: chrome.runtime.getURL('ide.html'),
+            url: chrome.runtime.getURL('app/index.html'),
             windowId: win.id
         });
         window.close();
@@ -20,7 +20,7 @@ document.getElementById('open-integrated-mode').addEventListener('click', () => 
             if (chrome.runtime.lastError) {
                 chrome.scripting.executeScript({
                     target: { tabId: activeTab.id },
-                    files: ['content.js']
+                    files: ['extension/host/content.js']
                 }).then(() => {
                     setTimeout(() => {
                         chrome.tabs.sendMessage(activeTab.id, { action: 'INJECT_SIDE_PANEL' }, (resp) => {

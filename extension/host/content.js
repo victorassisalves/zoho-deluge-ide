@@ -92,6 +92,18 @@ window.addEventListener('message', (event) => {
         } else {
             relayToBridge('SAVE_ZOHO_CODE', {}, (response) => {});
         }
+    } else if (data.type === MSG.CODE_PULL) {
+        console.log('[ZohoIDE] Host received PULL command from Client');
+        relayToBridge('GET_ZOHO_CODE', {}, (response) => {
+            if (response && response.code) {
+                // Send back to client
+                if (event.source) {
+                     event.source.postMessage({ type: 'editor:pull_response', code: response.code }, '*');
+                }
+            } else {
+                console.error('[ZohoIDE] Failed to pull code:', response);
+            }
+        });
     }
 });
 
