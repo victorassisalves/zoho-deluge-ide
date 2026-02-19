@@ -1,4 +1,8 @@
-(function() {
+
+import { Bus } from './bus.js';
+import { ZohoRunner } from '../services/zoho-runner.js';
+import { MSG } from '../../shared/protocol.js';
+
 var zideProjectUrl = null;
 window.zideProjectUrl = null;
 var zideProjectName = "Untitled Project";
@@ -110,20 +114,19 @@ function initEditor() {
             }
         });
 
-        if (typeof chrome !== "undefined" && chrome.runtime) {
-            chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-                if (request.action === "CMD_SYNC_SAVE") {
-                    console.log('[ZohoIDE] Command: Sync & Save');
-                    pushToZoho(true);
-                } else if (request.action === "CMD_SYNC_SAVE_EXECUTE") {
-                    console.log('[ZohoIDE] Command: Sync & Execute');
-                    pushToZoho(true, true);
-                } else if (request.action === "CMD_PULL_CODE") {
-                    console.log('[ZohoIDE] Command: Pull Code');
-                    pullFromZoho();
-                }
-            });
-        }
+        // Listen for Commands via Bus
+        Bus.listen("CMD_SYNC_SAVE", () => {
+            console.log('[ZohoIDE] Command: Sync & Save');
+            pushToZoho(true);
+        });
+        Bus.listen("CMD_SYNC_SAVE_EXECUTE", () => {
+            console.log('[ZohoIDE] Command: Sync & Execute');
+            pushToZoho(true, true);
+        });
+        Bus.listen("CMD_PULL_CODE", () => {
+            console.log('[ZohoIDE] Command: Pull Code');
+            pullFromZoho();
+        });
 
         editor.onDidChangeModelContent(() => {
             const code = editor.getValue();
@@ -173,8 +176,6 @@ function initEditor() {
                 }
             });
         }
-
-
 
         setupEventHandlers();
         checkConnection();
@@ -1097,14 +1098,7 @@ function pullFromZoho() {
         return;
     }
     log('System', 'Pulling code...');
-    if (typeof chrome !== "undefined" && chrome.runtime) {
-        chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, (response) => {
-            if (response && response.code) {
-                editor.setValue(response.code);
-                log('Success', 'Code pulled.');
-            } else { log('Error', response?.error || 'No code found.'); }
-        });
-    }
+    ZohoRunner.pullFromZoho();
 }
 
 function pushToZoho(triggerSave = false, triggerExecute = false) {
@@ -1128,44 +1122,7 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 
     const code = editor.getValue();
     log('System', 'Pushing code...');
-    if (typeof chrome !== "undefined" && chrome.runtime) {
-        chrome.runtime.sendMessage({ action: 'SET_ZOHO_CODE', code: code }, (response) => {
-            if (response && response.success) {
-                log('Success', 'Code pushed.');
-
-                if (triggerSave || triggerExecute) {
-                    // Logic: Save first. If Execute is requested, wait 500ms then Execute.
-                    chrome.runtime.sendMessage({ action: 'SAVE_ZOHO_CODE' }, (res) => {
-                        if (res && res.success) {
-                            log('Success', 'Zoho Save triggered.');
-
-                            if (triggerExecute) {
-                                log('System', 'Waiting 700ms before execution...');
-                                setTimeout(() => {
-                                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (execRes) => {
-                                        if (execRes && execRes.success) log('Success', 'Zoho Execute triggered.');
-                                        else log('Warning', 'Zoho Execute trigger failed.');
-                                    });
-                                }, 700);
-                            }
-                        } else {
-                            log('Warning', 'Zoho Save trigger failed. Try clicking manually.');
-                            // Still try to execute if it was requested, as some saves might be "no-op"
-                            if (triggerExecute) {
-                                setTimeout(() => {
-                                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (execRes) => {
-                                        if (execRes && execRes.success) log('Success', 'Zoho Execute triggered.');
-                                    });
-                                }, 700);
-                            }
-                        }
-                    });
-                }
-            } else {
-                log('Error', response?.error || 'Push failed.');
-            }
-        });
-    }
+    ZohoRunner.pushToZoho(code, triggerSave, triggerExecute);
 }
 
 function saveLocally() {
@@ -1539,4 +1496,3 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
     }
     window.syncProblemsPanel = syncProblemsPanel;
 
-})();

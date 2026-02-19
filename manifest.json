@@ -56,7 +56,7 @@
         "https://deluge.zoho.com.cn/*"
       ],
       "js": [
-        "content.js"
+        "extension/host/content.js"
       ],
       "run_at": "document_start",
       "all_frames": true,
@@ -93,18 +93,19 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "app/*",
+        "app/core/*",
+        "app/services/*",
+        "app/modules/*",
+        "shared/*",
+        "extension/host/*",
         "src/*",
-        "ide.html",
         "assets/*",
         "bridge.js",
         "firebase-config.js",
         "deluge-lang.js",
-        "ide.js",
         "my_snippets.js",
-        "snippet_logic.js",
         "api_data.js",
-        "loader-init.js",
-        "cloud-service.js",
         "cloud-ui.js"
       ],
       "matches": [
