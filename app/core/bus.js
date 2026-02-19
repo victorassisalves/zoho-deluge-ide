@@ -8,10 +8,12 @@ export const Bus = {
      * @param {function} callback - The callback function(payload, source)
      */
     listen(type, callback) {
+        console.debug(`[Bus] Listening for: ${type}`);
         // 1. Listen for postMessage (from Host via Iframe)
         window.addEventListener('message', (event) => {
             // Check if message structure matches our protocol
             if (event.data && event.data.type === type) {
+                console.debug(`[Bus] Received (Iframe): ${type}`, event.data.payload);
                 callback(event.data.payload, event.source);
             }
         });
@@ -37,6 +39,7 @@ export const Bus = {
      */
     send(type, payload = {}) {
         const isIframe = window.parent !== window;
+        console.debug(`[Bus] Sending: ${type} (Mode: ${isIframe ? 'Iframe' : 'Standalone'})`, payload);
 
         if (isIframe) {
             // Iframe Mode: Send to Host Page

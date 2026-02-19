@@ -218,6 +218,8 @@
         const data = event.detail;
         if (!data || !data.action) return;
 
+        log('[Bridge] Received:', data.action, data);
+
         let response = {};
         const { action, eventId } = data;
 
@@ -260,6 +262,8 @@
         } else if (action === 'PING') {
             response = { status: 'PONG' };
         }
+
+        log('[Bridge] Responding:', action, response);
 
         window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
             detail: { eventId, action, response }

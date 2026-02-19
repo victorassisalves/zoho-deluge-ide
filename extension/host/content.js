@@ -64,9 +64,12 @@
                 const eventId = Math.random().toString(36).substring(2);
                 const detail = { eventId, action, ...payload };
 
+                console.debug('[ZohoIDE] [Host] -> [Bridge]', detail);
+
                 const responseHandler = (event) => {
                     const data = event.detail;
                     if (data && data.eventId === eventId) {
+                        console.debug('[ZohoIDE] [Bridge] -> [Host]', data);
                         window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
                         resolve(data.response);
                     }
@@ -78,6 +81,7 @@
                 // Timeout
                 setTimeout(() => {
                     window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+                    console.warn('[ZohoIDE] Bridge Timeout for:', action);
                     resolve({ error: 'Bridge Timeout' });
                 }, 5000);
             });
@@ -143,18 +147,16 @@
     window.addEventListener('message', (event) => {
         // Filter messages? For now check if it has a type matching our protocol
         if (event.data && event.data.type && Object.values(MSG).includes(event.data.type)) {
+            console.debug('[ZohoIDE] [Client] -> [Host]', event.data);
+
             // Wrap in a format handleMessage expects
-            // event.data.payload should contain 'code' etc.
             const request = {
                 action: event.data.type,
                 ...event.data.payload
             };
 
-            // We can't use sendResponse for postMessage, we need to postMessage back.
-            // But the current bus.js plan doesn't specify a return channel yet.
-            // We'll just execute for now.
             handleMessage(request, (response) => {
-                // Optional: Send acknowledgement back to iframe
+                console.debug('[ZohoIDE] [Host] -> [Client]', { type: event.data.type + ':response', response });
                 if (event.source) {
                     event.source.postMessage({
                         type: event.data.type + ':response',

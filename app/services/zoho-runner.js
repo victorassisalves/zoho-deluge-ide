@@ -15,13 +15,13 @@ export const ZohoRunner = {
         console.log('[ZohoRunner] Syncing with Zoho...', { triggerSave, triggerExecute });
 
         if (triggerExecute) {
-            // New Protocol: EXECUTE implies Set Code -> Execute
+            console.debug('[ZohoRunner] Action: EXECUTE');
             Bus.send(MSG.CODE_EXECUTE, { code: code });
         } else if (triggerSave) {
-            // New Protocol: SAVE implies Set Code -> Save
+            console.debug('[ZohoRunner] Action: SAVE');
             Bus.send(MSG.CODE_SAVE, { code: code });
         } else {
-            // Just update the code in the editor without clicking buttons
+            console.debug('[ZohoRunner] Action: SET_CODE (No Save/Exec)');
             Bus.send('SET_ZOHO_CODE', { code: code });
         }
     },

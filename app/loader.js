@@ -51,45 +51,18 @@ require(['vs/editor/editor.main'], async function() {
 
         console.log('[ZohoIDE] Firebase initialized.');
 
-        // Protocol - Shared
-        // Can we load it? It's an ES module export.
-        // We can import it in editor-controller.js if that is a module.
-        // Or we can try to load it here?
-        // loadScript('../shared/protocol.js', true);
-        // But main logic is in editor-controller.js which should be a module?
-        // ide.js was a script. ide.html had it as src="ide.js".
-        // Now it's app/core/editor-controller.js.
-        // If we want to use imports in it, we should load it as module.
-        // Let's assume we load it as module.
-
         // Main Logic
-        // src/main.js - what is this? It was loaded as module.
         await loadScript('../src/main.js', true);
 
         // Core / Utils
         await loadScript('../deluge-lang.js');
 
         // Modules
-        await loadScript('modules/snippets/snippet-manager.js'); // Was snippet_logic.js
+        await loadScript('modules/snippets/snippet-manager.js');
         await loadScript('../api_data.js');
 
-        // The Controller
-        // ide.js -> app/core/editor-controller.js
-        // If we want to use ES modules (import MSG), we must load as module.
-        // Old ide.js was NOT a module.
-        // But the plan says "Refactor editor-controller.js to use bus.js".
-        // bus.js will likely be a module.
-        // So editor-controller.js should be a module.
+        // The Controller (Client Logic)
         await loadScript('core/editor-controller.js', true);
-
-        // We also need to load bus.js?
-        // Or let editor-controller.js import it.
-        // If editor-controller.js is a module, it can import bus.js.
-        // We don't need to explicitly load bus.js here if it's imported.
-
-        // Also zoho-runner.js (new service)
-        // It will be imported by editor-controller.js or loaded?
-        // If editor-controller.js imports it, we are good.
 
         console.log('[ZohoIDE] Modular logic loaded.');
 
