@@ -31,6 +31,6 @@ export const ZohoRunner = {
      */
     pullFromZoho() {
         console.log('[ZohoRunner] Pulling code from Zoho...');
-        Bus.send('GET_ZOHO_CODE');
+        Bus.send(MSG.CODE_PULL);
     }
 };

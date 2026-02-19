@@ -128,6 +128,19 @@ function initEditor() {
             pullFromZoho();
         });
 
+        // Listen for Pull Response
+        Bus.listen(MSG.CODE_PULL + ':response', (payload) => {
+            console.log('[ZohoIDE] Received Pulled Code:', payload);
+            if (payload && payload.code) {
+                if (editor) {
+                    editor.setValue(payload.code);
+                    showStatus('Code pulled from Zoho', 'success');
+                }
+            } else if (payload && payload.error) {
+                showStatus('Pull Failed: ' + payload.error, 'error');
+            }
+        });
+
         editor.onDidChangeModelContent(() => {
             const code = editor.getValue();
             if (typeof chrome !== "undefined" && chrome.storage) {
