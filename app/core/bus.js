@@ -1,6 +1,8 @@
 // app/core/bus.js
 // Message Bus for communication between Client (IDE) and Host (Zoho Page) / Background
 
+import { Logger } from '../utils/logger.js';
+
 export const Bus = {
     /**
      * Listen for messages from Host or Background
@@ -8,12 +10,12 @@ export const Bus = {
      * @param {function} callback - The callback function(payload, source)
      */
     listen(type, callback) {
-        console.debug(`[Bus] Listening for: ${type}`);
+        Logger.debug(`[Bus] Listening for: ${type}`);
         // 1. Listen for postMessage (from Host via Iframe)
         window.addEventListener('message', (event) => {
             // Check if message structure matches our protocol
             if (event.data && event.data.type === type) {
-                console.debug(`[Bus] Received (Iframe): ${type}`, event.data.payload);
+                Logger.debug(`[Bus] Received (Iframe): ${type}`);
                 callback(event.data.payload, event.source);
             }
         });
@@ -39,7 +41,7 @@ export const Bus = {
      */
     send(type, payload = {}) {
         const isIframe = window.parent !== window;
-        console.debug(`[Bus] Sending: ${type} (Mode: ${isIframe ? 'Iframe' : 'Standalone'})`, payload);
+        Logger.debug(`[Bus] Sending: ${type} (Mode: ${isIframe ? 'Iframe' : 'Standalone'})`);
 
         if (isIframe) {
             // Iframe Mode: Send to Host Page

@@ -2,6 +2,7 @@
 import { Bus } from './bus.js';
 import { ZohoRunner } from '../services/zoho-runner.js';
 import { MSG } from '../../shared/protocol.js';
+import { Logger } from '../utils/logger.js';
 
 var zideProjectUrl = null;
 window.zideProjectUrl = null;
@@ -29,6 +30,11 @@ function initEditor() {
     if (typeof registerDelugeLanguage === 'function') {
         registerDelugeLanguage();
     }
+
+    // Subscribe to Logger events
+    Logger.subscribe((type, msg) => {
+        log(type, msg);
+    });
 
     try {
         monaco.editor.defineTheme('dracula', {
