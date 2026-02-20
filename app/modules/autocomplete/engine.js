@@ -1,9 +1,8 @@
 import registry from './registry.js';
-import diagnostics from '../../services/diagnostics.js';
+import diagnostics from '../../../src/services/diagnostics.js';
 
 export const setupAutocomplete = (monaco) => {
     diagnostics.report('AutocompleteEngine', 'initializing');
-    return; // Disabled to prevent duplication with deluge-lang.js
 
     monaco.languages.registerCompletionItemProvider('deluge', {
         triggerCharacters: ['.', '"', ':'],

@@ -1,4 +1,4 @@
-import { staticSuggestions } from '../data/keywords.js';
+import staticSuggestions from '../data/keywords.json' with { type: 'json' };
 
 export default {
     name: 'KeywordProvider',
@@ -9,7 +9,7 @@ export default {
             label: s.label,
             kind: s.kind,
             insertText: s.insertText,
-            insertTextRules: s.isSnippet ? 4 : undefined
+            insertTextRules: s.insertTextRules
         }));
     }
 };

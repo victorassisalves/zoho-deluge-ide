@@ -14,13 +14,21 @@ export const ZohoRunner = {
 
         console.log('[ZohoRunner] Syncing with Zoho...', { triggerSave, triggerExecute });
 
-        if (triggerExecute) {
-            console.debug('[ZohoRunner] Action: EXECUTE');
-            Bus.send(MSG.CODE_EXECUTE, { code: code });
-        } else if (triggerSave) {
+        if (triggerSave) {
             console.debug('[ZohoRunner] Action: SAVE');
             Bus.send(MSG.CODE_SAVE, { code: code });
-        } else {
+        }
+
+        if (triggerExecute) {
+            // Wait slightly to ensure save registers first if both are triggered
+            const delay = triggerSave ? 500 : 0;
+            setTimeout(() => {
+                console.debug('[ZohoRunner] Action: EXECUTE');
+                Bus.send(MSG.CODE_EXECUTE, { code: code });
+            }, delay);
+        }
+
+        if (!triggerSave && !triggerExecute) {
             console.debug('[ZohoRunner] Action: SET_CODE (No Save/Exec)');
             Bus.send('SET_ZOHO_CODE', { code: code });
         }
