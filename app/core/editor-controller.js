@@ -3,6 +3,11 @@ import { Bus } from './bus.js';
 import { ZohoRunner } from '../services/zoho-runner.js';
 import { MSG } from '../../shared/protocol.js';
 import { Logger } from '../utils/logger.js';
+import { registerDelugeLanguage } from '../modules/grammar/tokenizer.js';
+import { initAutocomplete } from '../modules/autocomplete/index.js';
+import { initLinter } from '../modules/linter/index.js';
+import { initHover } from '../modules/hover/provider.js';
+import { initCodeActions } from '../modules/code-actions/provider.js';
 
 var zideProjectUrl = null;
 window.zideProjectUrl = null;
@@ -27,9 +32,12 @@ function initEditor() {
     const container = document.getElementById('editor-container');
     if (!container) return;
 
-    if (typeof registerDelugeLanguage === 'function') {
-        registerDelugeLanguage();
-    }
+    // Initialize Language Features BEFORE creating the editor
+    registerDelugeLanguage(monaco);
+    initAutocomplete(monaco);
+    initLinter(monaco);
+    initHover(monaco);
+    initCodeActions(monaco);
 
     // Subscribe to Logger events
     Logger.subscribe((type, msg) => {
