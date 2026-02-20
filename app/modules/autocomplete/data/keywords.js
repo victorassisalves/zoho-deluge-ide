@@ -1,17 +1,17 @@
-{
+export const keywords = {
     "staticSuggestions": [
-        { "label": "Map()", "kind": 25, "insertText": "Map()" },
-        { "label": "List()", "kind": 25, "insertText": "List()" },
-        { "label": "Collection()", "kind": 25, "insertText": "Collection()" },
+        { "label": "Map()", "kind": 2, "insertText": "Map()" },
+        { "label": "List()", "kind": 2, "insertText": "List()" },
+        { "label": "Collection()", "kind": 2, "insertText": "Collection()" },
         { "label": "info", "kind": 17, "insertText": "info $0", "insertTextRules": 4 },
         { "label": "return", "kind": 17, "insertText": "return " },
         { "label": "if", "kind": 17, "insertText": "if (${1:condition})\n{\n\t$0\n}", "insertTextRules": 4 },
         { "label": "for each", "kind": 17, "insertText": "for each ${1:var} in ${2:list}\n{\n\t$0\n}", "insertTextRules": 4 },
         { "label": "try catch", "kind": 17, "insertText": "try\n{\n\t$1\n}\ncatch (${2:err})\n{\n\t$0\n}", "insertTextRules": 4 },
-        { "label": "void function", "kind": 2, "insertText": "void ${1:name}($2)\n{\n\t$0\n}", "insertTextRules": 4 },
-        { "label": "invokeurl", "kind": 2, "insertText": "invokeurl\n[\n\turl: \"$1\"\n\ttype: ${2|GET,POST,PUT,DELETE,PATCH|}\n];", "insertTextRules": 4 },
+        { "label": "void function", "kind": 1, "insertText": "void ${1:name}($2)\n{\n\t$0\n}", "insertTextRules": 4 },
+        { "label": "invokeurl", "kind": 1, "insertText": "invokeurl\n[\n\turl: \"$1\"\n\ttype: ${2|GET,POST,PUT,DELETE,PATCH|}\n];", "insertTextRules": 4 },
         { "label": "sendmail", "kind": 27, "insertText": "sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: \"$1\"\n\tsubject: \"$2\"\n\tmessage: \"$3\"\n];", "insertTextRules": 4 },
-        { "label": "daysBetween", "kind": 2, "insertText": "daysBetween(${1:d1}, ${2:d2})", "insertTextRules": 4 }
+        { "label": "daysBetween", "kind": 1, "insertText": "daysBetween(${1:d1}, ${2:d2})", "insertTextRules": 4 }
     ],
     "typeMethods": {
         "string": [
@@ -139,5 +139,5 @@
             { "label": "getRecordById(module, id)", "insertText": "getRecordById(\"${1:Candidates}\", ${2:id})" },
             { "label": "updateRecord(module, id, map)", "insertText": "updateRecord(\"${1:Candidates}\", ${2:id}, ${3:dataMap})" }
         ]
-    }
-}
+};
+export default keywords;
