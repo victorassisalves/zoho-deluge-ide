@@ -11,7 +11,8 @@ export function extractVariables(code) {
         'thisapp': { type: 'Namespace' },
         'standalone': { type: 'Namespace' },
         'today': { type: 'Date' },
-        'now': { type: 'DateTime' }
+        'now': { type: 'DateTime' },
+        'payload': { type: 'Map' }
     };
 
     // 0. Interface Mappings
