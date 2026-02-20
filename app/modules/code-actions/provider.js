@@ -1,4 +1,7 @@
 export const initCodeActions = (monaco) => {
+    if (window.codeActionsRegistered) return;
+    window.codeActionsRegistered = true;
+
     monaco.languages.registerCodeActionProvider('deluge', {
         provideCodeActions: (model, range, context, token) => {
             const actions = context.markers

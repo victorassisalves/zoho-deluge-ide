@@ -4,6 +4,9 @@ import { keywords } from '../autocomplete/data/keywords.js';
 const { typeMethods } = keywords;
 
 export const initHover = (monaco) => {
+    if (window.hoverRegistered) return;
+    window.hoverRegistered = true;
+
     monaco.languages.registerHoverProvider('deluge', {
         provideHover: (model, position) => {
             const word = model.getWordAtPosition(position);
