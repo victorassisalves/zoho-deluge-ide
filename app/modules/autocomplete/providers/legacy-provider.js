@@ -1,5 +1,5 @@
 import { extractVariables, inferVarType } from '../../analysis.js';
-import keywords from '../data/keywords.json' with { type: 'json' };
+import keywords from '../data/keywords.js';
 
 const { staticSuggestions, typeMethods } = keywords;
 const userMethods = {};
