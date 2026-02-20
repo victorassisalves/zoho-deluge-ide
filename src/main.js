@@ -2,20 +2,12 @@ import diagnostics from './services/diagnostics.js';
 import store from './services/store.js';
 import logger from './utils/logger.js';
 import bridgeClient from './services/bridge-client.js';
-import { initAutocomplete } from './features/autocomplete/index.js';
-import { initLinter } from './features/linter/index.js';
 import { initResizers } from './ui/resizers.js';
 import { initSidebars } from './ui/sidebars.js';
 
 async function bootstrap() {
     logger.info('Modular Framework Bootstrapping...');
     diagnostics.report('Main', 'bootstrapping');
-
-    if (typeof monaco !== 'undefined') {
-        // Autocomplete is now handled by deluge-lang.js for better Zoho integration
-        // initAutocomplete(monaco);
-        initLinter(monaco);
-    }
 
     initResizers();
     initSidebars();
