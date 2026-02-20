@@ -1,0 +1,143 @@
+{
+    "staticSuggestions": [
+        { "label": "Map()", "kind": 25, "insertText": "Map()" },
+        { "label": "List()", "kind": 25, "insertText": "List()" },
+        { "label": "Collection()", "kind": 25, "insertText": "Collection()" },
+        { "label": "info", "kind": 17, "insertText": "info $0", "insertTextRules": 4 },
+        { "label": "return", "kind": 17, "insertText": "return " },
+        { "label": "if", "kind": 17, "insertText": "if (${1:condition})\n{\n\t$0\n}", "insertTextRules": 4 },
+        { "label": "for each", "kind": 17, "insertText": "for each ${1:var} in ${2:list}\n{\n\t$0\n}", "insertTextRules": 4 },
+        { "label": "try catch", "kind": 17, "insertText": "try\n{\n\t$1\n}\ncatch (${2:err})\n{\n\t$0\n}", "insertTextRules": 4 },
+        { "label": "void function", "kind": 2, "insertText": "void ${1:name}($2)\n{\n\t$0\n}", "insertTextRules": 4 },
+        { "label": "invokeurl", "kind": 2, "insertText": "invokeurl\n[\n\turl: \"$1\"\n\ttype: ${2|GET,POST,PUT,DELETE,PATCH|}\n];", "insertTextRules": 4 },
+        { "label": "sendmail", "kind": 27, "insertText": "sendmail\n[\n\tfrom: zoho.adminuserid\n\tto: \"$1\"\n\tsubject: \"$2\"\n\tmessage: \"$3\"\n];", "insertTextRules": 4 },
+        { "label": "daysBetween", "kind": 2, "insertText": "daysBetween(${1:d1}, ${2:d2})", "insertTextRules": 4 }
+    ],
+    "typeMethods": {
+        "string": [
+            { "label": "contains(str)", "insertText": "contains(\"${1:str}\")", "doc": "Checks if the string contains the specified substring." },
+            { "label": "notContains(str)", "insertText": "notContains(\"${1:str}\")", "doc": "Checks if the string does not contain the specified substring." },
+            { "label": "containsIgnoreCase(str)", "insertText": "containsIgnoreCase(\"${1:str}\")", "doc": "Checks if the string contains the specified substring, ignoring case." },
+            { "label": "isEmpty()", "insertText": "isEmpty()", "doc": "Checks if the string is empty." },
+            { "label": "length()", "insertText": "length()", "doc": "Returns the length of the string." },
+            { "label": "toLowerCase()", "insertText": "toLowerCase()", "doc": "Converts the string to lower case." },
+            { "label": "toUpperCase()", "insertText": "toUpperCase()", "doc": "Converts the string to upper case." },
+            { "label": "trim()", "insertText": "trim()", "doc": "Removes leading and trailing whitespace." },
+            { "label": "subString(start, end)", "insertText": "subString(${1:start}, ${2:end})", "doc": "Returns a substring from start index to end index." },
+            { "label": "indexOf(str)", "insertText": "indexOf(\"${1:str}\")", "doc": "Returns the index of the first occurrence of the specified substring." },
+            { "label": "lastIndexOf(str)", "insertText": "lastIndexOf(\"${1:str}\")", "doc": "Returns the index of the last occurrence of the specified substring." },
+            { "label": "startsWith(str)", "insertText": "startsWith(\"${1:str}\")", "doc": "Checks if the string starts with the specified substring." },
+            { "label": "endsWith(str)", "insertText": "endsWith(\"${1:str}\")", "doc": "Checks if the string ends with the specified substring." },
+            { "label": "replaceAll(old, new)", "insertText": "replaceAll(\"${1:old}\", \"${2:new}\")", "doc": "Replaces all occurrences of a substring with another." },
+            { "label": "toList(sep)", "insertText": "toList(\"${1:,}\")", "doc": "Splits the string into a list based on the separator." },
+            { "label": "toNumber()", "insertText": "toNumber()", "doc": "Converts the string to a number." },
+            { "label": "toDecimal()", "insertText": "toDecimal()", "doc": "Converts the string to a decimal." },
+            { "label": "toDate()", "insertText": "toDate()", "doc": "Converts the string to a date." },
+            { "label": "toDateTime()", "insertText": "toDateTime()", "doc": "Converts the string to a date-time." },
+            { "label": "toString()", "insertText": "toString()", "doc": "Converts the value to a string." },
+            { "label": "proper()", "insertText": "proper()", "doc": "Converts the string to proper case (first letter of each word capitalized)." },
+            { "label": "left(n)", "insertText": "left(${1:n})", "doc": "Returns the first n characters of the string." },
+            { "label": "right(n)", "insertText": "right(${1:n})", "doc": "Returns the last n characters of the string." },
+            { "label": "mid(start, n)", "insertText": "mid(${1:start}, ${2:n})", "doc": "Returns n characters starting from the start index." },
+            { "label": "leftpad(n)", "insertText": "leftpad(${1:n})", "doc": "Pads the string on the left to length n." },
+            { "label": "rightpad(n)", "insertText": "rightpad(${1:n})", "doc": "Pads the string on the right to length n." },
+            { "label": "reverse()", "insertText": "reverse()", "doc": "Reverses the string." }
+        ],
+        "list": [
+            { "label": "add(val)", "insertText": "add(${1:val})", "doc": "Adds an element to the list." },
+            { "label": "addAll(otherList)", "insertText": "addAll(${1:otherList})", "doc": "Adds all elements from another list." },
+            { "label": "get(index)", "insertText": "get(${1:index})", "doc": "Returns the element at the specified index." },
+            { "label": "size()", "insertText": "size()", "doc": "Returns the number of elements in the list." },
+            { "label": "isEmpty()", "insertText": "isEmpty()", "doc": "Checks if the list is empty." },
+            { "label": "contains(val)", "insertText": "contains(${1:val})", "doc": "Checks if the list contains the specified value." },
+            { "label": "remove(index)", "insertText": "remove(${1:index})", "doc": "Removes the element at the specified index." },
+            { "label": "clear()", "insertText": "clear()", "doc": "Removes all elements from the list." },
+            { "label": "sort(asc)", "insertText": "sort(${1:true})", "doc": "Sorts the list in ascending or descending order." },
+            { "label": "distinct()", "insertText": "distinct()", "doc": "Returns a new list with unique elements." },
+            { "label": "intersect(otherList)", "insertText": "intersect(${1:otherList})", "doc": "Returns the intersection of two lists." },
+            { "label": "subList(start, end)", "insertText": "subList(${1:start}, ${2:end})", "doc": "Returns a sublist from start index to end index." }
+        ],
+        "map": [
+            { "label": "put(key, val)", "insertText": "put(\"${1:key}\", ${2:val})", "doc": "Adds a key-value pair to the map." },
+            { "label": "putAll(otherMap)", "insertText": "putAll(${1:otherMap})", "doc": "Adds all entries from another map." },
+            { "label": "get(key)", "insertText": "get(\"${1:key}\")", "doc": "Returns the value associated with the specified key." },
+            { "label": "getJSON(key)", "insertText": "getJSON(\"${1:key}\")", "doc": "Returns the value as a JSON object." },
+            { "label": "keys()", "insertText": "keys()", "doc": "Returns a list of keys in the map." },
+            { "label": "remove(key)", "insertText": "remove(\"${1:key}\")", "doc": "Removes the entry for the specified key." },
+            { "label": "size()", "insertText": "size()", "doc": "Returns the number of entries in the map." },
+            { "label": "isEmpty()", "insertText": "isEmpty()", "doc": "Checks if the map is empty." },
+            { "label": "containsKey(key)", "insertText": "containsKey(\"${1:key}\")", "doc": "Checks if the map contains the specified key." },
+            { "label": "containsValue(val)", "insertText": "containsValue(${1:val})", "doc": "Checks if the map contains the specified value." },
+            { "label": "clear()", "insertText": "clear()", "doc": "Removes all entries from the map." }
+        ],
+        "int": [
+            { "label": "abs()", "insertText": "abs()", "doc": "Returns the absolute value." },
+            { "label": "toDecimal()", "insertText": "toDecimal()", "doc": "Converts to a decimal." },
+            { "label": "toString()", "insertText": "toString()", "doc": "Converts to a string." },
+            { "label": "toHex()", "insertText": "toHex()", "doc": "Converts to a hexadecimal string." }
+        ],
+        "decimal": [
+            { "label": "abs()", "insertText": "abs()", "doc": "Returns the absolute value." },
+            { "label": "round(precision)", "insertText": "round(${1:2})", "doc": "Rounds to the specified number of decimal places." },
+            { "label": "ceil()", "insertText": "ceil()", "doc": "Returns the smallest integer greater than or equal to the number." },
+            { "label": "floor()", "insertText": "floor()", "doc": "Returns the largest integer less than or equal to the number." },
+            { "label": "toLong()", "insertText": "toLong()", "doc": "Converts to a long integer." },
+            { "label": "toString()", "insertText": "toString()", "doc": "Converts to a string." }
+        ],
+        "date": [
+            { "label": "addDay(n)", "insertText": "addDay(${1:1})", "doc": "Adds n days to the date." },
+            { "label": "subDay(n)", "insertText": "subDay(${1:1})", "doc": "Subtracts n days from the date." },
+            { "label": "addMonth(n)", "insertText": "addMonth(${1:1})", "doc": "Adds n months to the date." },
+            { "label": "addYear(n)", "insertText": "addYear(${1:1})", "doc": "Adds n years to the date." },
+            { "label": "getDay()", "insertText": "getDay()", "doc": "Returns the day of the month." },
+            { "label": "getMonth()", "insertText": "getMonth()", "doc": "Returns the month (1-12)." },
+            { "label": "getYear()", "insertText": "getYear()", "doc": "Returns the year." },
+            { "label": "toString(format)", "insertText": "toString(\"${1:dd-MMM-yyyy}\")", "doc": "Converts to a string with the specified format." },
+            { "label": "toDateTime()", "insertText": "toDateTime()", "doc": "Converts to a date-time." }
+        ],
+        "datetime": [
+            { "label": "addHour(n)", "insertText": "addHour(${1:1})", "doc": "Adds n hours to the date-time." },
+            { "label": "addMinutes(n)", "insertText": "addMinutes(${1:1})", "doc": "Adds n minutes to the date-time." },
+            { "label": "addSeconds(n)", "insertText": "addSeconds(${1:1})", "doc": "Adds n seconds to the date-time." },
+            { "label": "getHour()", "insertText": "getHour()", "doc": "Returns the hour of the day." },
+            { "label": "getMinutes()", "insertText": "getMinutes()", "doc": "Returns the minutes." },
+            { "label": "getSeconds()", "insertText": "getSeconds()", "doc": "Returns the seconds." },
+            { "label": "toString(format)", "insertText": "toString(\"${1:dd-MMM-yyyy HH:mm:ss}\")", "doc": "Converts to a string with the specified format." }
+        ],
+        "common": [
+            { "label": "isNull()", "insertText": "isNull()", "doc": "Checks if the value is null." },
+            { "label": "toString()", "insertText": "toString()", "doc": "Converts the value to a string." }
+        ],
+        "zoho": [
+            { "label": "zoho.crm.getRecordById(module, id)", "insertText": "crm.getRecordById(\"${1:Leads}\", ${2:id})" },
+            { "label": "zoho.crm.updateRecord(module, id, map)", "insertText": "crm.updateRecord(\"${1:Leads}\", ${2:id}, ${3:dataMap})" },
+            { "label": "zoho.crm.createRecord(module, map)", "insertText": "crm.createRecord(\"${1:Leads}\", ${2:dataMap})" },
+            { "label": "zoho.crm.searchRecords(module, criteria)", "insertText": "crm.searchRecords(\"${1:Leads}\", \"(${2:Email} == '${3:test@example.com}')\")" },
+            { "label": "zoho.books.getRecords(module, orgId)", "insertText": "books.getRecords(\"${1:Invoices}\", \"${2:organization_id}\")" },
+            { "label": "zoho.books.createRecord(module, orgId, map)", "insertText": "books.createRecord(\"${1:Invoices}\", \"${2:organization_id}\", ${3:dataMap})" },
+            { "label": "zoho.recruit.getRecordById(module, id)", "insertText": "recruit.getRecordById(\"${1:Candidates}\", ${2:id})" },
+            { "label": "zoho.recruit.updateRecord(module, id, map)", "insertText": "recruit.updateRecord(\"${1:Candidates}\", ${2:id}, ${3:dataMap})" }
+        ],
+        "crm": [
+            { "label": "getRecordById(module, id)", "insertText": "getRecordById(\"${1:Leads}\", ${2:id})" },
+            { "label": "getRecords(module, page, per_page)", "insertText": "getRecords(\"${1:Leads}\", ${2:1}, ${3:20})" },
+            { "label": "searchRecords(module, criteria)", "insertText": "searchRecords(\"${1:Leads}\", \"(${2:Email} == '${3:test@example.com}')\")" },
+            { "label": "createRecord(module, map)", "insertText": "createRecord(\"${1:Leads}\", ${2:dataMap})" },
+            { "label": "updateRecord(module, id, map)", "insertText": "updateRecord(\"${1:Leads}\", ${2:id}, ${3:dataMap})" },
+            { "label": "getRelatedRecords(relation, module, id)", "insertText": "getRelatedRecords(\"${1:Relation}\", \"${2:Leads}\", ${3:id})" }
+        ],
+        "books": [
+            { "label": "getRecords(module, orgId)", "insertText": "getRecords(\"${1:Invoices}\", \"${2:organization_id}\")" },
+            { "label": "createRecord(module, orgId, map)", "insertText": "createRecord(\"${1:Invoices}\", \"${2:organization_id}\", ${3:dataMap})" }
+        ],
+        "creator": [
+            { "label": "uploadFile(file, owner, app, form, id, field)", "insertText": "uploadFile(${1:file_var}, \"${2:Owner}\", \"${3:App}\", \"${4:Form}\", ${5:id}, \"${6:Field}\")" },
+            { "label": "getRecords(owner, app, report, criteria, page, size, conn)", "insertText": "getRecords(\"${1:Owner}\", \"${2:App}\", \"${3:Report}\", \"${4:Criteria}\", ${5:1}, ${6:100}, \"${7:Connection}\")" }
+        ],
+        "recruit": [
+            { "label": "getRecords(module, page, per_page)", "insertText": "getRecords(\"${1:Candidates}\", ${2:1}, ${3:20})" },
+            { "label": "getRecordById(module, id)", "insertText": "getRecordById(\"${1:Candidates}\", ${2:id})" },
+            { "label": "updateRecord(module, id, map)", "insertText": "updateRecord(\"${1:Candidates}\", ${2:id}, ${3:dataMap})" }
+        ]
+    }
+}
