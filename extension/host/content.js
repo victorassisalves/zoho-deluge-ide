@@ -70,17 +70,17 @@
                     const data = event.detail;
                     if (data && data.eventId === eventId) {
                         console.debug('[ZohoIDE] [Bridge] -> [Host]', data);
-                        window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+                        document.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
                         resolve(data.response);
                     }
                 };
 
-                window.addEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
-                window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', { detail }));
+                document.addEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+                document.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', { detail }));
 
                 // Timeout
                 setTimeout(() => {
-                    window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+                    document.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
                     console.warn('[ZohoIDE] Bridge Timeout for:', action);
                     resolve({ error: 'Bridge Timeout' });
                 }, 5000);

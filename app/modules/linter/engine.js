@@ -3,6 +3,7 @@ import diagnostics from '../../services/diagnostics.js';
 class LinterEngine {
     constructor() {
         this.rules = [];
+        this.debounceTimer = null;
     }
 
     registerRule(rule) {
@@ -17,7 +18,7 @@ class LinterEngine {
             markers: []
         };
         this.rules.forEach(rule => {
-            try { rule.validate(context); } catch (e) {}
+            try { rule.validate(context); } catch (e) { console.error(e); }
         });
         return context.markers;
     }
@@ -32,12 +33,18 @@ export const setupLinter = (monaco) => {
     const validate = (model) => {
         const markers = engine.validate(model);
         monaco.editor.setModelMarkers(model, 'deluge', markers);
+        if (window.syncProblemsPanel) window.syncProblemsPanel();
     };
 
     monaco.editor.onDidCreateModel(model => {
         if (model.getLanguageId() === 'deluge') {
             validate(model);
-            model.onDidChangeContent(() => validate(model));
+            model.onDidChangeContent(() => {
+                if (engine.debounceTimer) clearTimeout(engine.debounceTimer);
+                engine.debounceTimer = setTimeout(() => {
+                    validate(model);
+                }, 300);
+            });
         }
     });
 

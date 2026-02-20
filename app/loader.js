@@ -52,10 +52,7 @@ require(['vs/editor/editor.main'], async function() {
         console.log('[ZohoIDE] Firebase initialized.');
 
         // Main Logic
-        await loadScript('../src/main.js', true);
-
-        // Core / Utils
-        await loadScript('../deluge-lang.js');
+        await loadScript('main.js', true);
 
         // Modules
         await loadScript('modules/snippets/snippet-manager.js');
