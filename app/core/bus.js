@@ -54,7 +54,23 @@ export const Bus = {
                 // We flatten the payload into the message for runtime compatibility if needed,
                 // or keep it structured. Existing content script expects { action, ... }
                 // So we map 'type' to 'action'.
-                chrome.runtime.sendMessage({ action: type, ...payload });
+                chrome.runtime.sendMessage({ action: type, ...payload }, (response) => {
+                    // For Standalone mode, we need to bridge the callback to the event system
+                    // if the response is relevant (e.g. Pull code)
+                    if (response && type === 'editor:pull') {
+                         // Simulate receiving a response message
+                         const responseType = type + ':response';
+                         Logger.debug(`[Bus] Received (Standalone Callback): ${responseType}`);
+                         // Dispatch event so listeners can pick it up
+                         // Bus.listen uses window.addEventListener('message') or runtime.onMessage
+                         // Ideally we should just call the listener directly?
+                         // No, listeners are registered via Bus.listen.
+                         // But Bus.listen for standalone listens to runtime.onMessage.
+                         // The callback is distinct.
+                         // We can postMessage to self to trigger the window listener?
+                         window.postMessage({ type: responseType, payload: response }, '*');
+                    }
+                });
             } else {
                 console.warn('[Bus] Failed to send message in standalone mode: API unavailable', type);
             }
