@@ -1,4 +1,4 @@
-export const keywords = {
+{
     "staticSuggestions": [
         { "label": "Map()", "kind": 2, "insertText": "Map()" },
         { "label": "List()", "kind": 2, "insertText": "List()" },
@@ -139,5 +139,4 @@ export const keywords = {
             { "label": "getRecordById(module, id)", "insertText": "getRecordById(\"${1:Candidates}\", ${2:id})" },
             { "label": "updateRecord(module, id, map)", "insertText": "updateRecord(\"${1:Candidates}\", ${2:id}, ${3:dataMap})" }
         ]
-};
-export default keywords;
+}

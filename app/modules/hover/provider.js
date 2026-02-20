@@ -1,5 +1,5 @@
 import { inferVarType } from '../analysis.js';
-import { keywords } from '../autocomplete/data/keywords.js';
+import keywords from '../autocomplete/data/keywords.json' with { type: 'json' };
 
 const { typeMethods } = keywords;
 
