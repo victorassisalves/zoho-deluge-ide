@@ -1,7 +1,16 @@
-import staticSuggestions from '../data/keywords.json' with { type: 'json' };
+let staticSuggestions = [];
 
 export default {
     name: 'KeywordProvider',
+    init: async () => {
+        try {
+            const url = chrome.runtime.getURL('app/modules/autocomplete/data/keywords.json');
+            const response = await fetch(url);
+            staticSuggestions = await response.json();
+        } catch (e) {
+            console.error('Failed to load keywords.json', e);
+        }
+    },
     provide: async (model, position, context) => {
         if (context.lineUntilPos.includes('.')) return [];
 

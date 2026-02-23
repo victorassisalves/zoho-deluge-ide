@@ -32,7 +32,7 @@ async function initEditor() {
     const container = document.getElementById('editor-container');
     if (!container) return;
     await registerDelugeLanguage(monaco);
-    initAutocomplete(monaco);
+    await initAutocomplete(monaco);
     setupLinter(monaco);
     registerHoverProvider(monaco);
     registerCodeActionProvider(monaco);

@@ -96,7 +96,7 @@
         "app/*",
         "app/core/*",
         "app/services/*",
-        "app/modules/*",
+        "app/modules/*", "app/modules/autocomplete/data/*",
         "shared/*",
         "extension/host/*",
         "src/*",

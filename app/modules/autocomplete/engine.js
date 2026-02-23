@@ -5,7 +5,7 @@ export const setupAutocomplete = (monaco) => {
     diagnostics.report('AutocompleteEngine', 'initializing');
 
     monaco.languages.registerCompletionItemProvider('deluge', {
-        triggerCharacters: ['.', '"', ':'],
+        triggerCharacters: ['.', '"', ':', '/'],
         provideCompletionItems: async (model, position) => {
             const word = model.getWordUntilPosition(position);
             const range = {
