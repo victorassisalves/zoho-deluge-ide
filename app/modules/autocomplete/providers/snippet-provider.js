@@ -31,27 +31,9 @@ export default {
                         insertText: s.code,
                         insertTextRules: 4, // InsertAsSnippet
                         range: targetRange,
-                        sortText: '00' + s.trigger // Prioritize snippets starting with /
+                        filterText: '/' + s.trigger + ' ' + s.trigger, // Allow matching with or without slash
+                        sortText: '00' + s.trigger
                     }));
-
-                    // Also add version without slash for searching
-                    // Only if NOT triggered by slash explicitly, or keep both?
-                    // If triggered by slash, we want the slash version to match.
-                    // If we add non-slash version and range covers slash, then typing /trigger matches trigger?
-                    // If range covers slash: "trigger" replaces "/trigger". Correct.
-
-                    snippets.forEach(s => {
-                        suggestions.push({
-                            label: s.trigger,
-                            kind: 27,
-                            detail: s.name,
-                            documentation: s.comments || s.code,
-                            insertText: s.code,
-                            insertTextRules: 4,
-                            range: targetRange,
-                            sortText: '01' + s.trigger
-                        });
-                    });
 
                     resolve(suggestions);
                 });

@@ -1,4 +1,6 @@
 export function extractVariables(code) {
+    if (!code) return {};
+
     // Robustly remove comments while preserving strings (to avoid strings with // breaking things)
     const cleanCode = code.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\/\*[\s\S]*?\*\/|\/\/.*/g, (match, group1) => {
         if (group1) return group1; // Keep the string
@@ -16,7 +18,7 @@ export function extractVariables(code) {
     };
 
     // 0. Interface Mappings
-    if (window.interfaceMappings) {
+    if (typeof window !== 'undefined' && window.interfaceMappings) {
         for (const name in window.interfaceMappings) {
             varMap[name] = { type: 'Map', mapping: name, path: [] };
         }
@@ -55,11 +57,13 @@ export function extractVariables(code) {
                     const key = k.match(/['"]([^'"]+)['"]/)[1];
                     literalMapping[key] = "Object";
                 });
-                if (!window.interfaceMappings) window.interfaceMappings = {};
-                const mappingName = `_literal_${name}`;
-                window.interfaceMappings[mappingName] = literalMapping;
-                varMap[name].mapping = mappingName;
-                varMap[name].path = [];
+                if (typeof window !== 'undefined') {
+                    if (!window.interfaceMappings) window.interfaceMappings = {};
+                    const mappingName = `_literal_${name}`;
+                    window.interfaceMappings[mappingName] = literalMapping;
+                    varMap[name].mapping = mappingName;
+                    varMap[name].path = [];
+                }
             }
         }
 
@@ -68,9 +72,9 @@ export function extractVariables(code) {
         if (getMatch) {
             const sourceVar = getMatch[1];
             const pathStr = getMatch[2];
-            const sourceInfo = varMap[sourceVar] || (window.interfaceMappings && window.interfaceMappings[sourceVar] ? { mapping: sourceVar, path: [] } : null);
+            const sourceInfo = varMap[sourceVar] || (typeof window !== 'undefined' && window.interfaceMappings && window.interfaceMappings[sourceVar] ? { mapping: sourceVar, path: [] } : null);
 
-            if (sourceInfo && (sourceInfo.mapping || (window.interfaceMappings && window.interfaceMappings[sourceVar]))) {
+            if (sourceInfo && (sourceInfo.mapping || (typeof window !== 'undefined' && window.interfaceMappings && window.interfaceMappings[sourceVar]))) {
                 const mappingName = sourceInfo.mapping || sourceVar;
                 const newPath = [...(sourceInfo.path || [])];
                 const pathParts = pathStr.match(/\s*\.\s*get(?:JSON)?\s*\(\s*(?:['"]([^'"]*)['"]|(\d+))\s*\)/g) || [];
@@ -82,10 +86,15 @@ export function extractVariables(code) {
                     }
                 }
                 varMap[name] = { type: 'Map', mapping: mappingName, path: newPath };
+            } else {
+                 varMap[name] = { type: 'Object' };
             }
         } else if (varMap[val]) {
             // Direct assignment: v2 = v1
             varMap[name] = { ...varMap[val] };
+        } else {
+            // Fallback for complex expressions or unhandled assignments (fixes undefined variable error)
+            varMap[name] = { type: 'Object' };
         }
     }
 
