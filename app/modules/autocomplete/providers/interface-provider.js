@@ -1,4 +1,4 @@
-import { extractVariables } from '../utils.js';
+import { extractVariables } from '../../analysis.js';
 
 export default {
     name: 'InterfaceProvider',
