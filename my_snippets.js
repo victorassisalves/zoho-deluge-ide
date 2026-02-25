@@ -44,6 +44,7 @@
         if (typeof chrome !== 'undefined' && chrome.storage) {
             chrome.storage.local.get(['my_snippets'], (result) => {
                 mySnippets = result.my_snippets || [];
+                cleanDuplicates();
                 finalizeLoad();
             });
         } else {
@@ -51,8 +52,36 @@
             try {
                 const data = localStorage.getItem('my_snippets');
                 mySnippets = data ? JSON.parse(data) : [];
+                cleanDuplicates();
             } catch (e) { mySnippets = []; }
             finalizeLoad();
+        }
+    }
+
+    function cleanDuplicates() {
+        const uniqueSnippets = [];
+        const seenIds = new Set();
+        const seenSignatures = new Set();
+        let hasDuplicates = false;
+
+        mySnippets.forEach(s => {
+            const signature = (s.trigger || '') + '::' + (s.code || '') + '::' + (s.name || '');
+            if (s.id && seenIds.has(s.id)) {
+                hasDuplicates = true;
+                return;
+            }
+            if (seenSignatures.has(signature)) {
+                hasDuplicates = true;
+                return;
+            }
+            if (s.id) seenIds.add(s.id);
+            seenSignatures.add(signature);
+            uniqueSnippets.push(s);
+        });
+
+        if (hasDuplicates) {
+            mySnippets = uniqueSnippets;
+            saveSnippets();
         }
     }
 
@@ -255,12 +284,31 @@
                                 return;
                             }
                             if (confirm(`Import ${validSnippets.length} snippets? This will merge with your existing snippets.`)) {
+                                let addedCount = 0;
+                                const seenSignatures = new Set(mySnippets.map(s => (s.trigger || '') + '::' + (s.code || '') + '::' + (s.name || '')));
+                                const seenIds = new Set(mySnippets.map(s => s.id).filter(id => !!id));
+
                                 validSnippets.forEach(s => {
+                                    const signature = (s.trigger || '') + '::' + (s.code || '') + '::' + (s.name || '');
+
+                                    // Skip if exact duplicate exists
+                                    if (seenSignatures.has(signature)) return;
+                                    if (s.id && seenIds.has(s.id)) return;
+
                                     if (!s.id) s.id = Date.now() + Math.random().toString(36).substr(2, 9);
+
                                     mySnippets.push(s);
+                                    seenSignatures.add(signature);
+                                    if (s.id) seenIds.add(s.id);
+                                    addedCount++;
                                 });
-                                saveSnippets();
-                                alert('Snippets imported successfully.');
+
+                                if (addedCount > 0) {
+                                    saveSnippets();
+                                    alert(`Imported ${addedCount} new snippets.`);
+                                } else {
+                                    alert('All snippets already exist.');
+                                }
                             }
                         } else {
                             alert('Invalid snippets file format.');
