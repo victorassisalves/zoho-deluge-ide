@@ -55,7 +55,6 @@ require(['vs/editor/editor.main'], async function() {
         await loadScript('../src/main.js', true);
 
         // Core / Utils
-        await loadScript('../deluge-lang.js');
 
         // Modules
         await loadScript('modules/snippets/snippet-manager.js');

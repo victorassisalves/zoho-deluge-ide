@@ -2,6 +2,11 @@
 import { Bus } from './bus.js';
 import { ZohoRunner } from '../services/zoho-runner.js';
 import { MSG } from '../../shared/protocol.js';
+import { registerDelugeLanguage } from "../modules/grammar/tokenizer.js";
+import { initAutocomplete } from "../modules/autocomplete/index.js";
+import { setupLinter } from "../modules/linter/engine.js";
+import { registerHoverProvider } from "../modules/hover/provider.js";
+import { registerCodeActionProvider } from "../modules/code-actions/provider.js";
 import { Logger } from '../utils/logger.js';
 
 var zideProjectUrl = null;
@@ -21,15 +26,17 @@ var currentResearchReport = "";
 var researchPollingInterval = null;
 var lastActionTime = 0;
 
-function initEditor() {
+async function initEditor() {
     if (editor) return;
 
     const container = document.getElementById('editor-container');
     if (!container) return;
+    await registerDelugeLanguage(monaco);
+    await initAutocomplete(monaco);
+    setupLinter(monaco);
+    registerHoverProvider(monaco);
+    registerCodeActionProvider(monaco);
 
-    if (typeof registerDelugeLanguage === 'function') {
-        registerDelugeLanguage();
-    }
 
     // Subscribe to Logger events
     Logger.subscribe((type, msg) => {

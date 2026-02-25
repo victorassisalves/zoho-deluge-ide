@@ -1,4 +1,4 @@
-import diagnostics from '../../services/diagnostics.js';
+import diagnostics from '../../../src/services/diagnostics.js';
 
 class AutocompleteRegistry {
     constructor() {
