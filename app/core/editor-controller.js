@@ -833,6 +833,34 @@ function saveCurrentMappings() {
     }
 }
 
+async function copyToClipboard(text) {
+    try {
+        if (navigator.clipboard) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
+    } catch (err) {
+        console.error("Clipboard write failed:", err);
+    }
+
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+        const successful = document.execCommand("copy");
+        document.body.removeChild(textArea);
+        return successful;
+    } catch (err) {
+        console.error("Fallback copy failed:", err);
+        document.body.removeChild(textArea);
+        return false;
+    }
+}
+
 function updateInterfaceMappingsList() {
     const list = document.getElementById('interface-mappings-list');
     const countEl = document.getElementById('mapping-count');
@@ -870,26 +898,24 @@ function updateInterfaceMappingsList() {
         copyAllBtn.className = 'material-icons';
         copyAllBtn.innerHTML = 'content_copy';
         copyAllBtn.title = 'Copy as Deluge Map';
-        copyAllBtn.onclick = (e) => {
+        copyAllBtn.onclick = async (e) => {
             e.stopPropagation();
             const code = convertInterfaceToDeluge(name, JSON.stringify(interfaceMappings[name]));
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(code);
-                showStatus('Map code copied to clipboard', 'success');
-            }
+            const success = await copyToClipboard(code);
+            if (success) showStatus('Map code copied to clipboard', 'success');
+            else showStatus('Failed to copy to clipboard', 'error');
         };
 
         const copyJsonBtn = document.createElement('span');
         copyJsonBtn.className = 'material-icons';
         copyJsonBtn.innerHTML = 'data_object';
         copyJsonBtn.title = 'Copy as Raw JSON';
-        copyJsonBtn.onclick = (e) => {
+        copyJsonBtn.onclick = async (e) => {
             e.stopPropagation();
             const json = JSON.stringify(interfaceMappings[name], null, 2);
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(json);
-                showStatus('Raw JSON copied to clipboard', 'success');
-            }
+            const success = await copyToClipboard(json);
+            if (success) showStatus('Raw JSON copied to clipboard', 'success');
+            else showStatus('Failed to copy to clipboard', 'error');
         };
 
         const deleteBtn = document.createElement('span');
@@ -1033,13 +1059,12 @@ function renderInterfaceTree(mappingName, obj) {
                 copyJsonBtn.className = 'tree-action-btn';
                 copyJsonBtn.innerText = 'JSON';
                 copyJsonBtn.title = 'Copy as Raw JSON to clipboard';
-                copyJsonBtn.onclick = (e) => {
+                copyJsonBtn.onclick = async (e) => {
                     e.stopPropagation();
                     const json = JSON.stringify(val, null, 2);
-                    if (navigator.clipboard) {
-                        navigator.clipboard.writeText(json);
-                        showStatus('Node JSON copied to clipboard', 'success');
-                    }
+                    const success = await copyToClipboard(json);
+                    if (success) showStatus('Node JSON copied to clipboard', 'success');
+                    else showStatus('Failed to copy to clipboard', 'error');
                 };
 
                 const copyMapBtn = document.createElement('button');
