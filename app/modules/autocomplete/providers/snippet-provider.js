@@ -23,17 +23,26 @@ export default {
             if (typeof chrome !== 'undefined' && chrome.storage) {
                 chrome.storage.local.get('my_snippets', (result) => {
                     const snippets = result.my_snippets || [];
-                    const suggestions = snippets.map(s => ({
-                        label: '/' + s.trigger,
-                        kind: 27, // Snippet
-                        detail: s.name,
-                        documentation: s.comments || s.code,
-                        insertText: s.code,
-                        insertTextRules: 4, // InsertAsSnippet
-                        range: targetRange,
-                        filterText: '/' + s.trigger + ' ' + s.trigger, // Allow matching with or without slash
-                        sortText: '00' + s.trigger
-                    }));
+                    const suggestions = [];
+                    const seenSignatures = new Set();
+
+                    snippets.forEach(s => {
+                        const signature = (s.trigger || '') + '::' + (s.code || '') + '::' + (s.name || '');
+                        if (seenSignatures.has(signature)) return;
+                        seenSignatures.add(signature);
+
+                        suggestions.push({
+                            label: '/' + s.trigger,
+                            kind: 27, // Snippet
+                            detail: s.name,
+                            documentation: s.comments || s.code,
+                            insertText: s.code,
+                            insertTextRules: 4, // InsertAsSnippet
+                            range: targetRange,
+                            filterText: '/' + s.trigger + ' ' + s.trigger, // Allow matching with or without slash
+                            sortText: '00' + s.trigger
+                        });
+                    });
 
                     resolve(suggestions);
                 });
