@@ -27,7 +27,8 @@
         if (document.getElementById('zoho-deluge-bridge-modular')) return;
         const s = document.createElement('script');
         s.id = 'zoho-deluge-bridge-modular';
-        s.src = chrome.runtime.getURL('extension/host/bridge/main.js'); s.type = 'module';
+        s.src = chrome.runtime.getURL('extension/host/bridge/main.js');
+        s.type = 'module';
         const target = document.head || document.documentElement;
         if (target) {
             target.appendChild(s);
@@ -64,18 +65,19 @@
                 const eventId = Math.random().toString(36).substring(2);
                 const detail = { eventId, action, ...payload };
 
-                console.debug('[ZohoIDE] [Host] -> [Bridge]', detail);
+                // console.debug('[ZohoIDE] [Host] -> [Bridge]', detail);
 
                 const responseHandler = (event) => {
                     const data = event.detail;
                     if (data && data.eventId === eventId) {
-                        console.debug('[ZohoIDE] [Bridge] -> [Host]', data);
+                        // console.debug('[ZohoIDE] [Bridge] -> [Host]', data);
                         window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
                         resolve(data.response);
                     }
                 };
 
                 window.addEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+                // Dispatch on window to match Bridge listener
                 window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', { detail }));
 
                 // Timeout
