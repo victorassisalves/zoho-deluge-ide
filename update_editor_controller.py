@@ -1,4 +1,6 @@
+import os
 
+content = r"""
 import { Bus } from './bus.js';
 import { ZohoRunner } from '../services/zoho-runner.js';
 import { MSG } from '../../shared/protocol.js';
@@ -1568,3 +1570,9 @@ window.addEventListener('mouseup', () => {
     document.body.style.userSelect = 'auto';
     document.body.classList.remove('resizing');
 });
+"""
+
+with open('app/core/editor-controller.js', 'w') as f:
+    f.write(content)
+
+print("Successfully wrote app/core/editor-controller.js")

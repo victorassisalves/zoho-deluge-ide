@@ -98,7 +98,7 @@
         "app/services/*",
         "app/modules/*", "app/modules/autocomplete/data/*",
         "shared/*",
-        "extension/host/*",
+        "extension/host/*", "extension/host/bridge/*", "extension/host/bridge/products/*", "extension/host/bridge/actions/*",
         "src/*",
         "assets/*",
         "bridge.js",

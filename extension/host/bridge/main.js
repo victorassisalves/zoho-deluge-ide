@@ -1,4 +1,4 @@
-import { getZohoProduct } from './detectors.js';
+import { getZohoProduct, getContext } from './detectors.js';
 import { getEditorCode } from './scrapers.js';
 import { setEditorCode, clickByText, clickBySelectors } from './actions/base-actions.js';
 
@@ -38,7 +38,8 @@ window.addEventListener('message', (e) => {
     if (msg && (msg.source === 'EXTENSION' || msg._zide_msg_) && msg.source !== 'PAGE') {
         let resp = {};
         if (msg.action === 'PING') {
-            resp = { status: 'PONG', product: getZohoProduct() };
+            const context = getContext();
+            resp = { status: 'PONG', product: context.service, context: context };
         } else if (msg.action === 'GET_ZOHO_CODE') {
             resp = { code: getEditorCode() };
         } else if (msg.action === 'SET_ZOHO_CODE') {

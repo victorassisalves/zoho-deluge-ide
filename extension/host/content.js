@@ -27,7 +27,7 @@
         if (document.getElementById('zoho-deluge-bridge-modular')) return;
         const s = document.createElement('script');
         s.id = 'zoho-deluge-bridge-modular';
-        s.src = chrome.runtime.getURL('bridge.js');
+        s.src = chrome.runtime.getURL('extension/host/bridge/main.js'); s.type = 'module';
         const target = document.head || document.documentElement;
         if (target) {
             target.appendChild(s);
