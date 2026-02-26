@@ -39,6 +39,7 @@ export const ZohoRunner = {
      */
     pullFromZoho() {
         console.log('[ZohoRunner] Pulling code from Zoho...');
+        // We use the standard protocol message
         Bus.send(MSG.CODE_PULL);
     }
 };

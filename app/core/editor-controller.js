@@ -105,25 +105,40 @@ async function initEditor() {
 
         // Keyboard Shortcuts & Overrides
 
-        // Force override Command Palette (Cmd+Shift+P) for Pull
-        // We use a high priority context key or just addAction.
-        // Note: Monaco's default Command Palette is F1 or Cmd+Shift+P.
-        editor.addAction({
+        // 1. Standard Action (High Priority Context)
+        const pullAction = {
             id: 'zide-pull-zoho',
             label: 'Pull from Zoho',
             keybindings: [
-                monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP
+                monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP,
+                monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyL // Alternative: Ctrl+Shift+L
             ],
-            // A precondition that is always true but might help override default
             precondition: null,
             keybindingContext: null,
             contextMenuGroupId: 'navigation',
             contextMenuOrder: 1.5,
             run: () => {
-                console.log('[ZohoIDE] Shortcut Triggered: Pull from Zoho');
+                console.log('[ZohoIDE] Action Triggered: Pull from Zoho');
                 pullFromZoho();
             }
-        });
+        };
+        editor.addAction(pullAction);
+
+        // 2. Low-Level Command Override (Nuclear Option)
+        // This attempts to intercept the key before the action service processes it.
+        editor.addCommand(
+            monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP,
+            () => {
+                console.log('[ZohoIDE] Command Triggered: Pull from Zoho');
+                pullFromZoho();
+            }
+        );
+
+
+        // Force override Command Palette (Cmd+Shift+P) for Pull
+        // We use a high priority context key or just addAction.
+        // Note: Monaco's default Command Palette is F1 or Cmd+Shift+P.
+
 
         editor.addAction({
             id: 'zide-save-local',
