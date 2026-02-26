@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div id="zoho-deluge-bridge-modular"></div>
+<script>
+// Mock chrome.runtime
+window.chrome = {
+    runtime: {
+        getURL: (path) => path
+    }
+};
+
+// Mock Dependencies
+const mockCRMConfig = {
+    match: () => true,
+    getMeta: () => ({ service: 'test_crm', orgId: '123', functionName: 'test_func' })
+};
+
+// Simulate Bridge Loading (Simplified)
+// In real app, main.js is a module. Here we just mock the listener.
+window.addEventListener('ZOHO_IDE_FROM_EXT', (event) => {
+    console.log('[Bridge Mock] Received:', event.detail);
+    if (event.detail.action === 'PING') {
+        window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
+            detail: { eventId: event.detail.eventId, action: 'PING', response: { status: 'PONG' } }
+        }));
+    }
+});
+
+// Simulate Content Script Logic
+function testPing() {
+    return new Promise((resolve, reject) => {
+        const eventId = 'test_' + Date.now();
+        const handler = (e) => {
+            if (e.detail.eventId === eventId) {
+                console.log('[Content Mock] Received Response:', e.detail);
+                window.removeEventListener('ZOHO_IDE_FROM_PAGE', handler);
+                resolve(e.detail.response);
+            }
+        };
+        window.addEventListener('ZOHO_IDE_FROM_PAGE', handler);
+        console.log('[Content Mock] Sending PING...');
+        window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', {
+            detail: { action: 'PING', eventId }
+        }));
+
+        setTimeout(() => reject('Timeout'), 1000);
+    });
+}
+
+testPing().then(res => {
+    if(res.status === 'PONG') console.log('PASS: PING/PONG successful');
+    else console.error('FAIL: Invalid response', res);
+}).catch(err => console.error('FAIL:', err));
+
+</script>
+</body>
+</html>

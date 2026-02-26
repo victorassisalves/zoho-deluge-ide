@@ -66,11 +66,52 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let targetTabId = isSidePanel ? sender.tab.id : null;
 
     if (request.action === 'CHECK_CONNECTION') {
+        const verifyConnection = (tabId) => {
+            chrome.tabs.sendMessage(tabId, { action: 'PING' }, (response) => {
+                if (chrome.runtime.lastError || !response || response.status !== 'PONG') {
+                     // Try injecting content script if ping fails (maybe reload happened)
+                    chrome.scripting.executeScript({
+                        target: { tabId: tabId },
+                        files: ['extension/host/content.js']
+                    }).then(() => {
+                        // Retry Ping once
+                        setTimeout(() => {
+                            chrome.tabs.sendMessage(tabId, { action: 'PING' }, (retryRes) => {
+                                if (retryRes && retryRes.status === 'PONG') {
+                                    chrome.tabs.get(tabId, (tab) => {
+                                        sendResponse({
+                                            connected: true,
+                                            tabTitle: tab.title,
+                                            url: tab.url,
+                                            context: retryRes.context,
+                                            isStandalone: !isSidePanel
+                                        });
+                                    });
+                                } else {
+                                    sendResponse({ connected: false });
+                                }
+                            });
+                        }, 500); // Increased wait time for injection
+                    }).catch(() => sendResponse({ connected: false }));
+                } else {
+                    chrome.tabs.get(tabId, (tab) => {
+                        sendResponse({
+                            connected: true,
+                            tabTitle: tab.title,
+                            url: tab.url,
+                            context: response.context,
+                            isStandalone: !isSidePanel
+                        });
+                    });
+                }
+            });
+        };
+
         if (targetTabId) {
-            chrome.tabs.get(targetTabId, (tab) => sendResponse({ connected: true, tabTitle: tab.title, url: tab.url }));
+            verifyConnection(targetTabId);
         } else {
             findZohoTab((tab) => {
-                if (tab) sendResponse({ connected: true, tabTitle: tab.title, url: tab.url, isStandalone: true });
+                if (tab) verifyConnection(tab.id);
                 else sendResponse({ connected: false });
             });
         }
