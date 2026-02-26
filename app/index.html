@@ -6,6 +6,7 @@
     <title>Zoho Deluge Advanced IDE v2.0.0</title>
     <!-- CSS Paths Updated for app/ directory -->
     <link rel="stylesheet" href="../ide.css">
+    <link rel="stylesheet" href="modules/explorer/explorer.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" data-name="vs/editor/editor.main" href="../assets/monaco-editor/min/vs/editor/editor.main.css">
 </head>
@@ -39,8 +40,8 @@
                 <!-- Explorer View -->
                 <div id="view-explorer" class="view-content active">
                     <h4>Explorer</h4>
-                    <div id="saved-files-list">
-                        <div class="log-entry" style="font-size:11px; opacity:0.6;">No saved files yet.</div>
+                    <div id="saved-files-list" class="explorer-tree">
+                        <!-- File Explorer Rendered via JS -->
                     </div>
                 </div>
 

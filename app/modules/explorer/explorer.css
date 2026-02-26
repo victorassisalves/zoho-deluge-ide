@@ -1,0 +1,146 @@
+/* Explorer Tree Styles */
+.explorer-tree {
+    padding: 0 5px;
+    font-size: 11px;
+    color: #cccccc;
+    user-select: none;
+}
+
+.explorer-workspace {
+    margin-bottom: 2px;
+}
+
+.workspace-header {
+    display: flex;
+    align-items: center;
+    padding: 4px 6px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #888;
+    transition: background 0.1s;
+    border-radius: 3px;
+}
+
+.workspace-header:hover {
+    background: #37373d;
+    color: #eee;
+}
+
+.workspace-icon {
+    font-size: 14px;
+    margin-right: 6px;
+    color: #007acc;
+    transition: transform 0.2s;
+}
+
+.workspace-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.workspace-actions {
+    display: none;
+    align-items: center;
+    margin-left: auto;
+}
+
+.workspace-header:hover .workspace-actions {
+    display: flex;
+}
+
+.action-btn {
+    font-size: 14px;
+    color: #888;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.action-btn:hover {
+    color: #f44747;
+}
+
+/* Files List */
+.workspace-files {
+    padding-left: 16px; /* Indent files */
+    display: block;
+    margin-top: 1px;
+}
+
+.explorer-workspace.collapsed .workspace-files {
+    display: none;
+}
+
+.explorer-workspace.collapsed .workspace-icon {
+    transform: rotate(-90deg);
+}
+
+.explorer-file {
+    display: flex;
+    align-items: center;
+    padding: 3px 6px;
+    cursor: pointer;
+    border-radius: 3px;
+    margin-bottom: 1px;
+    transition: background 0.1s;
+    position: relative;
+    border-left: 3px solid transparent;
+}
+
+.explorer-file:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.explorer-file.active-file {
+    background-color: rgba(0, 122, 204, 0.2); /* Semi-transparent accent bg */
+    border-left-color: #007acc; /* Solid accent border */
+    color: #fff;
+}
+
+.file-icon {
+    font-size: 14px;
+    margin-right: 6px;
+    color: #569cd6; /* Blueish icon color */
+    opacity: 0.8;
+}
+
+.file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+}
+
+/* Dirty State */
+.dirty-mark {
+    color: #ffcc00; /* High-contrast yellow/gold */
+    font-weight: bold;
+    margin-left: 2px;
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+.explorer-file.is-dirty .file-name {
+    font-style: italic;
+    color: #e2c08d; /* Slightly different text color for dirty files */
+}
+
+/* Empty State within Workspace */
+.empty-workspace {
+    font-size: 10px;
+    color: #666;
+    padding: 4px 0;
+    font-style: italic;
+}
+
+/* Animations */
+.explorer-workspace, .explorer-file {
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-2px); }
+    to { opacity: 1; transform: translateY(0); }
+}
