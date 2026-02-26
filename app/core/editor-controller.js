@@ -102,37 +102,53 @@ async function initEditor() {
         setTimeout(() => { if (editor) editor.layout(); }, 500);
         setTimeout(() => { if (editor) editor.layout(); }, 2000);
 
+
         // Keyboard Shortcuts & Overrides
+
+        // Force override Command Palette (Cmd+Shift+P) for Pull
+        // We use a high priority context key or just addAction.
+        // Note: Monaco's default Command Palette is F1 or Cmd+Shift+P.
+        editor.addAction({
+            id: 'zide-pull-zoho',
+            label: 'Pull from Zoho',
+            keybindings: [
+                monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP
+            ],
+            // A precondition that is always true but might help override default
+            precondition: null,
+            keybindingContext: null,
+            contextMenuGroupId: 'navigation',
+            contextMenuOrder: 1.5,
+            run: () => {
+                console.log('[ZohoIDE] Shortcut Triggered: Pull from Zoho');
+                pullFromZoho();
+            }
+        });
+
         editor.addAction({
             id: 'zide-save-local',
             label: 'Save Locally (Dexie)',
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
             run: () => {
                 console.log('[ZohoIDE] Manual Save (Dexie)');
-                saveToDexie(false); // Clear dirty flag
+                saveToDexie(false);
             }
         });
+
         editor.addAction({
             id: 'zide-push-zoho',
             label: 'Push to Zoho',
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS],
             run: () => { pushToZoho(true); }
         });
+
         editor.addAction({
             id: 'zide-push-execute-zoho',
             label: 'Push and Execute',
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter],
             run: () => { pushToZoho(true, true); }
         });
-        editor.addAction({
-            id: 'zide-pull-zoho',
-            label: 'Pull from Zoho',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP],
-            run: () => {
-                console.log('[ZohoIDE] Shortcut: Pull from Zoho');
-                pullFromZoho();
-            }
-        });
+
 
         // Listen for Commands via Bus
         Bus.listen("CMD_SYNC_SAVE", () => {

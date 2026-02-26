@@ -91,7 +91,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                                     sendResponse({ connected: false });
                                 }
                             });
-                        }, 200);
+                        }, 500); // Increased wait time for injection
                     }).catch(() => sendResponse({ connected: false }));
                 } else {
                     chrome.tabs.get(tabId, (tab) => {
