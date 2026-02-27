@@ -1,4 +1,5 @@
 import { db } from '../../services/db.js';
+import { cleanupDuplicateDrafts } from './cleanup.js';
 
 /**
  * File Explorer Module
@@ -13,11 +14,15 @@ export class Explorer {
         this.init();
     }
 
-    init() {
+    async init() {
         if (!this.container) {
             console.warn(`[Explorer] Container #${this.containerId} not found.`);
             return;
         }
+
+        // Run cleanup on init
+        await cleanupDuplicateDrafts();
+
         // Initial load
         this.refresh();
     }
@@ -49,12 +54,42 @@ export class Explorer {
 
             // Distribute files
             const orphanFiles = [];
+
+            // DEDUPLICATION & VERSIONING LOGIC
+            // Group files by (Workspace + Normalized FileName)
+            // We want to show ONLY the latest version of each unique file name in a workspace.
+            const fileGroups = {};
+
             files.forEach(f => {
-                if (tree[f.workspaceId]) {
-                    tree[f.workspaceId].files.push(f);
+                const wsId = f.workspaceId || 'uncategorized';
+                // Normalize filename: remove extension for grouping, then add it back for display
+                // Also handle the "duplicate" issue by grouping duplicates together
+                let baseName = f.fileName;
+                if (baseName.endsWith('.dg')) baseName = baseName.slice(0, -3);
+
+                const key = `${wsId}::${baseName}`;
+
+                if (!fileGroups[key]) fileGroups[key] = [];
+                fileGroups[key].push(f);
+            });
+
+            // Now, for each group, pick the LATEST one to display
+            Object.values(fileGroups).forEach(group => {
+                // Sort by lastSaved desc
+                group.sort((a, b) => b.lastSaved - a.lastSaved);
+
+                // The first one is the latest
+                const latest = group[0];
+
+                // Add to tree
+                if (tree[latest.workspaceId]) {
+                    tree[latest.workspaceId].files.push(latest);
                 } else {
-                    if (!f.workspaceId) orphanFiles.push(f);
+                    orphanFiles.push(latest);
                 }
+
+                // TODO: Store 'group' (history) somewhere if we want to show it later
+                // latest._history = group.slice(1);
             });
 
             this.render(tree, orphanFiles);
@@ -124,6 +159,24 @@ export class Explorer {
         }
     }
 
+    formatWorkspaceName(name, id) {
+        if (!name) return 'Unknown Workspace';
+
+        // Clean up "creator.zoho.com_creator" -> "Zoho Creator"
+        if (name.includes('creator.zoho.com') || name.includes('_creator')) {
+            return 'Zoho Creator';
+        }
+        if (name.includes('crm.zoho.com') || id.includes('crm')) {
+            return 'Zoho CRM';
+        }
+        if (name.includes('books.zoho.com') || id.includes('books')) {
+            return 'Zoho Books';
+        }
+
+        // Replace underscores/dashes with spaces
+        return name.replace(/[_-]/g, ' ');
+    }
+
     createWorkspaceNode(wsData) {
         const wsDiv = document.createElement('div');
         wsDiv.className = 'explorer-workspace collapsed'; // Default collapsed
@@ -137,10 +190,12 @@ export class Explorer {
         icon.className = 'material-icons workspace-icon';
         icon.innerText = 'folder';
 
+        const displayName = this.formatWorkspaceName(wsData.info.name, wsData.info.id);
+
         const title = document.createElement('span');
         title.className = 'workspace-title';
-        title.innerText = wsData.info.name || wsData.info.service || 'Unknown';
-        title.title = wsData.info.id;
+        title.innerText = displayName;
+        title.title = wsData.info.id; // Tooltip shows full ID
 
         // Archive Action
         const actions = document.createElement('div');
@@ -214,9 +269,12 @@ export class Explorer {
         icon.className = 'material-icons file-icon';
         icon.innerText = 'description';
 
+        let displayName = file.fileName || 'Untitled';
+        if (!displayName.endsWith('.dg')) displayName += '.dg';
+
         const nameSpan = document.createElement('span');
         nameSpan.className = 'file-name';
-        nameSpan.innerText = file.fileName || 'Untitled';
+        nameSpan.innerText = displayName;
 
         if (file.isDirty) {
             fileDiv.classList.add('is-dirty');
