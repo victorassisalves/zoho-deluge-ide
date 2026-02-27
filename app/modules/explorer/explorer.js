@@ -9,6 +9,7 @@ export class Explorer {
         this.containerId = containerId;
         this.container = document.getElementById(containerId);
         this.activeFileId = null;
+        this.expandedWorkspaces = new Set(); // Store expanded state
         this.init();
     }
 
@@ -19,15 +20,15 @@ export class Explorer {
         }
         // Initial load
         this.refresh();
-
-        // Listen for DB changes if needed, but for now we rely on explicit refresh calls
-        // from the controller to avoid over-fetching.
     }
 
     async refresh() {
         if (!this.container) return;
 
         try {
+            // Save state before clearing
+            this.saveState();
+
             // Fetch all workspaces and files
             const workspaces = await db.workspaces.toArray();
             const files = await db.files.toArray();
@@ -52,15 +53,14 @@ export class Explorer {
                 if (tree[f.workspaceId]) {
                     tree[f.workspaceId].files.push(f);
                 } else {
-                    // Handle files whose workspace might be missing or archived (if we want to show them)
-                    // For now, if workspace is archived, we hide the file too.
-                    // If workspace is missing (orphan), we could show them in an "Uncategorized" folder.
-                    // Let's skip them for clean UI or check if we want to show "Uncategorized"
                     if (!f.workspaceId) orphanFiles.push(f);
                 }
             });
 
             this.render(tree, orphanFiles);
+
+            // Restore state after rendering
+            this.restoreState();
 
         } catch (e) {
             console.error('[Explorer] Refresh failed:', e);
@@ -68,10 +68,38 @@ export class Explorer {
         }
     }
 
+    saveState() {
+        const nodes = this.container.querySelectorAll('.explorer-workspace');
+        nodes.forEach(node => {
+            const wsId = node.dataset.wsId;
+            if (!node.classList.contains('collapsed')) {
+                this.expandedWorkspaces.add(wsId);
+            } else {
+                this.expandedWorkspaces.delete(wsId);
+            }
+        });
+    }
+
+    restoreState() {
+        const nodes = this.container.querySelectorAll('.explorer-workspace');
+        nodes.forEach(node => {
+            const wsId = node.dataset.wsId;
+            // Default to collapsed unless in expanded set
+            if (this.expandedWorkspaces.has(wsId)) {
+                node.classList.remove('collapsed');
+                const icon = node.querySelector('.workspace-icon');
+                if (icon) icon.innerText = 'folder_open';
+            } else {
+                node.classList.add('collapsed');
+                const icon = node.querySelector('.workspace-icon');
+                if (icon) icon.innerText = 'folder';
+            }
+        });
+    }
+
     render(tree, orphanFiles) {
         this.container.innerHTML = '';
         const sortedWorkspaceIds = Object.keys(tree).sort((a, b) => {
-            // Sort by last accessed desc, or name asc
             return tree[b].info.lastAccessed - tree[a].info.lastAccessed;
         });
 
@@ -98,7 +126,8 @@ export class Explorer {
 
     createWorkspaceNode(wsData) {
         const wsDiv = document.createElement('div');
-        wsDiv.className = 'explorer-workspace';
+        wsDiv.className = 'explorer-workspace collapsed'; // Default collapsed
+        wsDiv.dataset.wsId = wsData.info.id;
 
         // Header
         const header = document.createElement('div');
@@ -106,7 +135,7 @@ export class Explorer {
 
         const icon = document.createElement('span');
         icon.className = 'material-icons workspace-icon';
-        icon.innerText = 'folder'; // or 'domain' for Org
+        icon.innerText = 'folder';
 
         const title = document.createElement('span');
         title.className = 'workspace-title';
@@ -137,7 +166,7 @@ export class Explorer {
         const filesContainer = document.createElement('div');
         filesContainer.className = 'workspace-files';
 
-        // Sort files: Dirty first, then by lastSaved desc
+        // Sort files
         const sortedFiles = wsData.files.sort((a, b) => {
             if (a.isDirty && !b.isDirty) return -1;
             if (!a.isDirty && b.isDirty) return 1;
@@ -161,7 +190,12 @@ export class Explorer {
         // Toggle collapse
         header.onclick = () => {
             wsDiv.classList.toggle('collapsed');
-            icon.innerText = wsDiv.classList.contains('collapsed') ? 'folder' : 'folder_open';
+            const isCollapsed = wsDiv.classList.contains('collapsed');
+            icon.innerText = isCollapsed ? 'folder' : 'folder_open';
+
+            // Update state immediately
+            if (isCollapsed) this.expandedWorkspaces.delete(wsData.info.id);
+            else this.expandedWorkspaces.add(wsData.info.id);
         };
 
         return wsDiv;
@@ -176,7 +210,6 @@ export class Explorer {
             fileDiv.classList.add('active-file');
         }
 
-        // Icon based on extension or type (default to description)
         const icon = document.createElement('span');
         icon.className = 'material-icons file-icon';
         icon.innerText = 'description';
@@ -185,7 +218,6 @@ export class Explorer {
         nameSpan.className = 'file-name';
         nameSpan.innerText = file.fileName || 'Untitled';
 
-        // Dirty Indicator
         if (file.isDirty) {
             fileDiv.classList.add('is-dirty');
             const dirtyStar = document.createElement('span');
@@ -197,7 +229,6 @@ export class Explorer {
         fileDiv.appendChild(icon);
         fileDiv.appendChild(nameSpan);
 
-        // Click Handler
         fileDiv.onclick = (e) => {
             e.stopPropagation();
             this.loadFile(file);
@@ -207,17 +238,7 @@ export class Explorer {
     }
 
     async loadFile(file) {
-        // Update active state in UI immediately
         this.setActiveFile(file.id);
-
-        // Call controller to load code (Assuming global editor access or event dispatch)
-        // Ideally we dispatch an event, but for now we'll try to reach the controller or editor directly
-        // via a global helper or callback if passed.
-        // Given the instructions say "UI Integration... trigger editorController.loadCode",
-        // and editor-controller.js is managing the state.
-
-        // We can expose a static method on the class or just use the global editor for now
-        // But better: Dispatch Event
         const event = new CustomEvent('explorer:load-file', { detail: file });
         document.dispatchEvent(event);
     }

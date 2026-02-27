@@ -40,7 +40,8 @@ export const CreatorConfig = {
         return {
             service: 'creator',
             orgId: orgId,
-            functionName: functionName || `unsaved_creator_${Date.now()}`
+            // Fixed: Use deterministic fallback instead of Date.now()
+            functionName: functionName || 'Unsaved_Creator_Function'
         };
     }
 };

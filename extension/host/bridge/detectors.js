@@ -26,7 +26,8 @@ export function getContext() {
     // Fallback if getMeta returns nulls
     if (!meta.service) meta.service = getZohoProduct();
     if (!meta.orgId) meta.orgId = window.location.hostname;
-    if (!meta.functionName) meta.functionName = 'unsaved_' + Date.now();
+    // Fixed: Use deterministic fallback instead of Date.now()
+    if (!meta.functionName) meta.functionName = 'Unsaved_Draft_Function';
 
     // Construct Hash: [service]__[org_identifier]__[function_name]
     const hash = `${meta.service}__${meta.orgId}__${meta.functionName}`;
