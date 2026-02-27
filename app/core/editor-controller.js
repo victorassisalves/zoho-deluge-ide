@@ -9,6 +9,7 @@ import { registerHoverProvider } from "../modules/hover/provider.js";
 import { registerCodeActionProvider } from "../modules/code-actions/provider.js";
 import { Logger } from '../utils/logger.js';
 import { db } from '../services/db.js';
+import { Explorer } from '../modules/explorer/explorer.js';
 
 var zideProjectUrl = null;
 window.zideProjectUrl = null;
@@ -21,6 +22,7 @@ window.activeCloudFileId = null;
  */
 
 var editor;
+var explorer; // File Explorer Instance
 var isConnected = false;
 var interfaceMappings = {};
 var currentResearchReport = "";
@@ -43,6 +45,8 @@ async function initEditor() {
     registerHoverProvider(monaco);
     registerCodeActionProvider(monaco);
 
+    // Initialize File Explorer
+    explorer = new Explorer('saved-files-list');
 
     // Subscribe to Logger events
     Logger.subscribe((type, msg) => {
@@ -193,6 +197,30 @@ async function initEditor() {
             }
         });
 
+        // Listen for Explorer file load requests
+        document.addEventListener('explorer:load-file', (e) => {
+            const file = e.detail;
+            if (file && file.code) {
+                // If we are connected and this file doesn't match current context, warn user?
+                // For now, Consultant Mode implies viewing/editing offline or just referencing.
+                // If the user wants to push this to a different context, they can, but it might fail or overwrite.
+
+                // We set the value without triggering context switch (or maybe we should simulate one?)
+                // If we simulate context switch, we lose the "current" context if we are connected.
+
+                // Strategy: Load code, but keep current connection context if connected.
+                // If file has a contextHash that matches a known context, maybe we could switch?
+                // But we can't switch the *browser tab* context easily.
+
+                editor.setValue(file.code);
+                currentContextHash = file.id; // Update our tracking hash so subsequent saves go to this file
+                // Update currentContext metadata if possible from file info?
+                // Ideally file.workspaceId etc help.
+                // But for now, just visual load.
+                showStatus('Loaded: ' + file.fileName, 'success');
+            }
+        });
+
         editor.onDidChangeModelContent(() => {
             const code = editor.getValue();
 
@@ -293,7 +321,7 @@ async function checkConnection() {
                 showStatus("Disconnected from Zoho", "info");
                 nextProjectUrl = "global";
                 currentContext = null;
-                currentContextHash = null;
+                // currentContextHash = null; // Do NOT clear hash on disconnect, allow offline editing of last file
             }
 
             if (nextProjectUrl !== zideProjectUrl) {
@@ -337,6 +365,7 @@ async function handleContextSwitch(context) {
             console.log('[ZohoIDE] Loading from Dexie:', currentContextHash);
             if (editor) editor.setValue(file.code);
             showStatus('Loaded local draft', 'success');
+            if (explorer) explorer.setActiveFile(currentContextHash);
         } else {
             console.log('[ZohoIDE] No local draft found for:', currentContextHash);
             // Optional: Auto-pull if empty?
@@ -344,7 +373,12 @@ async function handleContextSwitch(context) {
             showStatus('New Context Detected', 'info');
             // We could trigger a pull here if we want seamless experience
             // pullFromZoho();
+            if (explorer) explorer.setActiveFile(null);
         }
+
+        // Refresh explorer to show new context/workspace potentially created
+        if (explorer) explorer.refresh();
+
     } catch (e) {
         console.error('[ZohoIDE] DB Load Error:', e);
     }
@@ -367,6 +401,17 @@ async function saveToDexie(isDirty = true) {
             isDirty: isDirty
         });
 
+        // Update Explorer immediately if instance exists
+        if (explorer) {
+            // If it's a new file (not likely here as we update existing), refresh might be needed
+            // But usually just state update is fine.
+            // However, Dexie put implies create or update.
+            // If we just created it, we need a refresh.
+            // For performance, we can just check if we have this file in DOM?
+            // Or just refresh for now as it's not super frequent (debounce 1s)
+            explorer.refresh();
+        }
+
         if (!isDirty) {
             showStatus('Saved locally', 'success');
         } else {
@@ -382,9 +427,10 @@ async function saveToDexie(isDirty = true) {
 function loadProjectData() {
     if (!zideProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
     chrome.storage.local.get(["saved_files", "project_notes", "project_names", "project_mappings"], (result) => {
-        const allFiles = result.saved_files || [];
-        const projectFiles = allFiles.filter(f => f.projectUrl === zideProjectUrl || (!f.projectUrl && zideProjectUrl === "global"));
-        updateSavedFilesList(projectFiles);
+        // Legacy file list logic replaced by Explorer, but we keep data load for mappings/notes
+        // const allFiles = result.saved_files || [];
+        // const projectFiles = allFiles.filter(f => f.projectUrl === zideProjectUrl || (!f.projectUrl && zideProjectUrl === "global"));
+        // updateSavedFilesList(projectFiles); // DISABLE LEGACY LIST
 
         const projectNames = result.project_names || {};
         zideProjectName = projectNames[zideProjectUrl] || "Untitled Project";
@@ -1341,29 +1387,13 @@ function createSnapshot() {
             chrome.storage.local.set({ 'saved_deluge_code': code, 'saved_files': limitedFiles, 'last_project_code': lastCodes }, () => {
                 log('Success', 'Snapshot Saved.');
                 const filtered = limitedFiles.filter(f => f.projectUrl === projectUrl || (!f.projectUrl && projectUrl === 'global'));
-                updateSavedFilesList(filtered);
+                // updateSavedFilesList(filtered);
             });
         });
     }
 }
 
-function updateSavedFilesList(files) {
-    const list = document.getElementById('saved-files-list');
-    if (!list) return;
-    list.innerHTML = '';
-    if (files.length === 0) {
-        list.innerHTML = '<div class="log-entry" style="font-size:11px; opacity:0.6;">No saved files yet.</div>';
-        return;
-    }
-    files.forEach(file => {
-        const card = document.createElement('div');
-        card.className = 'file-card';
-        const varsText = file.vars && file.vars.length ? `<br>Vars: ${file.vars.slice(0, 3).join(', ')}${file.vars.length > 3 ? '...' : ''}` : '';
-        card.innerHTML = `<div class="file-title">${file.title}</div><div class="file-meta">${file.source} • ${file.timestamp}${varsText}</div>`;
-        card.onclick = () => { if (confirm('Load this saved version?')) { editor.setValue(file.code); } };
-        list.appendChild(card);
-    });
-}
+// function updateSavedFilesList(files) { ... } // Replaced by Explorer
 
 function extractVarsFromCode(code) {
     const vars = new Set();
