@@ -35,8 +35,24 @@ export const CRMConfig = {
         // Fallback to URL part
         if (!functionName) {
             const parts = url.split('/');
-            functionName = parts[parts.length - 1].split('?')[0] || 'unknown_crm_func';
+            functionName = parts[parts.length - 1].split('?')[0];
         }
+
+        // SMART FALLBACK LOGIC
+        // If the URL indicates an existing script (edit mode, numeric ID)
+        // but we failed to find the function name, we are likely still loading.
+        const isExistingScript = url.includes('/edit') ||
+                               /\/[0-9]{10,}\//.test(url); // Has long numeric IDs
+
+        if ((!functionName || functionName === 'unknown_crm_func' || functionName === 'edit') && isExistingScript) {
+            return {
+                service: 'crm',
+                orgId: 'LOADING',
+                functionName: 'LOADING'
+            };
+        }
+
+        if (functionName === 'edit') functionName = null; // Clean up bad fallback
 
         return {
             service: 'crm',

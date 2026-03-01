@@ -54,15 +54,21 @@ export const CreatorConfig = {
         let functionName = null;
 
         // Exact Attribute Strategy (Highest Priority)
-        const customFunc = document.querySelector('#customFunc');
-        if (customFunc) {
-            functionName = customFunc.getAttribute('functionname');
+
+        // 1. Try hidden input function script value first as it is very reliable for custom functions
+        const scriptInput = document.querySelector('input[type="hidden"][elename="functionScript"], input[elename="functionScript"]');
+        if (scriptInput) {
+             const rawVal = scriptInput.value || scriptInput.getAttribute('value');
+             if (rawVal) {
+                 functionName = rawVal.split('(')[0].trim();
+             }
         }
 
+        // 2. Try the wrapper div
         if (!functionName) {
-            const scriptInput = document.querySelector('input[elename="functionScript"]');
-            if (scriptInput && scriptInput.value) {
-                functionName = scriptInput.value.split('(')[0].trim();
+            const customFunc = document.querySelector('#customFunc');
+            if (customFunc) {
+                functionName = customFunc.getAttribute('functionname');
             }
         }
 
@@ -81,6 +87,22 @@ export const CreatorConfig = {
         if (!functionName) {
             const params = new URLSearchParams(window.location.search);
             if (params.get('workflowName')) functionName = params.get('workflowName');
+        }
+
+        // SMART FALLBACK LOGIC: Prevent race conditions
+        // If the URL indicates an existing script (edit mode, workflow builder, custom function ID)
+        // but we failed to find the function name in the DOM, we are likely still loading.
+        const isExistingScript = url.includes('/workflowbuilder/') ||
+                               url.includes('/edit') ||
+                               url.includes('/customfunctions/') ||
+                               /\/[0-9]{10,}\//.test(url); // Has long numeric IDs
+
+        if (!functionName && isExistingScript) {
+            return {
+                service: 'creator',
+                orgId: 'LOADING',
+                functionName: 'LOADING'
+            };
         }
 
         const rawFunctionName = functionName || 'Unsaved_Creator_Function';

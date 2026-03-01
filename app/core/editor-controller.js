@@ -311,6 +311,10 @@ async function checkConnection() {
                 if (response.context && response.context.contextHash) {
                     const newHash = response.context.contextHash;
                     if (newHash !== currentContextHash) {
+                        if (newHash.includes("LOADING")) {
+                            console.log("[ZohoIDE] Context loading, bypassing context switch...");
+                            return;
+                        }
                         console.log('[ZohoIDE] Context Switched:', newHash);
                         handleContextSwitch(response.context);
                     }
