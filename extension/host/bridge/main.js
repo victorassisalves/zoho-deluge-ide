@@ -58,3 +58,6 @@ function triggerAction(type) {
     if (!success) success = clickByText(type);
     return success;
 }
+
+// Signal that the bridge is ready
+window.dispatchEvent(new CustomEvent('ZOHO_IDE_BRIDGE_READY'));

@@ -60,27 +60,40 @@
         // --- Bridge Interaction Logic ---
 
         // Helper to send to bridge and wait for response
-        const sendToBridge = (action, payload = {}) => {
+        const sendToBridge = async (action, payload = {}, retryCount = 0) => {
+            // Wait up to 1000ms if bridge isn't loaded yet
+            if (!document.getElementById('zoho-deluge-bridge-modular') && retryCount < 5) {
+                console.log('[ZohoIDE] Bridge not found, waiting...');
+                await new Promise(r => setTimeout(r, 200));
+                return sendToBridge(action, payload, retryCount + 1);
+            }
+
+            // Wait slightly for the module to parse and run
+            if (retryCount === 0 && action === 'PING' && document.readyState === 'loading') {
+                await new Promise(r => setTimeout(r, 300));
+            }
+
             return new Promise((resolve) => {
                 const eventId = Math.random().toString(36).substring(2);
                 const detail = { eventId, action, ...payload };
 
-                // console.debug('[ZohoIDE] [Host] -> [Bridge]', detail);
-
                 const responseHandler = (event) => {
                     const data = event.detail;
                     if (data && data.eventId === eventId) {
-                        // console.debug('[ZohoIDE] [Bridge] -> [Host]', data);
                         window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
                         resolve(data.response);
                     }
                 };
 
                 window.addEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
-                // Dispatch on window to match Bridge listener
                 window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_EXT', { detail }));
 
                 // Timeout
+                setTimeout(() => {
+                    window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
+                    console.warn('[ZohoIDE] Bridge Timeout for:', action);
+                    resolve({ error: 'Bridge Timeout' });
+// Timeout
                 setTimeout(() => {
                     window.removeEventListener('ZOHO_IDE_FROM_PAGE', responseHandler);
                     console.warn('[ZohoIDE] Bridge Timeout for:', action);

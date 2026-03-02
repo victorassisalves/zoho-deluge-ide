@@ -96,9 +96,13 @@
         "app/*",
         "app/core/*",
         "app/services/*",
-        "app/modules/*", "app/modules/autocomplete/data/*",
+        "app/modules/*",
+        "app/modules/autocomplete/data/*",
         "shared/*",
-        "extension/host/*", "extension/host/bridge/*", "extension/host/bridge/products/*", "extension/host/bridge/actions/*",
+        "extension/host/*",
+        "extension/host/bridge/*",
+        "extension/host/bridge/products/*",
+        "extension/host/bridge/actions/*",
         "src/*",
         "assets/*",
         "bridge.js",
@@ -112,5 +116,8 @@
         "<all_urls>"
       ]
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self' blob:"
+  }
 }
