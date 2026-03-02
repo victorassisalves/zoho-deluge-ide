@@ -1,8 +1,6 @@
 // app/core/bus.js
 // Message Bus for communication between Client (IDE) and Host (Zoho Page) / Background
 
-import { Logger } from '../utils/logger.js';
-
 export const Bus = {
     /**
      * Listen for messages from Host or Background
@@ -10,12 +8,12 @@ export const Bus = {
      * @param {function} callback - The callback function(payload, source)
      */
     listen(type, callback) {
-        Logger.debug(`[Bus] Listening for: ${type}`);
+        console.debug(`[ZohoIDE] [Transport] Listening for: ${type}`);
         // 1. Listen for postMessage (from Host via Iframe)
         window.addEventListener('message', (event) => {
             // Check if message structure matches our protocol
             if (event.data && event.data.type === type) {
-                Logger.debug(`[Bus] Received (Iframe): ${type}`);
+                console.debug(`[ZohoIDE] [Transport] Received (Iframe): ${type}`);
                 callback(event.data.payload, event.source);
             }
         });
@@ -41,7 +39,7 @@ export const Bus = {
      */
     send(type, payload = {}) {
         const isIframe = window.parent !== window;
-        Logger.debug(`[Bus] Sending: ${type} (Mode: ${isIframe ? 'Iframe' : 'Standalone'})`);
+        console.debug(`[ZohoIDE] [Transport] Sending: ${type} (Mode: ${isIframe ? 'Iframe' : 'Standalone'})`);
 
         if (isIframe) {
             // Iframe Mode: Send to Host Page
@@ -60,7 +58,7 @@ export const Bus = {
                     if (response && type === 'editor:pull') {
                          // Simulate receiving a response message
                          const responseType = type + ':response';
-                         Logger.debug(`[Bus] Received (Standalone Callback): ${responseType}`);
+                         console.debug(`[ZohoIDE] [Transport] Received (Standalone Callback): ${responseType}`);
                          // Dispatch event so listeners can pick it up
                          // Bus.listen uses window.addEventListener('message') or runtime.onMessage
                          // Ideally we should just call the listener directly?
@@ -72,7 +70,7 @@ export const Bus = {
                     }
                 });
             } else {
-                console.warn('[Bus] Failed to send message in standalone mode: API unavailable', type);
+                console.warn('[ZohoIDE] [Transport] Failed to send message in standalone mode: API unavailable', type);
             }
         }
     }

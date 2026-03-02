@@ -65,6 +65,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
     let targetTabId = isSidePanel ? sender.tab.id : null;
 
+
+    if (request.type === 'TELEMETRY_LOG') {
+        // Intercept telemetry from content scripts and decorate with Tab ID
+        if (request.payload && request.payload.origin === '[CONTENT_SCRIPT]') {
+            if (sender.tab && sender.tab.id) {
+                request.payload.origin = `[CONTENT_SCRIPT_TAB_${sender.tab.id}]`;
+            }
+        }
+
+        // Forward the telemetry payload to the IDE (broadcast to all tabs)
+        broadcastToIDE({ action: 'TELEMETRY_LOG', payload: request.payload });
+
+        // Optional: If you want to debug in the background console
+        // console.log(`[ZohoIDE] ${request.payload.origin} [${request.payload.level}] ${request.payload.action}`, request.payload.details);
+        return true;
+    }
+
     if (request.action === 'CHECK_CONNECTION') {
         const verifyConnection = (tabId) => {
             chrome.tabs.sendMessage(tabId, { action: 'PING' }, (response) => {
