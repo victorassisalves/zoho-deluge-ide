@@ -65,6 +65,78 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const action = request.action || request.type;
 
     // IDE requesting the list of all currently active Zoho tabs
+    if (action === 'CHECK_CONNECTION') {
+        // Attempt to find the active Zoho tab if no target is provided
+        const targetTabId = request.targetTabId || request.tabId;
+        console.log(`[ZohoIDE Background] CHECK_CONNECTION requested. Target: ${targetTabId || 'Auto'}`);
+
+        const verifyConnection = (tabId) => {
+            console.log(`[ZohoIDE Background] Verifying connection for Tab: ${tabId}`);
+            chrome.tabs.sendMessage(tabId, { action: 'PING' }, (response) => {
+                if (chrome.runtime.lastError || !response || response.status !== 'PONG') {
+                    console.warn(`[ZohoIDE Background] PING failed on Tab ${tabId}. Error:`, chrome.runtime.lastError);
+                    // Try injecting content script if ping fails
+                    chrome.scripting.executeScript({
+                        target: { tabId: tabId },
+                        files: ['extension/host/content.js']
+                    }).then(() => {
+                        console.log(`[ZohoIDE Background] Content script injected on Tab ${tabId}. Retrying PING...`);
+                        setTimeout(() => {
+                            chrome.tabs.sendMessage(tabId, { action: 'PING' }, (retryRes) => {
+                                if (retryRes && retryRes.status === 'PONG') {
+                                    chrome.tabs.get(tabId, (tab) => {
+                                        console.log(`[ZohoIDE Background] Retry PING successful. Connected to: ${tab.title}`);
+                                        sendResponse({
+                                            connected: true,
+                                            tabTitle: tab.title,
+                                            url: tab.url,
+                                            context: retryRes.context,
+                                            isStandalone: true
+                                        });
+                                    });
+                                } else {
+                                    console.warn(`[ZohoIDE Background] Retry PING failed on Tab ${tabId}.`);
+                                    sendResponse({ connected: false });
+                                }
+                            });
+                        }, 500);
+                    }).catch((err) => {
+                        console.error(`[ZohoIDE Background] Injection failed on Tab ${tabId}:`, err);
+                        sendResponse({ connected: false });
+                    });
+                } else {
+                    chrome.tabs.get(tabId, (tab) => {
+                        console.log(`[ZohoIDE Background] PING successful. Connected to: ${tab.title}`);
+                        sendResponse({
+                            connected: true,
+                            tabTitle: tab.title,
+                            url: tab.url,
+                            context: response.context,
+                            isStandalone: true
+                        });
+                    });
+                }
+            });
+        };
+
+        if (targetTabId) {
+            verifyConnection(targetTabId);
+        } else {
+            // Find active tab or fallback
+            chrome.tabs.query({}, (tabs) => {
+                const zohoTabs = tabs.filter(t => isZohoUrl(t.url));
+                if (zohoTabs.length === 0) {
+                    console.log(`[ZohoIDE Background] No Zoho tabs found.`);
+                    sendResponse({ connected: false });
+                    return;
+                }
+                const activeZoho = zohoTabs.find(t => t.active) || zohoTabs.find(t => t.url.includes('creator') || t.url.includes('crm') || t.url.includes('flow')) || zohoTabs[0];
+                verifyConnection(activeZoho.id);
+            });
+        }
+        return true; // Keep message channel open for async response
+    }
+
     if (action === 'FETCH_ACTIVE_ZOHO_TABS') {
         // Perform a fresh sweep just in case we missed events
         chrome.tabs.query({}, (tabs) => {

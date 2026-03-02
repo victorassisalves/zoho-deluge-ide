@@ -16,33 +16,28 @@ class EventBus extends EventTarget {
     }
 
     /**
-     * Set up Horizontal Communication (IDE Instance <--> IDE Instance)
-     * using the BroadcastChannel API for real-time state sync.
-     */
-    _setupHorizontalSync() {
-        this.channel.onmessage = (event) => {
-            const { instanceId, type, payload, timestamp } = event.data;
-
-            // Ignore messages broadcasted by this very instance
-            if (instanceId === this.instanceId) return;
-
-            Logger.debug(`[Bus] Received (Horizontal): ${type} from ${instanceId}`);
-
-            // Emit a local event for internal IDE components to react to remote state changes
-            const localEvent = new CustomEvent(type, { detail: { payload, timestamp, instanceId } });
-            this.dispatchEvent(localEvent);
-        };
-    }
-
-    /**
      * Set up Vertical Communication (IDE <--> Background Worker / Host Page)
      * using window.addEventListener('message') and chrome.runtime.onMessage.
      */
     _setupVerticalSync() {
         // 1. Listen for postMessage (from Host via Iframe)
         window.addEventListener('message', (event) => {
-            if (event.data && event.data.type) {
-                Logger.debug(`[Bus] Received (Vertical Iframe): ${event.data.type}`);
+            if (typeof event.data === 'string' && event.data.startsWith('ZIDE_MSG:')) {
+                try {
+                    const parsed = JSON.parse(event.data.substring(9));
+                    if (parsed.source === 'zide' && parsed.type) {
+                        Logger.debug(`[Bus] Received (Vertical Iframe): ${parsed.type}`);
+                        const localEvent = new CustomEvent(parsed.type, {
+                            detail: { payload: parsed.payload, source: event.source, isVertical: true }
+                        });
+                        this.dispatchEvent(localEvent);
+                    }
+                } catch(e) {
+                    Logger.error('[Bus] Failed to parse internal ZIDE_MSG', e);
+                }
+            } else if (event.data && event.data.type && event.data.source === 'zide') {
+                // Fallback for object format if sender uses it
+                Logger.debug(`[Bus] Received (Vertical Iframe Object): ${event.data.type}`);
                 const localEvent = new CustomEvent(event.data.type, {
                     detail: { payload: event.data.payload, source: event.source, isVertical: true }
                 });
@@ -50,6 +45,7 @@ class EventBus extends EventTarget {
             }
         });
 
+        // 2. Listen for runtime messages (from Background in Standalone Mode)
         // 2. Listen for runtime messages (from Background in Standalone Mode)
         if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
             chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -124,7 +120,10 @@ class EventBus extends EventTarget {
 
         if (isIframe) {
             // Iframe Mode: Send to Host Page
-            window.parent.postMessage({ type, payload }, '*');
+            // Stringify and prefix to prevent breaking Zoho's internal JSON.parse listeners
+            const strPayload = JSON.stringify({ source: 'zide', type, payload });
+            Logger.debug(`[Bus] PostMessage Payload: ${strPayload}`);
+            window.parent.postMessage('ZIDE_MSG:' + strPayload, '*');
         } else {
             // Standalone Mode: Send to Background Script
             if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
