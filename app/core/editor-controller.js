@@ -21,6 +21,13 @@ window.activeCloudFileId = null;
  * Zoho Deluge Advanced IDE v2.0.0
  */
 
+
+// --- Multi-Tab State ---
+const activeModels = new Map(); // tabId -> monaco.editor.ITextModel
+let activeTabId = null;
+let isApplyingRemoteEdit = false;
+let broadcastDebounceTimer = null;
+
 var editor;
 var explorer; // File Explorer Instance
 var isConnected = false;
@@ -169,6 +176,40 @@ async function initEditor() {
         });
 
 
+
+        // --- Multi-Instance Sync Listeners ---
+        Bus.on('CODE_UPDATED', (detail) => {
+            const { payload, instanceId } = detail;
+            // Only process if it's from a remote instance
+            if (instanceId === Bus.instanceId) return;
+
+            if (payload && payload.tabId) {
+                applyRemoteEdit(payload.tabId, payload.code);
+            }
+        });
+
+        Bus.on('ZOHO_TAB_DISCONNECTED', (detail) => {
+            const { payload } = detail;
+            if (payload && payload.tabId) {
+                // Handle orphaned state
+                markTabAsOrphaned(payload.tabId);
+            }
+        });
+
+        // Focus Hydration
+        window.addEventListener('focus', async () => {
+            if (activeTabId) {
+                const record = await db.workspace_tabs.get(activeTabId);
+                if (record && record.code) {
+                    const model = activeModels.get(activeTabId);
+                    if (model && model.getValue() !== record.code) {
+                        applyRemoteEdit(activeTabId, record.code);
+                    }
+                }
+            }
+        });
+        // --- End Multi-Instance Sync ---
+
         // Listen for Commands via Bus
         Bus.listen("CMD_SYNC_SAVE", () => {
             console.log('[ZohoIDE] Command: Sync & Save');
@@ -222,7 +263,30 @@ async function initEditor() {
         });
 
         editor.onDidChangeModelContent(() => {
+            if (isApplyingRemoteEdit) return; // Prevent broadcast loops
+
             const code = editor.getValue();
+
+            // Broadcast the change to other IDE instances
+            if (activeTabId) {
+                clearTimeout(broadcastDebounceTimer);
+                broadcastDebounceTimer = setTimeout(() => {
+                    Bus.broadcast('CODE_UPDATED', {
+                        tabId: activeTabId,
+                        code: code
+                    });
+
+                    // Also save to Dexie
+                    db.workspace_tabs.put({
+                        tabId: activeTabId,
+                        appType: currentContext ? currentContext.service : 'unknown',
+                        lastActive: Date.now(),
+                        code: code,
+                        title: zideProjectName || 'Untitled'
+                    });
+                }, 500);
+            }
+
 
             // Legacy Chrome Storage Backup (optional, kept for safety)
             if (typeof chrome !== "undefined" && chrome.storage) {
@@ -1633,3 +1697,83 @@ window.addEventListener('mouseup', () => {
     document.body.style.userSelect = 'auto';
     document.body.classList.remove('resizing');
 });
+
+// --- Multi-Model Management ---
+
+export function switchIDE_Tab(tabId, contextInfo, initialCode = '') {
+    activeTabId = tabId;
+    currentContext = contextInfo;
+    zideProjectName = contextInfo ? contextInfo.title : 'Untitled';
+
+    // Update settings in Dexie
+    db.settings.put({ key: 'activeTabId', value: tabId });
+
+    let model = activeModels.get(tabId);
+
+    if (!model) {
+        // Create a new model if it doesn't exist
+        model = monaco.editor.createModel(initialCode, 'deluge');
+        activeModels.set(tabId, model);
+    }
+
+    if (editor) {
+        editor.setModel(model);
+        if (typeof validateDelugeModel === "function") validateDelugeModel(model);
+    }
+
+    // Update the UI or Status
+    showStatus('Switched to: ' + zideProjectName, 'info');
+}
+
+export function closeIDE_Tab(tabId) {
+    const model = activeModels.get(tabId);
+    if (model) {
+        model.dispose();
+        activeModels.delete(tabId);
+    }
+
+    // Remove from Dexie
+    db.workspace_tabs.delete(tabId);
+
+    if (activeTabId === tabId) {
+        activeTabId = null;
+        if (editor) {
+            editor.setModel(null); // Show empty state
+            // Trigger UI event for empty state if needed
+        }
+    }
+}
+
+function applyRemoteEdit(targetTabId, newCode) {
+    const targetModel = activeModels.get(targetTabId);
+
+    if (!targetModel) {
+        // Model isn't loaded in this instance yet, but we might want to pre-initialize it
+        return;
+    }
+
+    if (targetModel.getValue() === newCode) return;
+
+    isApplyingRemoteEdit = true;
+
+    const fullRange = targetModel.getFullModelRange();
+    targetModel.pushEditOperations(
+        [], // No before cursor state needed
+        [{ range: fullRange, text: newCode }],
+        () => null // Compute cursor state after
+    );
+
+    // Reset flag safely after Monaco processes the event loop
+    setTimeout(() => {
+        isApplyingRemoteEdit = false;
+        if (typeof validateDelugeModel === "function") validateDelugeModel(targetModel);
+    }, 0);
+}
+
+function markTabAsOrphaned(tabId) {
+    // Dispatch an event so the React/Vanilla UI can grey out the tab in the sidebar/tab bar
+    document.dispatchEvent(new CustomEvent('ZIDE_TAB_ORPHANED', { detail: { tabId } }));
+}
+
+window.switchIDE_Tab = switchIDE_Tab;
+window.closeIDE_Tab = closeIDE_Tab;

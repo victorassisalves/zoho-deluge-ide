@@ -1,0 +1,203 @@
+/* app/ui/workspace.css - Multi-Tab & Explorer Styles */
+
+/* --- Horizontal Tab Bar --- */
+.workspace-tabs-container {
+    display: flex;
+    background-color: #252526; /* VS Code dark tab bar bg */
+    border-bottom: 1px solid #1e1e1e;
+    overflow-x: auto;
+    height: 35px;
+    scrollbar-width: none; /* Firefox */
+}
+.workspace-tabs-container::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+.workspace-tab {
+    display: flex;
+    align-items: center;
+    padding: 0 10px 0 15px;
+    height: 100%;
+    background-color: #2d2d2d;
+    color: #969696;
+    border-right: 1px solid #1e1e1e;
+    cursor: pointer;
+    min-width: 120px;
+    max-width: 200px;
+    font-size: 13px;
+    user-select: none;
+    transition: background-color 0.1s;
+}
+
+.workspace-tab:hover {
+    background-color: #1e1e1e;
+}
+
+.workspace-tab.active {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border-top: 1px solid #007acc; /* VS Code active tab accent */
+}
+
+.workspace-tab.orphaned {
+    color: #555;
+    font-style: italic;
+}
+.workspace-tab.orphaned .tab-title {
+    opacity: 0.5;
+}
+
+.workspace-tab .tab-title {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 8px;
+}
+
+.workspace-tab .tab-close {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity 0.1s, background-color 0.1s;
+}
+
+.workspace-tab:hover .tab-close,
+.workspace-tab.active .tab-close {
+    opacity: 1;
+}
+
+.workspace-tab .tab-close:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.workspace-tab.dirty .tab-close::before {
+    content: '●';
+    font-size: 10px;
+    color: #fff;
+    display: block;
+}
+.workspace-tab.dirty .tab-close:hover::before {
+    display: none; /* Hide dot on hover to show X */
+}
+.workspace-tab.dirty .tab-close:hover::after {
+    content: '×';
+    font-size: 16px;
+    display: block;
+}
+.workspace-tab:not(.dirty) .tab-close::after {
+    content: '×';
+    font-size: 16px;
+    display: block;
+}
+
+/* --- Empty State Watermark --- */
+.editor-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    background-color: #1e1e1e;
+    color: #555;
+    font-family: sans-serif;
+    user-select: none;
+}
+.editor-empty-state img {
+    width: 100px;
+    opacity: 0.2;
+    margin-bottom: 20px;
+}
+.editor-empty-state h2 {
+    font-size: 18px;
+    font-weight: normal;
+    margin: 0;
+}
+
+/* --- Explorer Sidebar Dual-Section --- */
+.explorer-section {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid #333;
+}
+
+.explorer-section-header {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #ccc;
+    cursor: pointer;
+    text-transform: uppercase;
+    background-color: #252526;
+}
+
+.explorer-section-header:hover {
+    background-color: #2a2d2e;
+}
+
+.explorer-section-header .chevron {
+    margin-right: 4px;
+    font-size: 10px;
+    transition: transform 0.2s;
+}
+
+.explorer-section.collapsed .chevron {
+    transform: rotate(-90deg);
+}
+
+.explorer-section-content {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 0;
+    overflow-y: auto;
+    max-height: 40vh; /* Adjust based on layout */
+}
+
+.explorer-section.collapsed .explorer-section-content {
+    display: none;
+}
+
+.explorer-item {
+    display: flex;
+    align-items: center;
+    padding: 3px 10px 3px 20px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.explorer-item:hover {
+    background-color: #2a2d2e;
+    color: #fff;
+}
+
+.explorer-item.active {
+    background-color: #37373d;
+    color: #fff;
+}
+
+.explorer-item .item-icon {
+    margin-right: 6px;
+    font-size: 14px;
+}
+
+/* Connection Status Indicator */
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+}
+.status-indicator.connected { background-color: #4CAF50; }
+.status-indicator.disconnected { background-color: #9E9E9E; }

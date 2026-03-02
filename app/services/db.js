@@ -7,4 +7,10 @@ db.version(1).stores({
     files: 'id, workspaceId, fileName, code, variables, lastSaved, isDirty'
 });
 
+// Version 2: Multi-Tab Support Schema Update
+db.version(2).stores({
+    workspace_tabs: 'tabId, appType, lastActive',
+    settings: 'key' // key: 'activeTabId', value: 1045
+});
+
 export default db;
