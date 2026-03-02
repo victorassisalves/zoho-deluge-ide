@@ -1,7 +1,7 @@
 [
-    { "label": "Map()", "kind": 4, "insertText": "Map()" },
-    { "label": "List()", "kind": 4, "insertText": "List()" },
-    { "label": "Collection()", "kind": 4, "insertText": "Collection()" },
+    { "label": "Map()", "kind": 4, "insertText": "Map();" },
+    { "label": "List()", "kind": 4, "insertText": "List();" },
+    { "label": "Collection()", "kind": 4, "insertText": "Collection();" },
     { "label": "info", "kind": 14, "insertText": "info $0", "insertTextRules": 4 },
     { "label": "return", "kind": 14, "insertText": "return " },
     { "label": "if", "kind": 14, "insertText": "if (${1:condition})\n{\n\t$0\n}", "insertTextRules": 4 },
