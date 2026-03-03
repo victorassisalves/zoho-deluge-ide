@@ -1318,23 +1318,14 @@ function pullFromZoho() {
     if (now - lastActionTime < 800) return;
     lastActionTime = now;
 
-    if (!isConnected) {
-        log('Error', 'No Zoho tab connected. Please open a Zoho Deluge editor tab first.');
-        return;
-    }
     log('System', 'Pulling code...');
-    ZohoRunner.pullFromZoho();
+    ZohoRunner.pullFromZoho(currentContextHash);
 }
 
 function pushToZoho(triggerSave = false, triggerExecute = false) {
     const now = Date.now();
     if (now - lastActionTime < 1000) return;
     lastActionTime = now;
-
-    if (!isConnected) {
-        log('Error', 'No Zoho tab connected. Sync/Execute failed.');
-        return;
-    }
 
     // Check for errors
     const markers = monaco.editor.getModelMarkers({ resource: editor.getModel().uri });
@@ -1347,7 +1338,7 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 
     const code = editor.getValue();
     log('System', 'Pushing code...');
-    ZohoRunner.pushToZoho(code, triggerSave, triggerExecute);
+    ZohoRunner.pushToZoho(code, triggerSave, triggerExecute, currentContextHash);
 }
 
 function createSnapshot() {
