@@ -7,4 +7,11 @@ db.version(1).stores({
     files: 'id, workspaceId, fileName, code, variables, lastSaved, isDirty'
 });
 
+db.version(2).stores({
+    workspaces: 'id, orgId, service, name, lastAccessed, isArchived',
+    files: 'id, workspaceId, fileName, code, variables, lastSaved, isDirty',
+    workspace_tabs: 'id, fileId, order, viewState',
+    workspace_state: 'id, activeTabId'
+});
+
 export default db;

@@ -3,77 +3,119 @@
 
 import { Logger } from '../utils/logger.js';
 
+// Generate a unique instance ID for this context to prevent infinite broadcast loops
+const INSTANCE_ID = Math.random().toString(36).substring(2, 15);
+
+// Initialize the Reactive Event Bus
+let reactiveBus;
+try {
+    reactiveBus = new BroadcastChannel('zoho_ide_bus');
+} catch (e) {
+    Logger.warn('BroadcastChannel not supported for reactive bus', e);
+}
+
 export const Bus = {
     /**
-     * Listen for messages from Host or Background
+     * Listen for messages from Host, Background, or BroadcastChannel
      * @param {string} type - The message type (e.g., MSG.CODE_EXECUTE)
      * @param {function} callback - The callback function(payload, source)
      */
     listen(type, callback) {
         Logger.debug(`[Bus] Listening for: ${type}`);
-        // 1. Listen for postMessage (from Host via Iframe)
+
+        // 1. Listen for BroadcastChannel messages
+        if (reactiveBus) {
+            reactiveBus.addEventListener('message', (event) => {
+                const { instanceId, type: msgType, payload } = event.data;
+
+                // Drop self-generated messages to prevent loops
+                if (instanceId === INSTANCE_ID) return;
+
+                if (msgType === type) {
+                    Logger.debug(`[Bus] Received (BroadcastChannel): ${type}`);
+                    // Wrap the source to indicate it came from the broadcast channel
+                    callback(payload, { isBroadcast: true, instanceId });
+                }
+            });
+        }
+
+        // 2. Listen for postMessage (from Host via Iframe)
         window.addEventListener('message', (event) => {
             // Check if message structure matches our protocol
+            // Make sure not to conflict with BroadcastChannel events which aren't from window
             if (event.data && event.data.type === type) {
+                // Ensure this isn't an echoed message from our own iframe
+                if (event.data.instanceId === INSTANCE_ID) return;
+
                 Logger.debug(`[Bus] Received (Iframe): ${type}`);
                 callback(event.data.payload, event.source);
             }
         });
 
-        // 2. Listen for runtime messages (from Background in Standalone Mode)
-        if (typeof chrome !== 'undefined' && chrome.runtime) {
+        // 3. Listen for runtime messages (from Background in Standalone Mode)
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
             chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // Runtime messages use 'action' instead of 'type' usually
                 if (message.action === type || message.type === type) {
+                    // Prevent looping runtime messages if applicable
+                    if (message.instanceId === INSTANCE_ID) return;
+
                     const payload = message.payload || message; // Fallback if payload isn't separated
                     callback(payload, sender);
                 }
-                // We don't return true here; async handling is up to specific handlers if they need it
-                // but Bus doesn't support sendResponse callback directly in this simple design yet.
             });
         }
     },
 
     /**
-     * Send message to Host or Background
+     * Send message to Host, Background, and other Reactive Windows
      * @param {string} type - The message type
      * @param {object} payload - The data to send
      */
     send(type, payload = {}) {
-        const isIframe = window.parent !== window;
+        const isIframe = typeof window !== 'undefined' && window.parent !== window;
         Logger.debug(`[Bus] Sending: ${type} (Mode: ${isIframe ? 'Iframe' : 'Standalone'})`);
 
-        if (isIframe) {
-            // Iframe Mode: Send to Host Page
-            // The Host content script listens for this specific structure
-            window.parent.postMessage({ type, payload }, '*');
-        } else {
-            // Standalone Mode: Send to Background Script
-            // Background script will proxy this to the active Zoho tab content script
-            if (typeof chrome !== 'undefined' && chrome.runtime) {
-                // We flatten the payload into the message for runtime compatibility if needed,
-                // or keep it structured. Existing content script expects { action, ... }
-                // So we map 'type' to 'action'.
-                chrome.runtime.sendMessage({ action: type, ...payload }, (response) => {
-                    // For Standalone mode, we need to bridge the callback to the event system
-                    // if the response is relevant (e.g. Pull code)
-                    if (response && type === 'editor:pull') {
-                         // Simulate receiving a response message
-                         const responseType = type + ':response';
-                         Logger.debug(`[Bus] Received (Standalone Callback): ${responseType}`);
-                         // Dispatch event so listeners can pick it up
-                         // Bus.listen uses window.addEventListener('message') or runtime.onMessage
-                         // Ideally we should just call the listener directly?
-                         // No, listeners are registered via Bus.listen.
-                         // But Bus.listen for standalone listens to runtime.onMessage.
-                         // The callback is distinct.
-                         // We can postMessage to self to trigger the window listener?
-                         window.postMessage({ type: responseType, payload: response }, '*');
-                    }
-                });
-            } else {
-                console.warn('[Bus] Failed to send message in standalone mode: API unavailable', type);
+        // Create the message package with the required instanceId
+        const messagePackage = {
+            instanceId: INSTANCE_ID,
+            type,
+            payload
+        };
+
+        // 1. Broadcast to all other reactive windows
+        if (reactiveBus) {
+            try {
+                reactiveBus.postMessage(messagePackage);
+            } catch (e) {
+                Logger.warn(`[Bus] Failed to broadcast message: ${type}`, e);
             }
+        }
+
+        // 2. Send via Window postMessage (Iframe Mode)
+        if (isIframe) {
+            window.parent.postMessage(messagePackage, '*');
+        }
+
+        // 3. Send via Chrome Runtime (Standalone Mode)
+        if (!isIframe && typeof chrome !== 'undefined' && chrome.runtime) {
+            // Include action for backward compatibility with older listeners
+            chrome.runtime.sendMessage({
+                action: type,
+                ...messagePackage
+            }, (response) => {
+                if (chrome.runtime.lastError) {
+                    // It's normal for no listener to be present if background script isn't active
+                    // Or if we're in a page context where the background doesn't care
+                }
+
+                // For Standalone mode, we bridge the callback to the event system if relevant
+                if (response && type === 'editor:pull') {
+                    const responseType = type + ':response';
+                    Logger.debug(`[Bus] Received (Standalone Callback): ${responseType}`);
+                    window.postMessage({ type: responseType, payload: response, instanceId: INSTANCE_ID }, '*');
+                }
+            });
         }
     }
 };
