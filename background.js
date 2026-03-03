@@ -113,7 +113,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             findZohoTab((tab) => {
                 if (tab) verifyConnection(tab.id);
                 else sendResponse({ connected: false });
-            }, request.targetContextHash);
+            }, (request.payload && request.payload.targetContextHash) || request.targetContextHash);
         }
         return true;
     }
@@ -125,7 +125,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         };
         if (targetTabId) handleOpen(targetTabId);
         else if (request.targetTabId) handleOpen(request.targetTabId);
-        else findZohoTab(tab => tab && handleOpen(tab.id), request.targetContextHash);
+        else findZohoTab(tab => tab && handleOpen(tab.id), (request.payload && request.payload.targetContextHash) || request.targetContextHash);
         sendResponse({ success: true });
         return true;
     }
@@ -197,14 +197,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (tab) {
                 handleAction(tab.id);
                 // Trigger auto focus after successfully handling action if requested
-                if (request.autoFocus) {
+                if ((request.payload && request.payload.autoFocus) || request.autoFocus) {
                     chrome.tabs.update(tab.id, { active: true });
                     chrome.windows.update(tab.windowId, { focused: true });
                 }
             } else {
                 sendResponse({ error: 'No matching Zoho tab found for context' });
             }
-        }, request.targetContextHash);
+        }, (request.payload && request.payload.targetContextHash) || request.targetContextHash);
         return true;
     }
 

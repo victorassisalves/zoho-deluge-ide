@@ -213,10 +213,26 @@ async function initEditor() {
                 // But we can't switch the *browser tab* context easily.
 
                 editor.setValue(file.code);
-                currentContextHash = file.id; // Update our tracking hash so subsequent saves go to this file
-                // Update currentContext metadata if possible from file info?
-                // Ideally file.workspaceId etc help.
-                // But for now, just visual load.
+                currentContextHash = file.id;
+
+                // Construct pseudo context so push/pull targets the right service
+                const parts = currentContextHash.split('__');
+                if (parts.length >= 3) {
+                    currentContext = {
+                        service: parts[0],
+                        orgId: parts[1],
+                        functionName: parts[2],
+                        contextHash: currentContextHash
+                    };
+                } else {
+                    currentContext = {
+                        service: 'unknown',
+                        orgId: file.workspaceId,
+                        functionName: file.fileName,
+                        contextHash: currentContextHash
+                    };
+                }
+
                 showStatus('Loaded: ' + file.fileName, 'success');
             }
         });

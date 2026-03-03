@@ -92,8 +92,8 @@
         // Orchestration for High-Level Protocol Messages
         if (request.action === MSG.CODE_EXECUTE) {
             // 1. Set Code
-            if (request.code) {
-                const setRes = await sendToBridge('SET_ZOHO_CODE', { code: request.code });
+            if ((request.code || (request.payload && request.payload.code))) {
+                const setRes = await sendToBridge('SET_ZOHO_CODE', { code: (request.code || (request.payload && request.payload.code)) });
                 if (!setRes.success) {
                     sendResponse({ success: false, error: 'Failed to set code' });
                     return;
@@ -109,8 +109,8 @@
 
         if (request.action === MSG.CODE_SAVE) {
             // 1. Set Code
-            if (request.code) {
-                const setRes = await sendToBridge('SET_ZOHO_CODE', { code: request.code });
+            if ((request.code || (request.payload && request.payload.code))) {
+                const setRes = await sendToBridge('SET_ZOHO_CODE', { code: (request.code || (request.payload && request.payload.code)) });
                 if (!setRes.success) {
                     sendResponse({ success: false, error: 'Failed to set code' });
                     return;
