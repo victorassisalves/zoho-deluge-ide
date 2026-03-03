@@ -1,8 +1,6 @@
 // app/core/bus.js
 // Message Bus for communication between Client (IDE) and Host (Zoho Page) / Background
 
-import { Logger } from '../utils/logger.js';
-
 // Generate a unique instance ID for this context to prevent infinite broadcast loops
 const INSTANCE_ID = Math.random().toString(36).substring(2, 15);
 
@@ -11,7 +9,7 @@ let reactiveBus;
 try {
     reactiveBus = new BroadcastChannel('zoho_ide_bus');
 } catch (e) {
-    Logger.warn('BroadcastChannel not supported for reactive bus', e);
+    console.warn('BroadcastChannel not supported for reactive bus', e);
 }
 
 export const Bus = {
@@ -21,8 +19,6 @@ export const Bus = {
      * @param {function} callback - The callback function(payload, source)
      */
     listen(type, callback) {
-        Logger.debug(`[Bus] Listening for: ${type}`);
-
         // 1. Listen for BroadcastChannel messages
         if (reactiveBus) {
             reactiveBus.addEventListener('message', (event) => {
@@ -32,7 +28,6 @@ export const Bus = {
                 if (instanceId === INSTANCE_ID) return;
 
                 if (msgType === type) {
-                    Logger.debug(`[Bus] Received (BroadcastChannel): ${type}`);
                     // Wrap the source to indicate it came from the broadcast channel
                     callback(payload, { isBroadcast: true, instanceId });
                 }
@@ -47,7 +42,6 @@ export const Bus = {
                 // Ensure this isn't an echoed message from our own iframe
                 if (event.data.instanceId === INSTANCE_ID) return;
 
-                Logger.debug(`[Bus] Received (Iframe): ${type}`);
                 callback(event.data.payload, event.source);
             }
         });
@@ -74,7 +68,6 @@ export const Bus = {
      */
     send(type, payload = {}) {
         const isIframe = typeof window !== 'undefined' && window.parent !== window;
-        Logger.debug(`[Bus] Sending: ${type} (Mode: ${isIframe ? 'Iframe' : 'Standalone'})`);
 
         // Create the message package with the required instanceId
         const messagePackage = {
@@ -88,7 +81,7 @@ export const Bus = {
             try {
                 reactiveBus.postMessage(messagePackage);
             } catch (e) {
-                Logger.warn(`[Bus] Failed to broadcast message: ${type}`, e);
+                console.warn(`[Bus] Failed to broadcast message: ${type}`, e);
             }
         }
 
@@ -100,22 +93,25 @@ export const Bus = {
         // 3. Send via Chrome Runtime (Standalone Mode)
         if (!isIframe && typeof chrome !== 'undefined' && chrome.runtime) {
             // Include action for backward compatibility with older listeners
-            chrome.runtime.sendMessage({
-                action: type,
-                ...messagePackage
-            }, (response) => {
-                if (chrome.runtime.lastError) {
-                    // It's normal for no listener to be present if background script isn't active
-                    // Or if we're in a page context where the background doesn't care
-                }
+            try {
+                chrome.runtime.sendMessage({
+                    action: type,
+                    ...messagePackage
+                }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        // It's normal for no listener to be present if background script isn't active
+                        // Or if we're in a page context where the background doesn't care
+                    }
 
-                // For Standalone mode, we bridge the callback to the event system if relevant
-                if (response && type === 'editor:pull') {
-                    const responseType = type + ':response';
-                    Logger.debug(`[Bus] Received (Standalone Callback): ${responseType}`);
-                    window.postMessage({ type: responseType, payload: response, instanceId: INSTANCE_ID }, '*');
-                }
-            });
+                    // For Standalone mode, we bridge the callback to the event system if relevant
+                    if (response && type === 'editor:pull') {
+                        const responseType = type + ':response';
+                        window.postMessage({ type: responseType, payload: response, instanceId: INSTANCE_ID }, '*');
+                    }
+                });
+            } catch (e) {
+                console.warn(`[Bus] Failed to send runtime message: ${type}`, e);
+            }
         }
     }
 };

@@ -9,12 +9,12 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
     if (typeof window === 'undefined') {
         ORIGIN = '[BACKGROUND]';
     } else if (window.location && (window.location.pathname.includes('popup.html') || window.location.pathname.includes('index.html'))) {
-        ORIGIN = '[IDE_PANEL]';
+        ORIGIN = '[IDE_UI]';
     } else {
         ORIGIN = '[CONTENT_SCRIPT]';
     }
 } else if (typeof window !== 'undefined') {
-    ORIGIN = window.parent !== window ? '[IFRAME]' : '[PAGE]';
+    ORIGIN = window.parent !== window ? '[BRIDGE_IFRAME]' : '[BRIDGE_PAGE]';
 }
 
 // Initialize Telemetry Broadcast Channel
