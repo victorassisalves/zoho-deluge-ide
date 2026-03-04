@@ -338,9 +338,9 @@ async function checkConnection() {
                             console.log('[ZohoIDE] Initial Context Switched:', newHash);
                             handleContextSwitch(response.context);
                         } else {
-                            // We no longer silently auto-discover every background tab.
-                            // The user must manually link or trigger a pull to sync a different tab.
-                            // We just update the visual connected state indicator for this potentially new tab.
+                            // Background discovery is now safe because scrapers cache their window.__zide_unsaved_id
+                            // It will create exactly 1 file per open un-saved tab.
+                            silentlyDiscoverContext(response.context);
                         }
                     } else {
                         // Same hash, just ensure it's visually marked as connected

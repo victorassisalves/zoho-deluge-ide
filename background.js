@@ -205,10 +205,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (targetTabId) {
             verifyConnection(targetTabId);
         } else {
-            findZohoTab((tab) => {
-                if (tab) verifyConnection(tab.id);
-                else sendResponse({ connected: false });
-            }, (request.payload && request.payload.targetContextHash) || request.targetContextHash);
+            // Find ALL active zoho tabs across ALL windows to ensure they are discovered
+            chrome.tabs.query({}, (allTabs) => {
+                const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url));
+
+                // If a specific context hash is requested, find it
+                const targetHash = (request.payload && request.payload.targetContextHash) || request.targetContextHash;
+
+                findZohoTab((tab) => {
+                    if (tab) verifyConnection(tab.id);
+                    else sendResponse({ connected: false });
+                }, targetHash);
+
+                // Silently ping other tabs to trigger background discovery
+                if (zohoTabs.length > 1) {
+                    zohoTabs.forEach(t => {
+                        chrome.tabs.sendMessage(t.id, { action: 'PING' });
+                    });
+                }
+            });
         }
         return true;
     }
@@ -347,8 +362,11 @@ function findZohoTab(callback, targetContextHash = null) {
         }
 
         // Default behavior if no target context specified
+        // First try to find any active zoho tab across ANY window
         const activeZoho = zohoTabs.find(t => t.active);
         if (activeZoho) return callback(activeZoho);
+
+        // Then try to find one that looks like an editor
         const editorTab = zohoTabs.find(t => t.url.includes('creator') || t.url.includes('crm') || t.url.includes('flow') || t.title.toLowerCase().includes('deluge'));
         callback(editorTab || zohoTabs[0]);
     });
