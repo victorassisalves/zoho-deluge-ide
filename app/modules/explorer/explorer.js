@@ -133,7 +133,16 @@ export class Explorer {
     }
 
     render(tree, orphanFiles) {
+
+        const newStateHash = JSON.stringify({ tree, orphanFiles });
+        if (this._lastStateHash === newStateHash) {
+            // State hasn't changed, do not re-render DOM
+            return;
+        }
+        this._lastStateHash = newStateHash;
+
         this.container.innerHTML = '';
+
         const sortedWorkspaceIds = Object.keys(tree).sort((a, b) => {
             return tree[b].info.lastAccessed - tree[a].info.lastAccessed;
         });

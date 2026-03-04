@@ -213,10 +213,26 @@ async function initEditor() {
                 // But we can't switch the *browser tab* context easily.
 
                 editor.setValue(file.code);
-                currentContextHash = file.id; // Update our tracking hash so subsequent saves go to this file
-                // Update currentContext metadata if possible from file info?
-                // Ideally file.workspaceId etc help.
-                // But for now, just visual load.
+                currentContextHash = file.id;
+
+                // Construct pseudo context so push/pull targets the right service
+                const parts = currentContextHash.split('__');
+                if (parts.length >= 3) {
+                    currentContext = {
+                        service: parts[0],
+                        orgId: parts[1],
+                        functionName: parts[2],
+                        contextHash: currentContextHash
+                    };
+                } else {
+                    currentContext = {
+                        service: 'unknown',
+                        orgId: file.workspaceId,
+                        functionName: file.fileName,
+                        contextHash: currentContextHash
+                    };
+                }
+
                 showStatus('Loaded: ' + file.fileName, 'success');
             }
         });
@@ -307,16 +323,24 @@ async function checkConnection() {
                 window.currentTargetTab = response;
                 nextProjectUrl = response.url;
 
-                // Handle Context Hash
+                // Handle Context Hash (Background tracking)
                 if (response.context && response.context.contextHash) {
                     const newHash = response.context.contextHash;
                     if (newHash !== currentContextHash) {
                         if (newHash.includes("LOADING")) {
-                            console.log("[ZohoIDE] Context loading, bypassing context switch...");
                             return;
                         }
-                        console.log('[ZohoIDE] Context Switched:', newHash);
-                        handleContextSwitch(response.context);
+                        // We detected a NEW context in the background.
+                        // Do NOT force switch the active IDE editor to this file if the user is busy typing.
+                        // Just silently register the workspace and file so it appears in the Explorer.
+                        if (!currentContextHash) {
+                            // Only auto-switch if the IDE is completely empty (initial load)
+                            console.log('[ZohoIDE] Initial Context Switched:', newHash);
+                            handleContextSwitch(response.context);
+                        } else {
+                            // Background discovery
+                            silentlyDiscoverContext(response.context);
+                        }
                     }
                 }
 
@@ -1318,23 +1342,14 @@ function pullFromZoho() {
     if (now - lastActionTime < 800) return;
     lastActionTime = now;
 
-    if (!isConnected) {
-        log('Error', 'No Zoho tab connected. Please open a Zoho Deluge editor tab first.');
-        return;
-    }
     log('System', 'Pulling code...');
-    ZohoRunner.pullFromZoho();
+    ZohoRunner.pullFromZoho(currentContextHash);
 }
 
 function pushToZoho(triggerSave = false, triggerExecute = false) {
     const now = Date.now();
     if (now - lastActionTime < 1000) return;
     lastActionTime = now;
-
-    if (!isConnected) {
-        log('Error', 'No Zoho tab connected. Sync/Execute failed.');
-        return;
-    }
 
     // Check for errors
     const markers = monaco.editor.getModelMarkers({ resource: editor.getModel().uri });
@@ -1347,7 +1362,7 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 
     const code = editor.getValue();
     log('System', 'Pushing code...');
-    ZohoRunner.pushToZoho(code, triggerSave, triggerExecute);
+    ZohoRunner.pushToZoho(code, triggerSave, triggerExecute, currentContextHash);
 }
 
 function createSnapshot() {
@@ -1633,3 +1648,33 @@ window.addEventListener('mouseup', () => {
     document.body.style.userSelect = 'auto';
     document.body.classList.remove('resizing');
 });
+
+async function silentlyDiscoverContext(context) {
+    try {
+        await db.workspaces.put({
+            id: context.orgId || context.service,
+            orgId: context.orgId,
+            service: context.service,
+            name: context.orgId,
+            lastAccessed: Date.now(),
+            isArchived: false
+        });
+
+        // Ensure file exists in DB so it shows in explorer
+        const file = await db.files.get(context.contextHash);
+        if (!file) {
+            await db.files.put({
+                id: context.contextHash,
+                workspaceId: context.orgId || context.service,
+                fileName: context.functionName || 'untitled',
+                code: '// Discovered code snippet',
+                variables: [],
+                lastSaved: Date.now(),
+                isDirty: false
+            });
+        }
+        if (explorer) explorer.refresh();
+    } catch(e) {
+        console.error('[ZohoIDE] DB Discovery Error:', e);
+    }
+}
