@@ -293,8 +293,15 @@ export class Explorer {
             nameSpan.appendChild(dirtyStar);
         }
 
+        // Add Connection Icon Placeholder
+        const connectionIcon = document.createElement('span');
+        connectionIcon.className = 'material-icons file-connection';
+        connectionIcon.innerText = 'link';
+        connectionIcon.title = 'Active Tab Connected';
+
         fileDiv.appendChild(icon);
         fileDiv.appendChild(nameSpan);
+        fileDiv.appendChild(connectionIcon);
 
         fileDiv.onclick = (e) => {
             e.stopPropagation();
@@ -302,6 +309,18 @@ export class Explorer {
         };
 
         return fileDiv;
+    }
+
+        setConnectedFile(fileId) {
+        // Clear previous connected visual states
+        const allFiles = this.container.querySelectorAll('.explorer-file');
+        allFiles.forEach(el => el.classList.remove('is-connected'));
+
+        // Add connected state to current target
+        if (fileId) {
+            const connectedEl = this.container.querySelector(`.explorer-file[data-id="${fileId}"]`);
+            if (connectedEl) connectedEl.classList.add('is-connected');
+        }
     }
 
     async loadFile(file) {

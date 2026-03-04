@@ -341,6 +341,9 @@ async function checkConnection() {
                             // Background discovery
                             silentlyDiscoverContext(response.context);
                         }
+                    } else {
+                        // Same hash, just ensure it's visually marked as connected
+                        if (explorer) explorer.setConnectedFile(newHash);
                     }
                 }
 
@@ -1662,6 +1665,7 @@ async function silentlyDiscoverContext(context) {
 
         // Ensure file exists in DB so it shows in explorer
         const file = await db.files.get(context.contextHash);
+        let needsRefresh = false;
         if (!file) {
             await db.files.put({
                 id: context.contextHash,
@@ -1672,8 +1676,13 @@ async function silentlyDiscoverContext(context) {
                 lastSaved: Date.now(),
                 isDirty: false
             });
+            needsRefresh = true;
         }
-        if (explorer) explorer.refresh();
+        if (explorer && needsRefresh) {
+            explorer.refresh();
+        }
+        // Update connection state visual
+        if (explorer) explorer.setConnectedFile(context.contextHash);
     } catch(e) {
         console.error('[ZohoIDE] DB Discovery Error:', e);
     }

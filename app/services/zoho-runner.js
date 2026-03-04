@@ -25,7 +25,8 @@ export const ZohoRunner = {
 
         if (triggerExecute) {
             // Wait slightly to ensure save registers first if both are triggered
-            const delay = triggerSave ? 500 : 0;
+            // Given tab transitions, we need a larger delay to ensure Zoho's DOM is ready and the save command succeeds
+            const delay = triggerSave ? 1200 : 0;
             setTimeout(() => {
                 console.debug('[ZohoRunner] Action: EXECUTE');
                 Bus.send(MSG.CODE_EXECUTE, payload);

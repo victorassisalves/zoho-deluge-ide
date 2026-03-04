@@ -144,3 +144,19 @@
     from { opacity: 0; transform: translateY(-2px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+
+/* Connection State (Green Chain / Dot) */
+.explorer-file .file-connection {
+    display: none;
+    margin-left: auto;
+    font-size: 14px;
+    color: #4caf50; /* Green color to indicate active connection */
+    opacity: 0.9;
+    padding-right: 4px;
+}
+
+.explorer-file.is-connected .file-connection {
+    display: block;
+    animation: fadeIn 0.2s ease-out;
+}
