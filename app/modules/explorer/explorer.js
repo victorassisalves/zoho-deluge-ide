@@ -450,20 +450,46 @@ export class Explorer {
         if (!chrome || !chrome.runtime) return;
 
         // Show status?
-        const event = new CustomEvent('zoho-ide:status', { detail: { msg: 'Linking tab to ' + file.fileName + '...', type: 'info' } });
+        const event = new CustomEvent('zoho-ide:status', { detail: { msg: 'Searching for open Zoho tabs...', type: 'info' } });
         document.dispatchEvent(event);
 
-        chrome.runtime.sendMessage({ action: 'LINK_FILE_TO_TAB', fileId: file.id }, (response) => {
-            if (response && response.success && response.context) {
-                const successEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Tab successfully linked to ' + file.fileName, type: 'success' } });
-                document.dispatchEvent(successEvent);
-                // Also trigger a context switch so the IDE focuses this file
-                const linkEvent = new CustomEvent('zoho-ide:force-context-switch', { detail: response.context });
-                document.dispatchEvent(linkEvent);
-                // Update visual state immediately
-                this.setConnectedFile(file.id);
+        chrome.runtime.sendMessage({ action: 'GET_ALL_ZOHO_TABS' }, (response) => {
+            if (!response || !response.tabs || response.tabs.length === 0) {
+                const errEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'No open Zoho tabs found to link.', type: 'error' } });
+                document.dispatchEvent(errEvent);
+                return;
+            }
+
+            let promptText = `Select a Zoho tab to link to "${file.fileName}":\n\n`;
+            response.tabs.forEach((tab, idx) => {
+                promptText += `${idx + 1}. ${tab.title} (...${tab.url.substring(tab.url.length - 30)})\n`;
+            });
+
+            const selection = prompt(promptText + '\nEnter number:');
+            if (selection === null) return;
+            const idx = parseInt(selection, 10) - 1;
+
+            if (!isNaN(idx) && response.tabs[idx]) {
+                const targetTabId = response.tabs[idx].id;
+
+                const linkingEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Linking...', type: 'info' } });
+                document.dispatchEvent(linkingEvent);
+
+                chrome.runtime.sendMessage({ action: 'LINK_FILE_TO_TAB', fileId: file.id, tabId: targetTabId }, (linkResponse) => {
+                    if (linkResponse && linkResponse.success && linkResponse.context) {
+                        const successEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Tab successfully linked!', type: 'success' } });
+                        document.dispatchEvent(successEvent);
+                        // Trigger context switch to focus
+                        const linkEvent = new CustomEvent('zoho-ide:force-context-switch', { detail: linkResponse.context });
+                        document.dispatchEvent(linkEvent);
+                        this.setConnectedFile(file.id);
+                    } else {
+                        const errEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Failed to link: ' + (linkResponse.error || 'Unknown Error'), type: 'error' } });
+                        document.dispatchEvent(errEvent);
+                    }
+                });
             } else {
-                const errEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Failed to link: ' + (response.error || 'No active tab'), type: 'error' } });
+                const errEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Invalid tab selection.', type: 'warning' } });
                 document.dispatchEvent(errEvent);
             }
         });

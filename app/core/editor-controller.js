@@ -492,13 +492,43 @@ function setupEventHandlers() {
     });
 
     bind('link-tab-btn', 'click', () => {
-        showStatus('Searching for active Zoho tab...', 'info');
-        chrome.runtime.sendMessage({ action: 'GET_ACTIVE_ZOHO_TAB' }, (response) => {
-            if (response && response.success && response.context) {
-                console.log('[ZohoIDE] Manual Link:', response.context);
-                handleContextSwitch(response.context);
+        if (!currentContextHash) {
+            showStatus('Open or create a file to link first.', 'error');
+            return;
+        }
+
+        showStatus('Searching for open Zoho tabs...', 'info');
+        chrome.runtime.sendMessage({ action: 'GET_ALL_ZOHO_TABS' }, (response) => {
+            if (!response || !response.tabs || response.tabs.length === 0) {
+                showStatus('No open Zoho tabs found.', 'error');
+                return;
+            }
+
+            let promptText = 'Select a Zoho tab to link to this file:\n\n';
+            response.tabs.forEach((tab, idx) => {
+                promptText += `${idx + 1}. ${tab.title} (...${tab.url.substring(tab.url.length - 30)})\n`;
+            });
+
+            const selection = prompt(promptText + '\nEnter number:');
+            if (selection === null) return;
+            const idx = parseInt(selection, 10) - 1;
+
+            if (!isNaN(idx) && response.tabs[idx]) {
+                const targetTabId = response.tabs[idx].id;
+                showStatus('Linking...', 'info');
+
+                chrome.runtime.sendMessage({ action: 'LINK_FILE_TO_TAB', fileId: currentContextHash, tabId: targetTabId }, (linkResponse) => {
+                    if (linkResponse && linkResponse.success && linkResponse.context) {
+                        showStatus('Tab successfully linked!', 'success');
+                        console.log('[ZohoIDE] Manual Link:', linkResponse.context);
+                        handleContextSwitch(linkResponse.context);
+                        if (explorer) explorer.setConnectedFile(currentContextHash);
+                    } else {
+                        showStatus('Failed to link: ' + (linkResponse.error || 'Unknown Error'), 'error');
+                    }
+                });
             } else {
-                showStatus('No open Zoho tabs found to link.', 'error');
+                showStatus('Invalid tab selection.', 'warning');
             }
         });
     });
