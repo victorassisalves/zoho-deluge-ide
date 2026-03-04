@@ -244,10 +244,6 @@ function findZohoTab(callback, targetContextHash = null) {
                     if (response && response.context && response.context.contextHash === targetContextHash && !foundTab) {
                         foundTab = tab;
                         callback(tab);
-                    } else if (response && response.context && targetContextHash.includes(response.context.orgId) && !foundTab) {
-                        // Fallback matching by orgId just in case functionName differs slightly
-                        foundTab = tab;
-                        callback(tab);
                     }
                     checkDone();
                 });

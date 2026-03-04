@@ -106,7 +106,7 @@ export const Bus = {
                     // For Standalone mode, we bridge the callback to the event system if relevant
                     if (response && type === 'editor:pull') {
                         const responseType = type + ':response';
-                        window.postMessage({ type: responseType, payload: response, instanceId: INSTANCE_ID }, '*');
+                        window.postMessage({ type: responseType, payload: response, instanceId: INSTANCE_ID + '_RESPONSE' }, '*');
                     }
                 });
             } catch (e) {
