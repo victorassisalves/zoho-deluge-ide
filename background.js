@@ -9,6 +9,18 @@ function openIDETab() {
         if (existingTab) {
             chrome.tabs.update(existingTab.id, { active: true });
             chrome.windows.update(existingTab.windowId, { focused: true });
+
+            // If the user activated the IDE from a Zoho tab, tell the IDE to link to it
+            chrome.tabs.query({ active: true, currentWindow: true }, (activeTabs) => {
+                const activeTab = activeTabs[0];
+                if (activeTab && isZohoUrl(activeTab.url)) {
+                    chrome.tabs.sendMessage(activeTab.id, { action: 'PING' }, (response) => {
+                        if (response && response.status === 'PONG' && response.context) {
+                            chrome.tabs.sendMessage(existingTab.id, { action: 'FORCE_LINK_TAB', context: response.context });
+                        }
+                    });
+                }
+            });
         } else {
             chrome.tabs.create({ url: ideUrl });
         }
@@ -64,6 +76,40 @@ chrome.commands.onCommand.addListener((command) => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
     let targetTabId = isSidePanel ? sender.tab.id : null;
+
+    if (request.action === 'GET_ACTIVE_ZOHO_TAB') {
+        // Find the currently active tab or the most recently active Zoho tab
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const activeTab = tabs[0];
+            if (activeTab && isZohoUrl(activeTab.url)) {
+                chrome.tabs.sendMessage(activeTab.id, { action: 'PING' }, (response) => {
+                    if (response && response.status === 'PONG' && response.context) {
+                        sendResponse({ success: true, context: response.context });
+                    } else {
+                        sendResponse({ success: false });
+                    }
+                });
+            } else {
+                // If the IDE itself is the active tab, query for all zoho tabs
+                chrome.tabs.query({}, (allTabs) => {
+                    const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url));
+                    if (zohoTabs.length > 0) {
+                        // Just pick the first one for now, or the most recently accessed if we had that data
+                        chrome.tabs.sendMessage(zohoTabs[0].id, { action: 'PING' }, (response) => {
+                            if (response && response.status === 'PONG' && response.context) {
+                                sendResponse({ success: true, context: response.context });
+                            } else {
+                                sendResponse({ success: false });
+                            }
+                        });
+                    } else {
+                        sendResponse({ success: false });
+                    }
+                });
+            }
+        });
+        return true;
+    }
 
     if (request.action === 'CHECK_CONNECTION') {
         const verifyConnection = (tabId) => {

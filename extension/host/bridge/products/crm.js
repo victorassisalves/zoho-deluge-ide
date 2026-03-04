@@ -57,7 +57,7 @@ export const CRMConfig = {
         return {
             service: 'crm',
             orgId: orgId,
-            functionName: functionName || `unsaved_${Date.now()}`
+            functionName: functionName || `unsaved_${(window.__zide_unsaved_id || (window.__zide_unsaved_id = Date.now()))}`
         };
     }
 };

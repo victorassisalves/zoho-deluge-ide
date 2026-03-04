@@ -338,8 +338,9 @@ async function checkConnection() {
                             console.log('[ZohoIDE] Initial Context Switched:', newHash);
                             handleContextSwitch(response.context);
                         } else {
-                            // Background discovery
-                            silentlyDiscoverContext(response.context);
+                            // We no longer silently auto-discover every background tab.
+                            // The user must manually link or trigger a pull to sync a different tab.
+                            // We just update the visual connected state indicator for this potentially new tab.
                         }
                     } else {
                         // Same hash, just ensure it's visually marked as connected
@@ -486,6 +487,18 @@ const bind = (id, event, fn) => {
 };
 
 function setupEventHandlers() {
+    bind('link-tab-btn', 'click', () => {
+        showStatus('Searching for active Zoho tab...', 'info');
+        chrome.runtime.sendMessage({ action: 'GET_ACTIVE_ZOHO_TAB' }, (response) => {
+            if (response && response.success && response.context) {
+                console.log('[ZohoIDE] Manual Link:', response.context);
+                handleContextSwitch(response.context);
+            } else {
+                showStatus('No open Zoho tabs found to link.', 'error');
+            }
+        });
+    });
+
     bind('new-btn', 'click', () => {
         if (confirm('Start a new script?')) {
             editor.setValue('// New Zoho Deluge Script\\n\\n');
