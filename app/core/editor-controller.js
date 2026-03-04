@@ -375,6 +375,7 @@ async function checkConnection() {
 }
 
 async function handleContextSwitch(context) {
+    if (!context || !context.contextHash || context.contextHash.includes('LOADING')) return;
     currentContext = context;
     currentContextHash = context.contextHash;
 
@@ -417,7 +418,7 @@ async function handleContextSwitch(context) {
 }
 
 async function saveToDexie(isDirty = true) {
-    if (!currentContextHash || !currentContext) return;
+    if (!currentContextHash || !currentContext || currentContextHash.includes('LOADING')) return;
 
     const code = editor.getValue();
     const fileName = currentContext.functionName || 'untitled';
