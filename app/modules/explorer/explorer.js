@@ -206,10 +206,23 @@ export class Explorer {
         title.innerText = displayName;
         title.title = wsData.info.id; // Tooltip shows full ID
 
-        // Archive Action
+        // Actions
         const actions = document.createElement('div');
         actions.className = 'workspace-actions';
+
         if (wsData.info.id !== 'uncategorized') {
+            // Edit
+            const editBtn = document.createElement('span');
+            editBtn.className = 'material-icons action-btn';
+            editBtn.innerText = 'edit';
+            editBtn.title = 'Rename Workspace';
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.editWorkspace(wsData.info.id, displayName);
+            };
+            actions.appendChild(editBtn);
+
+            // Archive
             const archiveBtn = document.createElement('span');
             archiveBtn.className = 'material-icons action-btn';
             archiveBtn.innerText = 'archive';
@@ -219,6 +232,17 @@ export class Explorer {
                 this.archiveWorkspace(wsData.info.id);
             };
             actions.appendChild(archiveBtn);
+
+            // Delete
+            const deleteBtn = document.createElement('span');
+            deleteBtn.className = 'material-icons action-btn';
+            deleteBtn.innerText = 'delete';
+            deleteBtn.title = 'Delete Workspace';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.deleteWorkspace(wsData.info.id);
+            };
+            actions.appendChild(deleteBtn);
         }
 
         header.appendChild(icon);
@@ -299,9 +323,55 @@ export class Explorer {
         connectionIcon.innerText = 'link';
         connectionIcon.title = 'Active Tab Connected';
 
+        // File Actions
+        const actions = document.createElement('div');
+        actions.className = 'file-actions';
+
+        const linkBtn = document.createElement('span');
+        linkBtn.className = 'material-icons file-action-btn';
+        linkBtn.innerText = 'link';
+        linkBtn.title = 'Link Active Tab to this file';
+        linkBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.linkTabToFile(file);
+        };
+
+        const renameBtn = document.createElement('span');
+        renameBtn.className = 'material-icons file-action-btn';
+        renameBtn.innerText = 'edit';
+        renameBtn.title = 'Rename File';
+        renameBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.renameFile(file);
+        };
+
+        const moveBtn = document.createElement('span');
+        moveBtn.className = 'material-icons file-action-btn';
+        moveBtn.innerText = 'drive_file_move';
+        moveBtn.title = 'Move File';
+        moveBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.moveFile(file);
+        };
+
+        const deleteBtn = document.createElement('span');
+        deleteBtn.className = 'material-icons file-action-btn';
+        deleteBtn.innerText = 'delete';
+        deleteBtn.title = 'Delete File';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.deleteFile(file);
+        };
+
+        actions.appendChild(linkBtn);
+        actions.appendChild(renameBtn);
+        actions.appendChild(moveBtn);
+        actions.appendChild(deleteBtn);
+
         fileDiv.appendChild(icon);
         fileDiv.appendChild(nameSpan);
         fileDiv.appendChild(connectionIcon);
+        fileDiv.appendChild(actions);
 
         fileDiv.onclick = (e) => {
             e.stopPropagation();
@@ -341,6 +411,108 @@ export class Explorer {
     async archiveWorkspace(id) {
         if (confirm('Archive this workspace? It will be hidden from the explorer.')) {
             await db.workspaces.update(id, { isArchived: true });
+            this.refresh();
+        }
+    }
+
+    async editWorkspace(id, currentName) {
+        const newName = prompt('Enter new workspace name:', currentName);
+        if (newName !== null && newName.trim() !== '') {
+            await db.workspaces.update(id, { name: newName.trim() });
+            this.refresh();
+        }
+    }
+
+    async moveFile(file) {
+        // Fetch all active workspaces to choose from
+        const workspaces = await db.workspaces.where('isArchived').equals(false).toArray();
+        if (workspaces.length === 0) {
+            alert('No active workspaces to move to.');
+            return;
+        }
+
+        let promptText = 'Move file to which workspace?\n\n';
+        workspaces.forEach((ws, idx) => {
+            promptText += `${idx + 1}. ${this.formatWorkspaceName(ws.name, ws.id)}\n`;
+        });
+
+        const selection = prompt(promptText + '\nEnter number:');
+        const idx = parseInt(selection, 10) - 1;
+
+        if (!isNaN(idx) && workspaces[idx]) {
+            const newWsId = workspaces[idx].id;
+            await db.files.update(file.id, { workspaceId: newWsId });
+            this.refresh();
+        }
+    }
+
+    async linkTabToFile(file) {
+        if (!chrome || !chrome.runtime) return;
+
+        // Show status?
+        const event = new CustomEvent('zoho-ide:status', { detail: { msg: 'Linking tab to ' + file.fileName + '...', type: 'info' } });
+        document.dispatchEvent(event);
+
+        chrome.runtime.sendMessage({ action: 'LINK_FILE_TO_TAB', fileId: file.id }, (response) => {
+            if (response && response.success && response.context) {
+                const successEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Tab successfully linked to ' + file.fileName, type: 'success' } });
+                document.dispatchEvent(successEvent);
+                // Also trigger a context switch so the IDE focuses this file
+                const linkEvent = new CustomEvent('zoho-ide:force-context-switch', { detail: response.context });
+                document.dispatchEvent(linkEvent);
+                // Update visual state immediately
+                this.setConnectedFile(file.id);
+            } else {
+                const errEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Failed to link: ' + (response.error || 'No active tab'), type: 'error' } });
+                document.dispatchEvent(errEvent);
+            }
+        });
+    }
+
+    async renameFile(file) {
+        const newName = prompt('Enter new file name:', file.fileName);
+        if (newName && newName.trim()) {
+            await db.files.update(file.id, { fileName: newName.trim() });
+            this.refresh();
+        }
+    }
+
+    async deleteFile(file) {
+        if (confirm(`Delete file "${file.fileName}" permanently?`)) {
+            await db.files.delete(file.id);
+            if (this.activeFileId === file.id) {
+                // Tell editor to clear? For now just remove active state
+                this.setActiveFile(null);
+            }
+            this.refresh();
+        }
+    }
+
+    async createWorkspace() {
+        const name = prompt('Enter new workspace name:');
+        if (name && name.trim()) {
+            const id = 'ws_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+            await db.workspaces.put({
+                id: id,
+                orgId: id,
+                service: 'custom',
+                name: name.trim(),
+                lastAccessed: Date.now(),
+                isArchived: false
+            });
+            this.expandedWorkspaces.add(id);
+            this.refresh();
+        }
+    }
+
+    async deleteWorkspace(id) {
+        if (confirm('Delete this workspace? All files inside will become Uncategorized.')) {
+            // Uncategorize files
+            const files = await db.files.where('workspaceId').equals(id).toArray();
+            for (let f of files) {
+                await db.files.update(f.id, { workspaceId: 'uncategorized' });
+            }
+            await db.workspaces.delete(id);
             this.refresh();
         }
     }

@@ -131,7 +131,7 @@
         }
 
         // Direct relay for legacy or other messages
-        const relayActions = ['SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE', 'PING', 'GET_ZOHO_CODE'];
+        const relayActions = ['SET_ZOHO_CODE', 'SAVE_ZOHO_CODE', 'EXECUTE_ZOHO_CODE', 'PING', 'GET_ZOHO_CODE', 'SET_CONTEXT_HASH'];
         if (relayActions.includes(request.action)) {
             const res = await sendToBridge(request.action, request);
             sendResponse(res);

@@ -160,3 +160,26 @@
     display: block;
     animation: fadeIn 0.2s ease-out;
 }
+
+
+/* File Actions (Rename, Move, Delete) */
+.file-actions {
+    display: none;
+    align-items: center;
+    margin-left: auto;
+}
+
+.explorer-file:hover .file-actions {
+    display: flex;
+}
+
+.file-action-btn {
+    font-size: 14px;
+    color: #888;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.file-action-btn:hover {
+    color: #fff;
+}

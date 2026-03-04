@@ -77,6 +77,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
     let targetTabId = isSidePanel ? sender.tab.id : null;
 
+    if (request.action === 'LINK_FILE_TO_TAB') {
+        const fileId = request.fileId;
+        // Find the active zoho tab
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const activeTab = tabs[0];
+            if (activeTab && isZohoUrl(activeTab.url)) {
+                // Tell the tab to assume this fileId as its context hash
+                chrome.tabs.sendMessage(activeTab.id, { action: 'SET_CONTEXT_HASH', contextHash: fileId }, (res) => {
+                    // Send a PING to confirm and update the IDE
+                    chrome.tabs.sendMessage(activeTab.id, { action: 'PING' }, (pingRes) => {
+                        if (pingRes && pingRes.status === 'PONG') {
+                            sendResponse({ success: true, context: pingRes.context });
+                        } else {
+                            sendResponse({ success: false, error: 'Ping failed after link' });
+                        }
+                    });
+                });
+            } else {
+                // If the IDE itself is the active tab, we need to find the last active zoho tab
+                chrome.tabs.query({}, (allTabs) => {
+                    const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url));
+                    if (zohoTabs.length > 0) {
+                        const targetTab = zohoTabs[0]; // simplistic fallback
+                        chrome.tabs.sendMessage(targetTab.id, { action: 'SET_CONTEXT_HASH', contextHash: fileId }, (res) => {
+                            chrome.tabs.sendMessage(targetTab.id, { action: 'PING' }, (pingRes) => {
+                                if (pingRes && pingRes.status === 'PONG') {
+                                    sendResponse({ success: true, context: pingRes.context });
+                                } else {
+                                    sendResponse({ success: false, error: 'Ping failed after link' });
+                                }
+                            });
+                        });
+                    } else {
+                        sendResponse({ success: false, error: 'No Zoho tabs found to link' });
+                    }
+                });
+            }
+        });
+        return true;
+    }
+
     if (request.action === 'GET_ACTIVE_ZOHO_TAB') {
         // Find the currently active tab or the most recently active Zoho tab
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

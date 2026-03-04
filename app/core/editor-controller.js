@@ -487,6 +487,10 @@ const bind = (id, event, fn) => {
 };
 
 function setupEventHandlers() {
+    bind('create-ws-btn', 'click', () => {
+        if (explorer) explorer.createWorkspace();
+    });
+
     bind('link-tab-btn', 'click', () => {
         showStatus('Searching for active Zoho tab...', 'info');
         chrome.runtime.sendMessage({ action: 'GET_ACTIVE_ZOHO_TAB' }, (response) => {

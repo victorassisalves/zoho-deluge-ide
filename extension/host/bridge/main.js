@@ -34,7 +34,10 @@ window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
     let response = {};
     const { action, eventId } = data;
 
-    if (action === 'PING') {
+    if (action === 'SET_CONTEXT_HASH') {
+        window.__zide_manual_context_hash = data.contextHash;
+        response = { success: true };
+    } else if (action === 'PING') {
         const context = getContext();
         response = { status: 'PONG', product: context.service, context: context };
     } else if (action === 'GET_ZOHO_CODE') {
