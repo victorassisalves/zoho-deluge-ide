@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* Emulate panels.css vars */
+:root {
+  --md-sys-spacing-2: 8px;
+  --md-sys-spacing-4: 16px;
+  --md-sys-color-outline: #333;
+  --md-sys-color-outline-variant: #444;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-color-surface-hover: #222;
+  --md-sys-color-on-surface-variant: #888;
+  --md-sys-color-surface-variant: #333;
+  --md-sys-color-primary: #55f;
+  --md-sys-color-surface-active: #111;
+}
+
+body { background: #111; color: white; font-family: sans-serif; padding: 50px; }
+
+/* The CSS we added */
+.tree-node {
+    margin-left: var(--md-sys-spacing-4);
+    border-left: 1px solid var(--md-sys-color-outline-variant);
+    position: relative;
+}
+
+.tree-label {
+    display: flex;
+    align-items: center;
+    padding: 4px var(--md-sys-spacing-2);
+    border-radius: var(--md-sys-shape-corner-small);
+    transition: background 0.2s, color 0.2s;
+    user-select: none;
+    position: relative;
+    cursor: pointer;
+}
+
+.tree-label:hover {
+    background: var(--md-sys-color-surface-hover);
+}
+
+.tree-actions {
+    display: none;
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--md-sys-color-surface-hover);
+    padding-left: 8px;
+    box-shadow: -8px 0 8px var(--md-sys-color-surface-hover);
+    border-radius: var(--md-sys-shape-corner-small);
+    align-items: center;
+    gap: 4px;
+}
+
+.tree-label:hover .tree-actions {
+    display: flex;
+}
+
+.tree-action-btn {
+    background: transparent;
+    border: 1px solid var(--md-sys-color-outline);
+    color: var(--md-sys-color-on-surface-variant);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.tree-action-btn:hover {
+    color: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-active);
+}
+
+.tree-type {
+    font-size: 10px;
+    text-transform: uppercase;
+    background: var(--md-sys-color-surface-variant);
+    color: var(--md-sys-color-on-surface-variant);
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-left: auto; /* Pushes to the right if possible, or before actions */
+    border: 1px solid var(--md-sys-color-outline);
+    font-weight: 500;
+}
+
+.tree-key { color: #9cdcfe; font-weight: 500; }
+.tree-val { color: #ce9178; }
+.toggle-icon, .node-icon { opacity: 0.7; margin-right: 4px; }
+.tree-label:hover .toggle-icon, .tree-label:hover .node-icon { opacity: 1; }
+</style>
+</head>
+<body>
+<div style="width: 300px; border: 1px solid #444; padding: 10px;">
+    <div class="tree-node">
+        <div class="tree-label">
+            <span class="toggle-icon material-icons" style="font-size:12px;">arrow_drop_down</span>
+            <span class="node-icon material-icons" style="font-size:12px;">folder</span>
+            <span class="tree-key">$approval</span>: {
+            <div style="flex-grow:1"></div>
+            <span class="tree-type">Map</span>
+            <div class="tree-actions">
+                <button class="tree-action-btn" title="Path"><span class="material-icons" style="font-size: 14px;">content_copy</span></button>
+                <button class="tree-action-btn" title="JSON"><span class="material-icons" style="font-size: 14px;">data_object</span></button>
+                <button class="tree-action-btn" title="Map"><span class="material-icons" style="font-size: 14px;">account_tree</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

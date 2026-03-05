@@ -1278,7 +1278,7 @@ function renderInterfaceTree(mappingName, obj) {
                     valHtml = `: ${isArray ? '[' : '{'}`;
                 }
 
-                label.innerHTML = `${iconHtml} ${keyHtml}${valHtml} ${typeHtml}`;
+                label.innerHTML = `${iconHtml} ${keyHtml}${valHtml} <div style="flex-grow: 1; min-width: 10px;"></div>${typeHtml}`;
 
                 // Actions container
                 const actions = document.createElement('div');
@@ -1286,7 +1286,7 @@ function renderInterfaceTree(mappingName, obj) {
 
                 const copyPathBtn = document.createElement('button');
                 copyPathBtn.className = 'tree-action-btn';
-                copyPathBtn.innerText = 'Path';
+                copyPathBtn.innerHTML = '<span class="material-icons" style="font-size: 14px;">content_copy</span>';
                 copyPathBtn.title = 'Insert Path';
                 copyPathBtn.onclick = (e) => {
                     e.stopPropagation();
@@ -1295,7 +1295,7 @@ function renderInterfaceTree(mappingName, obj) {
 
                 const copyJsonBtn = document.createElement('button');
                 copyJsonBtn.className = 'tree-action-btn';
-                copyJsonBtn.innerText = 'JSON';
+                copyJsonBtn.innerHTML = '<span class="material-icons" style="font-size: 14px;">data_object</span>';
                 copyJsonBtn.title = 'Copy as Raw JSON to clipboard';
                 copyJsonBtn.onclick = async (e) => {
                     e.stopPropagation();
@@ -1307,7 +1307,7 @@ function renderInterfaceTree(mappingName, obj) {
 
                 const copyMapBtn = document.createElement('button');
                 copyMapBtn.className = 'tree-action-btn';
-                copyMapBtn.innerText = 'Map';
+                copyMapBtn.innerHTML = '<span class="material-icons" style="font-size: 14px;">account_tree</span>';
                 copyMapBtn.title = 'Generate Map for this node';
                 copyMapBtn.onclick = (e) => {
                     e.stopPropagation();
