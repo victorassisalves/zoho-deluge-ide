@@ -1,0 +1,136 @@
+/* app/styles/components/modals.css */
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.modal-content {
+    background: var(--md-sys-color-surface);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-medium);
+    width: 90%;
+    max-width: 650px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modal-fade-in 0.2s ease-out;
+}
+
+@keyframes modal-fade-in {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+    padding: var(--md-sys-spacing-5) 20px;
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--md-sys-color-surface-variant);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: var(--md-sys-typescale-title-small);
+    color: var(--md-sys-color-on-surface-strong);
+    font-weight: 500;
+}
+
+.modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-5);
+    background-color: var(--md-sys-color-background);
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-2);
+}
+
+.input-group label {
+    font-size: var(--md-sys-typescale-body-large);
+    color: var(--md-sys-color-on-surface-variant);
+    font-weight: 500;
+}
+
+.input-group input[type="text"],
+.input-group textarea,
+.input-group input[type="password"] {
+    background: var(--md-sys-color-surface-variant);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface);
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-4);
+    border-radius: var(--md-sys-shape-corner-small);
+    font-size: var(--md-sys-typescale-title-small);
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.input-group textarea {
+    height: 250px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    resize: vertical;
+}
+
+.input-group input:focus,
+.input-group textarea:focus {
+    border-color: var(--md-sys-color-primary);
+    outline: none;
+}
+
+#modal-json-status {
+    font-size: var(--md-sys-typescale-body-medium);
+    margin-top: var(--md-sys-spacing-1);
+    min-height: 16px;
+}
+
+.modal-footer {
+    padding: var(--md-sys-spacing-5) 20px;
+    background: var(--md-sys-color-surface-variant);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--md-sys-color-outline);
+}
+
+.footer-right {
+    display: flex;
+    gap: var(--md-sys-spacing-3);
+    margin-left: auto; /* Push to right if no left content */
+}
+
+/* Modal textareas actions corner */
+.textarea-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.textarea-actions {
+    position: absolute;
+    top: var(--md-sys-spacing-3);
+    right: var(--md-sys-spacing-3);
+    display: flex;
+    gap: var(--md-sys-spacing-2);
+    z-index: 5;
+}
+
+#interface-modal input:focus, #interface-modal textarea:focus {
+    border-color: var(--md-sys-color-primary) !important;
+    outline: none;
+}

@@ -4,424 +4,92 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoho Deluge Advanced IDE v2.0.0</title>
-    <!-- CSS Paths Updated for app/ directory -->
-    <link rel="stylesheet" href="../ide.css">
+
+    <!-- CSS Segmentation: Core Theme & Layout -->
+    <link rel="stylesheet" href="styles/theme.css">
+    <link rel="stylesheet" href="styles/layout.css">
+
+    <!-- CSS Segmentation: Components -->
+    <link rel="stylesheet" href="styles/components/buttons.css">
+    <link rel="stylesheet" href="styles/components/modals.css">
+    <link rel="stylesheet" href="styles/components/tabs.css">
+    <link rel="stylesheet" href="styles/components/panels.css">
+
+    <!-- Third-party CSS -->
     <link rel="stylesheet" href="modules/explorer/explorer.css">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" data-name="vs/editor/editor.main" href="../assets/monaco-editor/min/vs/editor/editor.main.css">
 </head>
 <body>
     <div id="app-container">
+        <!-- Header Shell -->
         <header id="top-bar">
-            <div class="logo">Deluge IDE <div class="project-info" style="margin-left: 20px; display: inline-flex; align-items: center; gap: 5px;"><label style="font-size: 10px; color: #888;">Project:</label><input type="text" id="project-name-input" placeholder="Untitled Project" style="background: #1e1e1e; color: #ccc; border: 1px solid #444; padding: 2px 5px; font-size: 11px; width: 150px;"></div></div>
+            <div class="logo" style="display: flex; align-items: center; color: var(--md-sys-color-primary); font-weight: bold; font-size: var(--md-sys-typescale-title-small);">
+                Deluge IDE
+                <div class="project-info" style="margin-left: 20px; display: inline-flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 10px; color: var(--md-sys-color-on-surface-variant);">Project:</label>
+                    <input type="text" id="project-name-input" placeholder="Untitled Project" style="background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface); border: 1px solid var(--md-sys-color-outline-variant); padding: 2px 5px; font-size: var(--md-sys-typescale-body-medium); width: 150px; border-radius: var(--md-sys-shape-corner-extra-small);">
+                </div>
+            </div>
             <div class="actions">
                 <span id="status-indicator">Disconnected</span>
-                <button id="link-tab-btn" title="Link Active Zoho Tab"><span class="material-icons">link</span> Link Tab</button>
-                <button id="new-btn" title="New Script"><span class="material-icons">add</span> New</button>
-                <button id="pull-btn" title="Pull (Ctrl+Shift+P)"><span class="material-icons">download</span> Pull</button>
-                <button id="push-btn" title="Sync (Ctrl+Shift+S)"><span class="material-icons">sync</span> Sync</button>
-                <button id="toggle-right-sidebar-top" title="Toggle Interface Manager"><span class="material-icons">dashboard</span></button>
-                <button id="interface-btn" title="JSON to Deluge Map"><span class="material-icons">transform</span> JSON->Map</button>
-                <button id="execute-btn" style="background:#28a745;" title="Sync + Execute (Ctrl+Shift+Enter)"><span class="material-icons">play_arrow</span> Run</button>
-                <button id="save-btn" title="Save Locally (Ctrl+S)"><span class="material-icons">save</span> Save</button>
+                <!-- SVG icons injected via JS for actions where applicable, but buttons defined here to maintain bindings -->
+                <button id="link-tab-btn" title="Link Active Zoho Tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg> Link Tab
+                </button>
+                <button id="new-btn" title="New Script">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> New
+                </button>
+                <button id="pull-btn" title="Pull (Ctrl+Shift+P)">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> Pull
+                </button>
+                <button id="push-btn" title="Sync (Ctrl+Shift+S)">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg> Sync
+                </button>
+                <button id="toggle-right-sidebar-top" title="Toggle Interface Manager">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                </button>
+                <button id="interface-btn" title="JSON to Deluge Map">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M22 18v-2H8V4h2L7 1 4 4h2v2H2v2h4v10h10v2h-2l3 3 3-3h-2v-2h4zM10 8h6v6h2V8c0-1.1-.9-2-2-2h-6v2z"/></svg> JSON->Map
+                </button>
+                <button id="execute-btn" title="Sync + Execute (Ctrl+Shift+Enter)">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Run
+                </button>
+                <button id="save-btn" title="Save Locally (Ctrl+S)">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg> Save
+                </button>
             </div>
         </header>
+
+        <!-- Main Content Shell -->
         <main id="main-content">
+            <!-- Left Sidebar Navigation -->
             <aside id="sidebar">
-                <div class="sidebar-item active" data-view="explorer" title="Explorer"><span class="material-icons">folder</span></div>
-                <div class="sidebar-item" data-view="cloud" title="Workspaces"><span class="material-icons">cloud</span></div>
-                <div class="sidebar-item" data-view="ai-agent" title="AI Agent"><span class="material-icons">psychology</span></div>
-                <div class="sidebar-item" data-view="zoho-apis" title="Zoho APIs"><span class="material-icons">api</span></div>
-                <div class="sidebar-item" data-view="snippets" title="Snippets"><span class="material-icons">description</span></div>
-                <div class="sidebar-item" data-view="my-snippets" title="My Snippets"><span class="material-icons">bookmarks</span></div>
-                <div class="sidebar-item" data-view="extensions" title="Extensions" style="display: none;"><span class="material-icons">extension</span></div>
-                <div class="sidebar-item" data-view="settings" title="Settings"><span class="material-icons">settings</span></div>
+                <!-- Rendered by app/ui/index.js -> components/sidebar.js -->
             </aside>
+
+            <!-- Left Panel Content -->
             <div id="left-panel-content" class="sidebar-panel">
-                <!-- Explorer View -->
-                <div id="view-explorer" class="view-content active">
-                    <h4 style="display: flex; justify-content: space-between; align-items: center;">
-                        Explorer
-                        <span id="create-ws-btn" class="material-icons action-btn" style="cursor: pointer; font-size: 16px; margin-right: 10px;" title="New Workspace">create_new_folder</span>
-                    </h4>
-                    <div id="saved-files-list" class="explorer-tree">
-                        <!-- File Explorer Rendered via JS -->
-                    </div>
-                </div>
-
-                <!-- Cloud View -->
-                <div id="view-cloud" class="view-content">
-                    <h4>Cloud Workspaces</h4>
-                    <div id="cloud-auth-section">
-                        <div id="auth-logged-out">
-                            <input type="email" id="auth-email" placeholder="Email" class="cloud-input">
-                            <input type="password" id="auth-password" placeholder="Password" class="cloud-input">
-                            <div style="display:flex; gap:5px; margin-top:5px;">
-                                <button id="auth-login-btn" class="cloud-btn">Login</button>
-                                <button id="auth-signup-btn" class="cloud-btn">Sign Up</button>
-                            </div>
-                        </div>
-                        <div id="auth-logged-in" style="display:none;">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span id="user-display" style="font-size:11px; opacity:0.8;"></span>
-                                <button id="auth-logout-btn" style="background:transparent; border:none; color:#ff79c6; cursor:pointer; font-size:10px;">Logout</button>
-                            </div>
-                            <div id="org-display" style="font-size:12px; font-weight:bold; margin-top:5px; color:#50fa7b;"></div>
-                        </div>
-                    </div>
-                    <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
-                    <div id="cloud-hierarchy-section" style="display:none;">
-                        <div class="hierarchy-level"><label>Team</label><select id="team-selector" class="cloud-select"></select><button id="create-team-btn" class="mini-btn">+</button></div>
-                        <div class="hierarchy-level"><label>Workspace</label><select id="workspace-selector" class="cloud-select"></select><button id="create-workspace-btn" class="mini-btn">+</button></div>
-                        <div class="hierarchy-level"><label>Project</label><select id="project-selector" class="cloud-select"></select><button id="create-project-btn" class="mini-btn">+</button></div>
-                        <div class="hierarchy-level" style="flex-direction:column; align-items:flex-start;">
-                            <label style="width:100%;">Files</label>
-                            <div id="cloud-file-list" class="cloud-list"></div>
-                            <button id="create-file-btn" class="cloud-btn" style="width:100%; margin-top:5px;">+ New Cloud File</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- AI Agent View -->
-                                <div id="view-ai-agent" class="view-content">
-                    <div class="ai-agent-tabs">
-                        <div class="ai-tab active" data-agent="planning">Planning</div>
-                        <div class="ai-tab" data-agent="architecture">Architecture</div>
-                    </div>
-
-                    <!-- Planning Agent -->
-                    <div id="agent-planning-view" class="agent-view active">
-                        <h4>Planning Agent (Deep Research)</h4>
-                        <div class="ai-input-area">
-                            <textarea id="ai-research-goal" placeholder="Describe the task for deep research... (Ctrl+Enter to start)"></textarea>
-                            <div class="ai-controls">
-                                <button id="ai-research-btn">Start Research</button>
-                            </div>
-                        </div>
-                        <div id="research-progress-container" style="display:none; margin-top:10px;">
-                            <div class="progress-label">Researching... <span id="research-percent">0%</span></div>
-                            <div class="progress-bar-bg">
-                                <div id="research-progress-fill" class="progress-bar-fill"></div>
-                            </div>
-                            <div id="research-status-text" style="font-size:10px; color:#aaa; margin-top:4px;">Initializing...</div>
-                        </div>
-                        <div id="research-result-container" style="display:none; margin-top:15px; flex-direction: column; flex-grow: 1;">
-                            <label style="font-size:11px; color:#888;">Research Report (Review & Edit):</label>
-                            <textarea id="research-report-edit" class="report-editor"></textarea>
-                            <div class="handoff-controls">
-                                <button id="ai-redo-plan-btn" class="secondary-btn">Redo Plan</button>
-                                <button id="ai-build-this-btn" class="primary-btn">Build This</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Architecture Agent -->
-                    <div id="agent-architecture-view" class="agent-view">
-                        <h4>Architecture Agent (Builder)</h4>
-                        <div id="arch-plan-summary" class="plan-summary-box">
-                            <span style="opacity:0.5;">No active plan. Use the Planning Agent first.</span>
-                        </div>
-                        <div id="ai-chat-container" style="flex-grow: 1; display: flex; flex-direction: column;">
-                            <div id="ai-chat-history" style="flex-grow: 1;">
-                                <div class="chat-msg ai">I'm ready to build your solution based on the plan.</div>
-                            </div>
-                            <div class="ai-input-area">
-                                <textarea id="ai-question" placeholder="Refine or ask about the code..."></textarea>
-                                <button id="ai-ask-btn">Ask Architect</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-
-                <!-- Zoho APIs View -->
-                <div id="view-zoho-apis" class="view-content">
-                    <h4>Zoho API Reference</h4>
-                    <div class="api-explorer-header">
-                        <select id="sidebar-api-product-selector" class="api-select">
-                            <option value="crm">Zoho CRM (V8)</option>
-                            <option value="books">Zoho Books (V3)</option>
-                            <option value="creator">Zoho Creator (V2.1)</option>
-                            <option value="recruit">Zoho Recruit (V2)</option>
-                        </select>
-                        <input type="text" id="sidebar-api-search" placeholder="Search APIs..." class="api-search-input">
-                    </div>
-                    <div id="sidebar-api-results-list" class="api-list">
-                        <!-- API references will be populated here -->
-                    </div>
-                </div>
-<!-- Snippets View -->
-                <div id="view-snippets" class="view-content">
-                    <h4>Deluge Snippets</h4>
-                    <div class="snippets-container" style="font-size:12px;">
-                        <div class="snippet-group">
-                            <h5>Map Manipulation</h5>
-                            <div class="snippet-btn" data-snippet="map">create map</div>
-                            <div class="snippet-btn" data-snippet="put">put</div>
-                            <div class="snippet-btn" data-snippet="put_all">put all keys</div>
-                            <div class="snippet-btn" data-snippet="remove_key">remove key</div>
-                            <div class="snippet-btn" data-snippet="clear_map">clear map</div>
-                            <div class="snippet-btn" data-snippet="get">get value</div>
-                            <div class="snippet-btn" data-snippet="keys">get keys</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Collection (Native)</h5>
-                            <div class="snippet-btn" data-snippet="collection_create">create collection</div>
-                            <div class="snippet-btn" data-snippet="collection_insert">insert</div>
-                            <div class="snippet-btn" data-snippet="collection_get">get</div>
-                            <div class="snippet-btn" data-snippet="collection_insert_all">insertAll</div>
-                            <div class="snippet-btn" data-snippet="collection_update">update</div>
-                            <div class="snippet-btn" data-snippet="collection_delete">delete</div>
-                            <div class="snippet-btn" data-snippet="collection_keys">keys</div>
-                            <div class="snippet-btn" data-snippet="collection_values">values</div>
-                            <div class="snippet-btn" data-snippet="collection_contains_key">contains key</div>
-                            <div class="snippet-btn" data-snippet="collection_contains_value">contains value</div>
-                            <div class="snippet-btn" data-snippet="collection_clear">clear</div>
-                            <div class="snippet-btn" data-snippet="collection_sort">sort value</div>
-                            <div class="snippet-btn" data-snippet="collection_is_empty">is empty</div>
-                            <div class="snippet-btn" data-snippet="collection_size">size</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Web Data</h5>
-                            <div class="snippet-btn" data-snippet="zoho_integration">zoho integration</div>
-                            <div class="snippet-btn" data-snippet="other_integration">other integration</div>
-                            <div class="snippet-btn" data-snippet="get_url">get url</div>
-                            <div class="snippet-btn" data-snippet="post_url">post url</div>
-                            <div class="snippet-btn" data-snippet="invoke_url">invoke url</div>
-                            <div class="snippet-btn" data-snippet="open_url">open url</div>
-                            <div class="snippet-btn" data-snippet="invoke_api">invoke API</div>
-                            <div class="snippet-btn" data-snippet="ftp">FTP/SFTP</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Xml Manipulation</h5>
-                            <div class="snippet-btn" data-snippet="xpath">execute XPath</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Condition</h5>
-                            <div class="snippet-btn" data-snippet="if">if</div>
-                            <div class="snippet-btn" data-snippet="else if">else if</div>
-                            <div class="snippet-btn" data-snippet="else">else</div>
-                            <div class="snippet-btn" data-snippet="conditional if">conditional if</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Data Access (Creator)</h5>
-                            <div style="margin-bottom:10px; display:flex; flex-direction:column; gap:5px; border-bottom:1px solid #333; padding-bottom:10px;">
-                                <button id="fetch-creator-forms-btn" class="mini-btn" style="width:100%; font-size:10px;">Fetch Creator Forms</button>
-                                <select id="creator-form-selector" class="mini-select" style="width:100%; display:none; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:2px; font-size:10px;"></select>
-                            </div>
-                            <div class="snippet-btn" data-snippet="insert">add record</div>
-                            <div class="snippet-btn" data-snippet="fetch">fetch records</div>
-                            <div class="snippet-btn" data-snippet="aggregate">aggregate records</div>
-                            <div class="snippet-btn" data-snippet="update">update record</div>
-                            <div class="snippet-btn" data-snippet="update_multiple">update multiple fields</div>
-                            <div class="snippet-btn" data-snippet="for each">for each record</div>
-                            <div class="snippet-btn" data-snippet="delete">delete records</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>List Manipulation</h5>
-                            <div class="snippet-btn" data-snippet="list">create list</div>
-                            <div class="snippet-btn" data-snippet="add">add</div>
-                            <div class="snippet-btn" data-snippet="remove">remove index</div>
-                            <div class="snippet-btn" data-snippet="remove_element">remove element</div>
-                            <div class="snippet-btn" data-snippet="add_all">add all | remove all</div>
-                            <div class="snippet-btn" data-snippet="clear">clear list</div>
-                            <div class="snippet-btn" data-snippet="sort">sort</div>
-                            <div class="snippet-btn" data-snippet="for_each_element">for each element</div>
-                            <div class="snippet-btn" data-snippet="for_each_index">for each index</div>
-                            <div class="snippet-btn" data-snippet="list_get">get element</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Miscellaneous</h5>
-                            <div class="snippet-btn" data-snippet="variable">set variable</div>
-                            <div class="snippet-btn" data-snippet="function">call function</div>
-                            <div class="snippet-btn" data-snippet="mail">send mail</div>
-                            <div class="snippet-btn" data-snippet="add_comment">add comment</div>
-                            <div class="snippet-btn" data-snippet="return">return</div>
-                            <div class="snippet-btn" data-snippet="info">info (debug)</div>
-                        </div>
-
-                        <div class="snippet-group">
-                            <h5>Date Manipulation</h5>
-                            <div class="snippet-btn" data-snippet="today">today</div>
-                            <div class="snippet-btn" data-snippet="now">now</div>
-                            <div class="snippet-btn" data-snippet="current_date">current date</div>
-                            <div class="snippet-btn" data-snippet="add_day">add day</div>
-                            <div class="snippet-btn" data-snippet="add_month">add month</div>
-                            <div class="snippet-btn" data-snippet="date_format">format date</div>
-                            <div class="snippet-btn" data-snippet="date_diff">date diff</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Loops & Flow</h5>
-                            <div class="snippet-btn" data-snippet="for_each_element">for each (list)</div>
-                            <div class="snippet-btn" data-snippet="for each">for each (form)</div>
-                            <div class="snippet-btn" data-snippet="while">while loop</div>
-                            <div class="snippet-btn" data-snippet="info">info</div>
-                            <div class="snippet-btn" data-snippet="info_var">info with var</div>
-                        </div>
-                        <div class="snippet-group">
-                            <h5>Advanced Integrations</h5>
-                            <div class="snippet-btn" data-snippet="coql">CRM COQL Query</div>
-                            <div class="snippet-btn" data-snippet="invoke_url">invokeurl (base)</div>
-                        </div>
-</div>
-                </div>
-
-                <!-- My Snippets View -->
-                <div id="view-my-snippets" class="view-content">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <h4>My Snippets</h4>
-                        <div style="display:flex; gap:5px;">
-                            <button id="add-my-snippet-btn" class="mini-btn" title="Add Snippet" style="background:#007acc; width:24px; height:24px;"><span class="material-icons" style="font-size:16px;">add</span></button>
-                            <button id="export-snippets-btn" class="mini-btn" title="Export Snippets" style="background:#444; width:24px; height:24px;"><span class="material-icons" style="font-size:16px;">file_download</span></button>
-                            <button id="import-snippets-btn" class="mini-btn" title="Import Snippets" style="background:#444; width:24px; height:24px;"><span class="material-icons" style="font-size:16px;">file_upload</span></button>
-                        </div>
-                    </div>
-                    <div class="search-container" style="margin-bottom:10px;">
-                        <input type="text" id="my-snippets-search" placeholder="Search snippets..." style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px; font-size:12px;">
-                    </div>
-                    <div id="my-snippets-list" class="snippets-container">
-                        <div style="font-size:11px; opacity:0.5; text-align:center; margin-top:20px;">No snippets found. Click the + icon to add your first snippet.</div>
-                    </div>
-                </div>
-
-                <!-- Extensions View -->
-                <div id="view-extensions" class="view-content" style="display: none;">
-                    <h4>Extensions</h4>
-                    <div style="padding:10px;">
-                        <div class="extension-item" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
-                            <div style="background:#007acc; width:40px; height:40px; border-radius:5px; display:flex; align-items:center; justify-content:center;">L</div>
-                            <div style="flex:1;">
-                                <div style="font-size:13px; font-weight:bold;">Deluge Linter</div>
-                                <div style="font-size:11px; opacity:0.7;">Real-time syntax & semicolon checking.</div>
-                                <div style="font-size:10px; color:#50fa7b; margin-top:3px;">Enabled (Built-in)</div>
-                            </div>
-                        </div>
-                        <div class="extension-item" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
-                            <div style="background:#ff79c6; width:40px; height:40px; border-radius:5px; display:flex; align-items:center; justify-content:center;">A</div>
-                            <div style="flex:1;">
-                                <div style="font-size:13px; font-weight:bold;">AI Agent (Gemini)</div>
-                                <div style="font-size:11px; opacity:0.7;">Explain code and generate snippets.</div>
-                                <div style="font-size:10px; color:#50fa7b; margin-top:3px;">Enabled (Built-in)</div>
-                            </div>
-                        </div>
-                        <div class="extension-item" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px; opacity:0.5;">
-                            <div style="background:#444; width:40px; height:40px; border-radius:5px; display:flex; align-items:center; justify-content:center;">F</div>
-                            <div style="flex:1;">
-                                <div style="font-size:13px; font-weight:bold;">Deluge Formatter</div>
-                                <div style="font-size:11px; opacity:0.7;">Auto-format your Deluge code.</div>
-                                <div style="font-size:10px; color:#aaa; margin-top:3px;">Coming Soon...</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Settings View -->
-                <div id="view-settings" class="view-content">
-                    <h4>Settings</h4>
-                    <div class="setting-item">
-                        <label style="font-size:12px; margin-bottom:4px;">Gemini Model:</label>
-                        <select id="gemini-model" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
-                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Latest)</option>
-                            <option value="gemini-3-flash-preview">Gemini 3.0 Flash (Experimental)</option>
-                            <option value="gemini-3-pro-preview">Gemini 3.0 Pro (Most Powerful)</option>
-                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
-                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Better results)</option>
-                        </select>
-                    </div>
-                    <div class="setting-item">
-                        <label style="font-size:12px; margin-bottom:4px;">Gemini API Key:</label>
-                        <input type="password" id="gemini-api-key" placeholder="AIZA...">
-                        <button id="save-settings-btn" style="margin-top:10px;">Save Configuration</button>
-                    </div>
-                    <div class="setting-item" style="margin-top:20px;">
-                        <label style="font-size:12px; margin-bottom:4px;">Editor Theme:</label>
-                    <div class="setting-item" style="margin-bottom:15px;">
-                        <label style="font-size:12px; margin-bottom:4px;">Activation Shortcut Behavior:</label>
-                        <select id="activation-behavior" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
-                            <option value="new-tab">Open in New Tab</option>
-                            <option value="side-panel">Open in Side Panel (if on Zoho)</option>
-                            <option value="smart">Smart (Side Panel if on Zoho, else New Tab)</option>
-                        </select>
-                    </div>
-                        <select id="theme-selector" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
-                            <option value="vs-dark">Dark (Default)</option>
-                            <option value="dracula">Dracula</option>
-                            <option value="vs-light">Light</option>
-                        </select>
-                    </div>
-                    <div class="setting-item" style="margin-top:15px;">
-                        <label style="font-size:12px; margin-bottom:4px;">Editor Font Size:</label>
-                        <input type="text" id="editor-font-size" placeholder="14" style="width:100%; background:#1e1e1e; color:#ccc; border:1px solid #444; padding:5px;">
-                    </div>
-                    <div style="margin-top:30px; font-size:11px; color:#888;">
-                        <strong>Shortcuts:</strong><br>
-                        Ctrl+S: Save Locally<br>
-                        Ctrl+Shift+S: Sync + Save Zoho<br>
-                        Ctrl+Shift+Enter: Sync + Execute<br>
-                        Ctrl+Shift+P: Pull from Zoho<br>
-                        Ctrl+Shift+E: Open/Focus IDE
-                    </div>
-                </div>
+                <!-- Rendered by app/ui/index.js -> components/left-panel.js -->
             </div>
-<div id="left-resizer" class="resizer"></div>
+            <div id="left-resizer" class="resizer"></div>
+
+            <!-- Monaco Editor Container -->
             <div id="editor-container"></div>
 
+            <!-- Right Sidebar (Interface Manager) -->
             <div id="right-sidebar-resizer" class="resizer"></div>
             <aside id="right-sidebar">
-                <div class="right-sidebar-header">
-                    <div class="header-row">
-                        <span class="header-title">Interface Manager</span>
-                        <span id="mapping-count" class="badge">0</span>
-                    </div>
-                    <div class="header-row icons-row">
-                        <button id="toggle-right-sidebar" class="sidebar-btn" title="Toggle Sidebar">
-                            <span class="material-icons">chevron_right</span>
-                        </button>
-                        <button id="add-interface-btn" class="sidebar-btn" title="Add Interface Mapping"><span class="material-icons">add</span></button>
-                    </div>
-                    <div class="search-container">
-                        <input type="text" id="interface-search" placeholder="Search keys...">
-                    </div>
-                </div>
-                <div id="interface-mappings-list">
-                    <!-- Mappings will appear here -->
-                </div>
-                <div id="interface-tree-view">
-                    <div style="font-size:11px; opacity:0.5; text-align:center; margin-top:20px;">
-                        Select a mapping to explore its structure
-                    </div>
-                </div>
+                <!-- Rendered by app/ui/index.js -> components/right-panel.js -->
             </aside>
         </main>
+
+        <!-- Bottom Panel Shell -->
         <div id="bottom-resizer" class="resizer horizontal"></div>
         <footer id="bottom-panel">
-            <div class="panel-header">
-                <div class="tab active" data-target="console-output"><span class="material-icons" style="font-size:14px; margin-right:4px;">terminal</span> Console</div>
-                <div class="tab" data-target="problems-output"><span class="material-icons" style="font-size:14px; margin-right:4px;">error_outline</span> Problems</div>
-                <div class="tab" data-target="docs-output"><span class="material-icons" style="font-size:14px; margin-right:4px;">help_outline</span> Docs</div>
-
-                <div class="panel-actions">
-                    <button id="clear-console">Clear</button>
-                </div>
-            </div>
-            <div id="panel-body">
-                <div id="console-output" class="panel-content active">
-                    <div class="log-entry system">Welcome to Deluge IDE.</div>
-                </div>
-                <div id="problems-output" class="panel-content">
-                    <div id="problems-list">
-                        <div class="log-entry">No problems detected.</div>
-                    </div>
-                </div>
-                <div id="docs-output" class="panel-content">
-                    <div class="docs-search-container"><input type="text" id="docs-search" placeholder="Search methods..."></div>
-                    <div id="docs-resources-list">
-                         <div class="resource-section"><h5>String Methods</h5><ul><li>length()</li><li>subString(start, end)</li><li>indexOf(str)</li><li>startsWith(prefix)</li><li>toLowerCase()</li><li>toUpperCase()</li><li>trim()</li><li>toList(delim)</li></ul></div><div class="resource-section"><h5>List Methods</h5><ul><li>add(val)</li><li>addAll(list)</li><li>get(index)</li><li>size()</li><li>isEmpty()</li><li>remove(index)</li><li>contains(val)</li></ul></div><div class="resource-section"><h5>Map Methods</h5><ul><li>put(key, val)</li><li>get(key)</li><li>getJSON(key)</li><li>keys()</li><li>remove(key)</li><li>clear()</li></ul></div>
-                    </div>
-                </div>
-                </div>
+            <!-- Rendered by app/ui/index.js -> components/bottom-panel.js -->
         </footer>
 
+        <!-- Status Bar -->
         <div id="status-bar">
             <div class="status-left">
                 <span id="sync-status">Ready</span>
@@ -433,80 +101,19 @@
         </div>
     </div>
 
-    <!-- JSON Input Modal -->
-    <div id="interface-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modal-title">Convert JSON to Deluge Map</h3>
-                <span id="modal-close" class="material-icons" style="cursor:pointer; opacity:0.6;">close</span>
-            </div>
-            <div class="modal-body">
-                <div id="modal-var-container" class="input-group">
-                    <label>Variable Name:</label>
-                    <input type="text" id="interface-var-name" value="payload" placeholder="e.g. customer_data">
-                </div>
-                <div class="input-group">
-                    <label>JSON Content:</label>
-                    <div class="textarea-container">
-                        <textarea id="interface-input" placeholder='{"key": "value"}'></textarea>
-                        <div class="textarea-actions">
-                            <button id="modal-paste" class="mini-action-btn" title="Paste from clipboard"><span class="material-icons">content_paste</span></button>
-                            <button id="modal-fix-json" class="mini-action-btn fix-btn" title="Fix and Format JSON" style="display:none;"><span class="material-icons">auto_fix_high</span></button>
-                        </div>
-                    </div>
-                    <div id="modal-json-status"></div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <div class="footer-left">
-                </div>
-                <div class="footer-right">
-                    <button id="modal-cancel" class="text-btn">Cancel</button>
-                    <button id="modal-convert" class="primary-btn">Convert & Insert</button>
-                    <button id="modal-map-only" class="success-btn" style="display:none;">Save Mapping</button>
-                </div>
-            </div>
-        </div>
+    <!-- Modals Container -->
+    <div id="modals-container">
+        <!-- Rendered by app/ui/index.js -> components/modals.js -->
     </div>
 
-    <!-- Snippet Management Modal -->
-    <div id="snippet-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="snippet-modal-title">Add Snippet</h3>
-                <span id="snippet-modal-close" class="material-icons" style="cursor:pointer; opacity:0.6;">close</span>
-            </div>
-            <div class="modal-body">
-                <div class="input-group">
-                    <label>Snippet Name:</label>
-                    <input type="text" id="snippet-name" placeholder="e.g. My Custom Loop">
-                </div>
-                <div class="input-group">
-                    <label>Trigger Name (trigger via /name):</label>
-                    <input type="text" id="snippet-trigger" placeholder="e.g. myloop">
-                </div>
-                <div class="input-group">
-                    <label>Category:</label>
-                    <input type="text" id="snippet-category" placeholder="e.g. Loops" list="category-list">
-                    <datalist id="category-list"></datalist>
-                </div>
-                <div class="input-group">
-                    <label>Code (Supports ${1:placeholder}):</label>
-                    <div id="snippet-code-editor" style="height:250px; border: 1px solid #444; border-radius: 4px; overflow: hidden;"></div>
-                </div>
-                <div class="input-group">
-                    <label>Comments:</label>
-                    <input type="text" id="snippet-comments" placeholder="Optional notes about this snippet">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="snippet-modal-cancel" class="text-btn">Cancel</button>
-                <button id="snippet-modal-save" class="primary-btn">Save Snippet</button>
-            </div>
-        </div>
-    </div>
+    <!-- Scripts -->
+    <script type="module">
+        import { initializeUI } from './ui/index.js';
 
-    <!-- Script paths updated for new directory structure -->
+        // Initialize UI components before the app boots to ensure DOM elements exist
+        // for event binding and rendering logic.
+        initializeUI();
+    </script>
     <script src="../assets/monaco-editor/min/vs/loader.js"></script>
     <script src="../my_snippets.js"></script>
     <script src="loader.js"></script>

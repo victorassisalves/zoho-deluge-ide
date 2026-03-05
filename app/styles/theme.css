@@ -1,0 +1,84 @@
+:root {
+    /* High-Density Material Design Tokens */
+
+    /* Surfaces */
+    --md-sys-color-background: #121212; /* Deepest dark, standard MD dark */
+    --md-sys-color-surface: #1e1e1e;    /* Slightly elevated, matches VS Code */
+    --md-sys-color-surface-variant: #252526; /* More elevated */
+    --md-sys-color-surface-hover: #2a2d2e;
+    --md-sys-color-surface-active: #37373d;
+
+    /* Primary Actions (Zoho / Creator Accents) */
+    --md-sys-color-primary: #197fe6; /* Zoho Blue */
+    --md-sys-color-on-primary: #ffffff;
+    --md-sys-color-primary-hover: #1565c0;
+
+    --md-sys-color-secondary: #444444; /* Standard neutral buttons */
+    --md-sys-color-on-secondary: #eeeeee;
+    --md-sys-color-secondary-hover: #555555;
+
+    --md-sys-color-tertiary: #50fa7b; /* Success Green (e.g. execution/run) */
+    --md-sys-color-on-tertiary: #000000;
+
+    --md-sys-color-error: #f44747; /* Standard error red */
+
+    /* Typography / Text */
+    --md-sys-color-on-surface: #cccccc; /* Standard text */
+    --md-sys-color-on-surface-variant: #888888; /* Muted text / labels */
+    --md-sys-color-on-surface-strong: #eeeeee; /* Headings */
+
+    /* Borders */
+    --md-sys-color-outline: #333333;
+    --md-sys-color-outline-variant: #444444;
+
+    /* Layout Dimensions (High Density) */
+    --md-sys-spacing-0: 0px;
+    --md-sys-spacing-1: 2px;
+    --md-sys-spacing-2: 4px;
+    --md-sys-spacing-3: 8px;
+    --md-sys-spacing-4: 12px;
+    --md-sys-spacing-5: 16px;
+
+    --md-sys-shape-corner-extra-small: 2px;
+    --md-sys-shape-corner-small: 4px;
+    --md-sys-shape-corner-medium: 8px;
+
+    --md-sys-typescale-body-small: 10px;
+    --md-sys-typescale-body-medium: 11px;
+    --md-sys-typescale-body-large: 12px;
+    --md-sys-typescale-title-small: 13px;
+
+    /* Specific Component Tokens */
+    --header-height: 35px;
+    --footer-height: 150px;
+    --sidebar-width: 50px;
+    --left-sidebar-width: 250px;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--md-sys-color-background);
+    color: var(--md-sys-color-on-surface);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: var(--md-sys-typescale-body-large);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-small);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--md-sys-color-on-surface-variant);
+}
