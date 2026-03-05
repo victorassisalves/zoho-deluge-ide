@@ -57,7 +57,7 @@
 }
 
 #right-sidebar {
-    overflow: hidden;
+    overflow-y: auto; overflow-x: visible;
     width: 250px;
     background-color: var(--md-sys-color-surface-variant);
     border-left: 1px solid var(--md-sys-color-outline);

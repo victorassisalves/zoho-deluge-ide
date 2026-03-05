@@ -711,3 +711,73 @@
     border-color: var(--md-sys-color-primary);
     background: var(--md-sys-color-surface-active);
 }
+
+/* Fix Tooltips for Right Sidebar Specifically */
+#right-sidebar.collapsed {
+    overflow: visible !important;
+}
+
+#right-sidebar.collapsed [data-tooltip]:hover::after {
+    top: 50%;
+    left: calc(100% + 4px);
+    transform: translateY(-50%);
+}
+
+#right-sidebar [data-tooltip]:hover::after {
+    /* If expanded, stay below */
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+#right-sidebar.collapsed .right-sidebar-header {
+    height: 100%;
+    border-right: 1px solid var(--md-sys-color-outline);
+}
+
+#right-sidebar.collapsed .icons-row {
+    flex-direction: column !important;
+    gap: var(--md-sys-spacing-4) !important;
+    padding-top: var(--md-sys-spacing-4) !important;
+    align-items: center;
+}
+
+
+/* Explicitly fix collapsed tooltips to shoot right */
+#right-sidebar.collapsed [data-tooltip]:hover::after {
+    top: 50% !important;
+    left: calc(100% + 8px) !important;
+    transform: translateY(-50%) !important;
+    white-space: nowrap !important;
+}
+
+/* Explicitly fix expanded tooltips to shoot down */
+#right-sidebar:not(.collapsed) [data-tooltip]:hover::after {
+    top: calc(100% + 8px) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    white-space: nowrap !important;
+}
+
+/* Ensure container allows overflow */
+.right-sidebar-header, .icons-row {
+    overflow: visible !important;
+}
+
+/* Fix vanishing + button */
+#right-sidebar.collapsed .right-sidebar-header {
+    height: 100vh; /* Give it enough space so flex children don't squish or hide */
+    justify-content: flex-start;
+}
+
+#right-sidebar.collapsed .icons-row {
+    flex-direction: column !important;
+    gap: var(--md-sys-spacing-4) !important;
+    padding-top: var(--md-sys-spacing-4) !important;
+    display: flex !important;
+}
+
+#right-sidebar.collapsed #add-interface-btn {
+    display: flex !important;
+}
