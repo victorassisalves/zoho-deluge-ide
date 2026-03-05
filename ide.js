@@ -16,6 +16,70 @@ var currentResearchReport = "";
 var researchPollingInterval = null;
 var lastActionTime = 0;
 
+var AppState = {
+    activeTabs: [],
+    ignoredTabIds: new Set(),
+    savedFunctions: {}, // Tree structure
+    history: [],
+    currentFile: null, // { id, type: 'tab'|'saved', data: metadata }
+    openEditors: [], // Files currently "open" in tabs/IDE
+    renames: {}, // Manual renames: { key: newName }
+    models: {}, // { key: { model, originalCode, syncStatus } }
+};
+window.AppState = AppState;
+
+function getOrCreateModel(key, initialCode = "") {
+    if (AppState.models[key]) return AppState.models[key];
+
+    // Check if we have this file in IndexedDB but not in memory yet
+    const model = monaco.editor.createModel(initialCode, 'deluge');
+    AppState.models[key] = {
+        model: model,
+        originalCode: initialCode,
+        syncStatus: 'UNKNOWN'
+    };
+
+    let saveTimeout;
+    model.onDidChangeContent(() => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            saveModelsToStorage();
+        }, 1000);
+
+        if (window.validateDelugeModel) window.validateDelugeModel(model);
+        renderOpenEditors();
+        renderExplorer();
+    });
+
+    return AppState.models[key];
+}
+
+async function saveModelsToStorage() {
+    // Persistent models data in IndexedDB
+    const data = {};
+    for (const key in AppState.models) {
+        data[key] = {
+            code: AppState.models[key].model.getValue(),
+            originalCode: AppState.models[key].originalCode
+        };
+
+        // Also update the file in IndexedDB if it exists
+        // Extract orgId, system, fileId from key (format: orgId:system:fileId)
+        const [orgId, system, fileId] = key.split(':');
+        if (fileId && fileId !== 'default' && !fileId.startsWith('id_')) {
+            const file = await FileManager.getFile(fileId);
+            if (file) {
+                file.code = data[key].code;
+                file.originalCode = data[key].originalCode;
+                await DB.put('Files', file);
+            }
+        }
+    }
+
+    // Backup in Config for quick recovery of open tabs
+    await DB.put('Config', { key: 'zide_models_data', value: data });
+}
+
 function initEditor() {
     if (editor) return;
 
@@ -57,9 +121,10 @@ function initEditor() {
             }
         });
 
+        const initialModel = getOrCreateModel('default', '// Start coding in Zoho Deluge...\n\n').model;
+
         editor = monaco.editor.create(container, {
-            value: '// Start coding in Zoho Deluge...\n\n',
-            language: 'deluge',
+            model: initialModel,
             theme: 'dracula',
             automaticLayout: true,
             wordBasedSuggestions: false,
@@ -110,6 +175,19 @@ function initEditor() {
             }
         });
 
+        editor.addAction({
+            id: 'zide-extract-interface',
+            label: 'Extract to Interface',
+            contextMenuGroupId: 'navigation',
+            run: () => {
+                const selection = editor.getSelection();
+                const text = editor.getModel().getValueInRange(selection);
+                if (text) {
+                    openExtractInterfaceModal(text);
+                }
+            }
+        });
+
         if (typeof chrome !== "undefined" && chrome.runtime) {
             chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (request.action === "CMD_SYNC_SAVE") {
@@ -121,64 +199,88 @@ function initEditor() {
                 } else if (request.action === "CMD_PULL_CODE") {
                     console.log('[ZohoIDE] Command: Pull Code');
                     pullFromZoho();
+                } else if (request.action === "SYNC_TABS") {
+                    syncAppTabs();
                 }
             });
         }
 
-        editor.onDidChangeModelContent(() => {
-            const code = editor.getValue();
-            if (typeof chrome !== "undefined" && chrome.storage) {
-                chrome.storage.local.set({ 'saved_deluge_code': code });
-            }
-            if (window.validateDelugeModel) window.validateDelugeModel(editor.getModel());
-        });
+        async function loadConfig() {
+            try {
+                const configItems = await DB.getAll('Config');
+                const config = {};
+                configItems.forEach(item => config[item.key] = item.value);
 
-        if (typeof chrome !== "undefined" && chrome.storage) {
-            chrome.storage.local.get(['saved_deluge_code', 'theme', 'activation_behavior', 'json_mappings', 'left_panel_width', 'right_sidebar_width', 'bottom_panel_height', 'font_size'], (result) => {
-                if (result.saved_deluge_code) editor.setValue(result.saved_deluge_code);
-        if (typeof initApiExplorer === 'function') initApiExplorer();
-        if (typeof syncProblemsPanel === 'function') syncProblemsPanel();
-                if (result.theme) monaco.editor.setTheme(result.theme);
-                if (result.font_size) {
-                    const fs = parseInt(result.font_size);
+                const ignoredTabs = config.zide_ignored_tabs || [];
+                AppState.ignoredTabIds = new Set(ignoredTabs);
+
+                // Load manual renames
+                chrome.storage.local.get(['user_renames'], (res) => {
+                    if (res.user_renames) {
+                        AppState.renames = res.user_renames;
+                        renderOpenEditors();
+                        renderExplorer();
+                    }
+                });
+
+                if (config.zide_models_data) {
+                    for (const key in config.zide_models_data) {
+                        const data = config.zide_models_data[key];
+                        const mInfo = getOrCreateModel(key, data.originalCode || "");
+                        mInfo.model.setValue(data.code || "");
+                        mInfo.originalCode = data.originalCode || "";
+                    }
+                }
+
+                if (typeof initApiExplorer === 'function') initApiExplorer();
+                if (typeof syncProblemsPanel === 'function') syncProblemsPanel();
+                if (config.theme) monaco.editor.setTheme(config.theme);
+                if (config.font_size) {
+                    const fs = parseInt(config.font_size);
                     if (fs && editor) {
                         editor.updateOptions({ fontSize: fs });
                         document.getElementById("editor-font-size").value = fs;
                     }
                 }
-                if (result.activation_behavior) document.getElementById("activation-behavior").value = result.activation_behavior;
-                if (result.bottom_panel_height) {
-                    const bottomPanel = document.getElementById('bottom-panel');
-                    if (bottomPanel) {
-                        bottomPanel.style.height = result.bottom_panel_height;
-                        document.documentElement.style.setProperty('--footer-height', result.bottom_panel_height);
+                if (config.activation_behavior) document.getElementById("activation-behavior").value = config.activation_behavior;
+
+                // Fallback to chrome storage for panel widths (UI state)
+                chrome.storage.local.get(['left_panel_width', 'right_sidebar_width', 'bottom_panel_height'], (res) => {
+                    if (res.bottom_panel_height) {
+                        const bottomPanel = document.getElementById('bottom-panel');
+                        if (bottomPanel) {
+                            bottomPanel.style.height = res.bottom_panel_height;
+                            document.documentElement.style.setProperty('--footer-height', res.bottom_panel_height);
+                        }
                     }
-                }
-                                if (result.left_panel_width) {
-                    const leftPanel = document.getElementById('left-panel-content');
-                    if (leftPanel) {
-                        leftPanel.style.width = result.left_panel_width;
-                        leftPanel.style.setProperty('--left-sidebar-width', result.left_panel_width);
+                    if (res.left_panel_width) {
+                        const leftPanel = document.getElementById('left-panel-content');
+                        if (leftPanel) {
+                            leftPanel.style.width = res.left_panel_width;
+                            leftPanel.style.setProperty('--left-sidebar-width', res.left_panel_width);
+                        }
                     }
-                }
-                if (result.right_sidebar_width) {
-                    const rightSidebar = document.getElementById("right-sidebar");
-                    if (rightSidebar) rightSidebar.style.width = result.right_sidebar_width;
-                }
-                setTimeout(() => { if (editor) editor.layout(); }, 200);
-                if (result.json_mappings) {
-                    interfaceMappings = result.json_mappings;
-                    window.interfaceMappings = interfaceMappings;
-                    updateInterfaceMappingsList();
-                }
-            });
+                    if (res.right_sidebar_width) {
+                        const rightSidebar = document.getElementById("right-sidebar");
+                        if (rightSidebar) rightSidebar.style.width = res.right_sidebar_width;
+                    }
+                    setTimeout(() => { if (editor) editor.layout(); }, 200);
+                });
+
+            } catch (e) {
+                console.error('[ZohoIDE] Config load failed:', e);
+            }
         }
+        loadConfig();
 
 
 
         setupEventHandlers();
-        checkConnection();
-        setInterval(checkConnection, 5000);
+        syncAppTabs();
+        setInterval(syncAppTabs, 5000);
+
+        // Load persisted explorer state
+        loadExplorerData();
 
     } catch (e) {
         console.error("[ZohoIDE] initEditor Error:", e);
@@ -186,70 +288,654 @@ function initEditor() {
     }
 }
 
-function checkConnection() {
+async function syncAppTabs() {
     if (typeof chrome !== "undefined" && chrome.runtime) {
-        chrome.runtime.sendMessage({ action: "CHECK_CONNECTION" }, (response) => {
-            let nextProjectUrl = "global";
-            if (response && response.connected) {
-                isConnected = true;
-                const msg = (response.isStandalone ? "Connected to Target: " : "Connected Local: ") + (response.tabTitle || "Zoho Tab");
-                showStatus(msg, "success");
-                window.currentTargetTab = response;
-                nextProjectUrl = response.url;
-            } else {
-                isConnected = false;
-                showStatus("Disconnected from Zoho", "info");
-                nextProjectUrl = "global";
-            }
+        chrome.runtime.sendMessage({ action: "GET_ALL_ZOHO_TABS" }, async (tabs) => {
+            if (tabs && Array.isArray(tabs)) {
+                AppState.activeTabs = tabs;
 
-            if (nextProjectUrl !== zideProjectUrl) {
-                // Context switch detected
-                if (zideProjectUrl && editor && editor.getValue().trim() !== "" && !editor.getValue().startsWith("// Start coding")) {
-                    saveLocally();
+                // Update sync status for models connected to these tabs
+                for (const tab of tabs) {
+                    if (AppState.ignoredTabIds.has(tab.tabId)) continue;
+                    const key = getRenameKey(tab);
+                    const mInfo = AppState.models[key];
+                    if (mInfo && tab.active) {
+                        // Check drift in background for active tab
+                        chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE', tabId: tab.tabId }, async (response) => {
+                            if (response && response.code) {
+                                const status = await SyncService.detectStatus(tab.functionId, response.code);
+                                mInfo.syncStatus = status;
+                                if (AppState.currentFile && getRenameKey(AppState.currentFile.data) === key) {
+                                    updateDriftUI(tab.tabId, status);
+                                }
+                                renderOpenEditors();
+                                renderExplorer();
+                            }
+                        });
+                    }
                 }
-                                zideProjectUrl = nextProjectUrl;
-                window.zideProjectUrl = zideProjectUrl;
-                loadProjectData();
 
-                // Cloud Auto-Detection
-                if (typeof CloudUI !== 'undefined' && CloudUI.activeOrgId && zideProjectUrl !== 'global') {
-                    CloudUI.checkForCloudFiles(zideProjectUrl);
+                renderOpenEditors();
+                renderExplorer();
+
+                isConnected = tabs.length > 0;
+                if (isConnected) {
+                    const activeTab = tabs.find(t => t.active) || tabs[0];
+                    showStatus(`Connected: ${tabs.length} tabs`, "success");
+
+                    const oldTabId = window.currentTargetTab?.tabId;
+                    window.currentTargetTab = activeTab;
+
+                    // Auto-switch IDE to active browser tab if it changed
+                    if (activeTab.tabId !== oldTabId && activeTab.active) {
+                        // Don't auto-switch if the tab is ignored
+                        if (!AppState.ignoredTabIds.has(activeTab.tabId)) {
+                            console.log('[ZohoIDE] Browser tab changed, auto-switching IDE:', activeTab.tabId);
+
+                            // Check if this tab matches a saved file
+                            const savedFile = await FileManager.getFileByTab(activeTab);
+                            if (savedFile) {
+                                selectSavedFile(savedFile.orgId, savedFile.system, savedFile.folder, savedFile.id);
+                            } else if (!AppState.currentFile || AppState.currentFile.type === 'tab') {
+                                selectTabFile(activeTab);
+                            }
+                        }
+                    }
+
+                    if (activeTab.url !== zideProjectUrl) {
+                         zideProjectUrl = activeTab.url;
+                         window.zideProjectUrl = zideProjectUrl;
+                    }
+                } else {
+                    showStatus("Disconnected from Zoho", "info");
+                    window.currentTargetTab = null;
                 }
             }
         });
     }
 }
 
-function loadProjectData() {
-    if (!zideProjectUrl || typeof chrome === "undefined" || !chrome.storage) return;
-    chrome.storage.local.get(["saved_files", "project_notes", "last_project_code", "project_names", "project_mappings"], (result) => {
-        const allFiles = result.saved_files || [];
-        const projectFiles = allFiles.filter(f => f.projectUrl === zideProjectUrl || (!f.projectUrl && zideProjectUrl === "global"));
-        updateSavedFilesList(projectFiles);
+function renderOpenEditors() {
+    const list = document.getElementById('open-editors-list');
+    if (!list) return;
 
-        const projectNames = result.project_names || {};
-        zideProjectName = projectNames[zideProjectUrl] || "Untitled Project";
-        window.zideProjectName = zideProjectName;
-        const nameInput = document.getElementById("project-name-input");
-        if (nameInput) nameInput.value = zideProjectName;
+    list.innerHTML = '';
 
-        const notes = result.project_notes || {};
-        const notesEl = document.getElementById("project-notes");
-        if (notesEl) notesEl.value = notes[zideProjectUrl] || "";
+    // Filter out ignored tabs
+    const visibleTabs = AppState.activeTabs.filter(tab => !AppState.ignoredTabIds.has(tab.tabId));
 
-        if (editor) {
-            const lastCodes = result.last_project_code || {};
-            const currentVal = editor.getValue();
-            if (lastCodes[zideProjectUrl] && (!currentVal || currentVal.trim() === "" || currentVal.startsWith("// Start coding"))) {
-                editor.setValue(lastCodes[zideProjectUrl]);
-            }
+    if (visibleTabs.length === 0) {
+        list.innerHTML = '<div class="log-entry" style="font-size:11px; opacity:0.6; padding: 10px;">No active Zoho tabs.</div>';
+        return;
+    }
+
+    visibleTabs.forEach((tab, index) => {
+        const item = document.createElement('div');
+        item.className = 'explorer-item';
+        const isCurrent = AppState.currentFile && (AppState.currentFile.tabId === tab.tabId || (AppState.currentFile.id === tab.functionId && tab.functionId !== 'unknown'));
+        if (isCurrent) item.classList.add('active');
+
+        const iconClass = (tab.system || 'generic').toLowerCase();
+        const iconLetter = (tab.system || 'Z')[0].toUpperCase();
+
+        const displayName = getDisplayName(tab);
+        const sequenceNum = tab.tabSequence || (index + 1);
+
+        const key = getRenameKey(tab);
+        const mInfo = AppState.models[key];
+        const isModified = mInfo && mInfo.model.getValue() !== mInfo.originalCode;
+
+        let statusClass = 'active';
+        let statusTitle = 'Synced with Zoho';
+
+        if (isModified) {
+            statusClass = 'modified';
+            statusTitle = 'Local changes (unsaved in Zoho)';
+        } else if (mInfo && mInfo.syncStatus && mInfo.syncStatus !== 'SYNCED') {
+            statusClass = 'drift';
+            statusTitle = `Drift: ${mInfo.syncStatus}`;
+            if (mInfo.syncStatus === 'CONFLICT') statusClass = 'conflict';
         }
 
-        const projectMappings = result.project_mappings || {};
-        interfaceMappings = projectMappings[zideProjectUrl] || {};
-        window.interfaceMappings = interfaceMappings;
-        updateInterfaceMappingsList();
+        item.innerHTML = `
+            <span class="system-icon ${iconClass}">${iconLetter}</span>
+            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">(${sequenceNum}) ${displayName}</span>
+            <span class="status-dot ${statusClass}" title="${statusTitle}"></span>
+        `;
+
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '4px';
+        actions.style.alignItems = 'center';
+
+        const renameBtn = document.createElement('span');
+        renameBtn.className = 'material-icons';
+        renameBtn.innerHTML = 'edit';
+        renameBtn.style.fontSize = '12px';
+        renameBtn.style.color = '#888';
+        renameBtn.style.cursor = 'pointer';
+        renameBtn.title = 'Rename';
+        renameBtn.onclick = (e) => {
+            e.stopPropagation();
+            renameFunction(tab);
+        };
+        actions.appendChild(renameBtn);
+
+        const closeBtn = document.createElement('span');
+        closeBtn.className = 'material-icons';
+        closeBtn.innerHTML = 'close';
+        closeBtn.style.fontSize = '14px';
+        closeBtn.style.color = '#888';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.title = 'Close / Stop following this tab';
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            AppState.ignoredTabIds.add(tab.tabId);
+            if (AppState.currentFile && AppState.currentFile.tabId === tab.tabId) {
+                AppState.currentFile = null;
+            }
+            if (typeof chrome !== "undefined" && chrome.storage) {
+                chrome.storage.local.set({ 'zide_ignored_tabs': Array.from(AppState.ignoredTabIds) });
+            }
+            renderOpenEditors();
+        };
+        actions.appendChild(closeBtn);
+
+        item.appendChild(actions);
+
+        item.onclick = () => {
+            selectTabFile(tab);
+        };
+        list.appendChild(item);
     });
+}
+
+function getRenameKey(metadata) {
+    if (!metadata) return 'unknown';
+    // Use functionId if available, otherwise fallback to URL for uniqueness
+    let id = (metadata.functionId && metadata.functionId !== 'unknown') ? metadata.functionId : (metadata.url || 'global');
+
+    // Normalize URL if used as ID (remove query params and fragments)
+    if (id.startsWith('http')) {
+        try {
+            const u = new URL(id);
+            id = u.origin + u.pathname;
+        } catch(e) {}
+    }
+
+    return `${metadata.orgId}:${metadata.system}:${id}`;
+}
+
+function getDisplayName(metadata) {
+    if (!metadata) return 'Untitled';
+    const renames = AppState.renames || {};
+    const key = getRenameKey(metadata);
+    let name = renames[key] || metadata.functionName || metadata.title || 'Untitled';
+
+    const cleaners = [
+        /^\(\d+\)\s*/, // Remove Zoho sequence prefix like (1)
+        /^Zoho - Functions - Zoho CRM - /,
+        /^Zoho - CRM - Functions - /,
+        /^Functions - Zoho CRM - /,
+        /^Functions - /,
+        /^Zoho CRM - /,
+        /^Zoho - /,
+        /^CRM - /,
+        / - Zoho CRM$/,
+        / - Zoho Creator$/,
+        / - Zoho Flow$/,
+        /^Zoho Creator - /,
+        /^Zoho Flow - /
+    ];
+
+    let cleanName = name;
+    cleaners.forEach(c => {
+        cleanName = cleanName.replace(c, '');
+    });
+
+    return cleanName.trim() || name || 'Untitled';
+}
+
+function renameFunction(metadata) {
+    const currentName = getDisplayName(metadata);
+    const newName = prompt('Rename function:', currentName);
+    if (newName && newName !== currentName) {
+        const key = getRenameKey(metadata);
+        AppState.renames[key] = newName;
+        if (typeof chrome !== "undefined" && chrome.storage) {
+            chrome.storage.local.set({ 'user_renames': AppState.renames }, () => {
+                renderExplorer();
+                renderOpenEditors();
+            });
+        } else {
+            renderExplorer();
+            renderOpenEditors();
+        }
+    }
+}
+
+async function refreshContextualMappings() {
+    if (!AppState.currentFile) return;
+    try {
+        const reachable = await InterfaceManager.getInterfacesForFile(AppState.currentFile.id);
+        const flattened = {};
+
+        // Group by type for precedence (lowest to highest)
+        const groups = { 'GLOBAL': [], 'SYSTEM': [], 'FOLDER': [], 'FILE': [] };
+        reachable.forEach(i => {
+            if (groups[i.ownerType]) groups[i.ownerType].push(i);
+        });
+
+        // Apply in order so File overrides Folder, etc.
+        ['GLOBAL', 'SYSTEM', 'FOLDER', 'FILE'].forEach(type => {
+            groups[type].forEach(i => {
+                flattened[i.name] = i.structure;
+            });
+        });
+
+        window.interfaceMappings = flattened;
+        updateInterfaceMappingsList();
+    } catch (e) {
+        console.error('[ZohoIDE] refreshContextualMappings failed:', e);
+    }
+}
+
+async function selectTabFile(tab) {
+    console.log('[ZohoIDE] Selecting tab:', tab.tabId, tab.functionName);
+    AppState.currentFile = { id: tab.functionId, type: 'tab', tabId: tab.tabId, data: tab };
+    zideProjectUrl = tab.url;
+    window.zideProjectUrl = zideProjectUrl;
+
+    const key = getRenameKey(tab);
+    const mInfo = getOrCreateModel(key);
+    editor.setModel(mInfo.model);
+
+    await refreshContextualMappings();
+
+    // Detect Drift on Selection
+    chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE', tabId: tab.tabId }, async (response) => {
+        if (response && response.code) {
+            const status = await SyncService.detectStatus(tab.functionId, response.code);
+            updateDriftUI(tab.tabId, status);
+        }
+    });
+
+    renderOpenEditors();
+    updateExplorerActiveState();
+}
+
+function updateDriftUI(tabId, status) {
+    const statusMap = {
+        'SYNCED': { label: 'Synced', color: '#50fa7b' },
+        'DRIFT_LOCAL_NEWER': { label: 'Local Ahead', color: '#ffb86c' },
+        'DRIFT_REMOTE_NEWER': { label: 'Remote Ahead', color: '#ffb86c' },
+        'CONFLICT': { label: 'Conflict!', color: '#ff5555' },
+        'DRIFT': { label: 'Drift Detected', color: '#ffb86c' },
+        'OFFLINE': { label: 'Offline', color: '#888' }
+    };
+
+    const info = statusMap[status] || { label: 'Ready', color: '#888' };
+    const syncStatusEl = document.getElementById('sync-status');
+    if (syncStatusEl) {
+        syncStatusEl.innerText = info.label;
+        syncStatusEl.style.color = info.color;
+    }
+}
+
+function pullFromSpecificTab(tabId) {
+    log('System', 'Pulling code from tab ' + tabId + '...');
+    // Optional: show a loading indicator in the editor
+    editor.setValue('// Loading code from Zoho tab ' + tabId + '...\n// Please wait...');
+
+    chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE', tabId: tabId }, (response) => {
+        console.log('[ZohoIDE] Pull response from tab', tabId, ':', response);
+        if (response && response.code) {
+            editor.setValue(response.code);
+            log('Success', 'Code pulled from tab ' + tabId);
+            showStatus('Code pulled from tab ' + tabId, 'success');
+        } else {
+            const error = response?.error || 'Failed to pull code.';
+            log('Error', error);
+            showStatus('Pull failed: ' + error, 'error');
+            // Optionally clear editor or show message if it's a hard error
+            if (response?.error === 'No editor found in any frame') {
+                 // editor.setValue('// [No editor found in this tab]');
+            }
+        }
+    });
+}
+
+async function safeDeleteFile(fileId, fileName) {
+    try {
+        const interfaces = await DB.getAll('Interfaces');
+        const sharedOwned = interfaces.filter(i => i.ownerId === fileId && i.sharedScope !== 'LOCAL');
+
+        if (sharedOwned.length > 0) {
+            const modal = document.getElementById('adoption-modal');
+            const list = document.getElementById('orphaned-interfaces-list');
+            const msg = document.getElementById('adoption-message');
+
+            msg.innerText = `File '${fileName}' owns shared interfaces. Promote them to System level before deleting?`;
+            list.innerHTML = sharedOwned.map(i => `<div style="font-size:12px; padding:4px; border-bottom:1px solid #333;">${i.name} (${i.sharedScope})</div>`).join('');
+
+            modal.style.display = 'flex';
+
+            document.getElementById('adoption-confirm').onclick = async () => {
+                const file = await FileManager.getFile(fileId);
+                for (const i of sharedOwned) {
+                    i.ownerId = file.orgId;
+                    i.ownerType = 'SYSTEM';
+                    await InterfaceManager.saveInterface(i);
+                }
+                await FileManager.deleteFile(fileId);
+                modal.style.display = 'none';
+                loadExplorerData();
+                showStatus(`Deleted ${fileName} and promoted ${sharedOwned.length} interfaces.`, 'success');
+            };
+            return;
+        }
+
+        if (confirm(`Remove ${fileName} from IDE Explorer?`)) {
+            await FileManager.deleteFile(fileId);
+            await loadExplorerData();
+        }
+    } catch (e) {
+        console.error('[ZohoIDE] safeDeleteFile failed:', e);
+    }
+}
+
+async function loadExplorerData() {
+    console.log('[ZohoIDE] Loading Explorer Data from IndexedDB...');
+    try {
+        const files = await FileManager.getAllFiles();
+
+        // Reconstruct savedFunctions tree for legacy rendering logic
+        AppState.savedFunctions = {};
+        files.forEach(file => {
+            const orgId = file.orgId || 'global';
+            const system = file.system || 'Zoho';
+            const folder = file.folder || 'General';
+
+            if (!AppState.savedFunctions[orgId]) AppState.savedFunctions[orgId] = {};
+            if (!AppState.savedFunctions[orgId][system]) AppState.savedFunctions[orgId][system] = {};
+            if (!AppState.savedFunctions[orgId][system][folder]) AppState.savedFunctions[orgId][system][folder] = {};
+
+            AppState.savedFunctions[orgId][system][folder][file.id] = file;
+        });
+
+        const history = await DB.getAll('History');
+        AppState.history = history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 100);
+        updateSavedFilesList(AppState.history);
+
+        // Load mappings
+        const currentOrg = (AppState.currentFile?.data?.orgId || 'global').toString().toLowerCase();
+        const interfaces = await DB.getAll('Interfaces');
+        interfaceMappings = {};
+        interfaces.forEach(i => {
+            // Filter by scope (simplified for now)
+            if (i.ownerId === currentOrg || i.ownerId === 'global') {
+                interfaceMappings[i.name] = i.structure;
+            }
+        });
+        window.interfaceMappings = interfaceMappings;
+
+        renderExplorer();
+        updateInterfaceMappingsList();
+    } catch (e) {
+        console.error('[ZohoIDE] loadExplorerData failed:', e);
+    }
+}
+
+function renderExplorer() {
+    const treeEl = document.getElementById('project-explorer-tree');
+    if (!treeEl) return;
+    treeEl.innerHTML = '';
+
+    const tree = AppState.savedFunctions;
+    const orgs = Object.keys(tree);
+
+    if (orgs.length === 0) {
+        treeEl.innerHTML = '<div class="log-entry" style="font-size:11px; opacity:0.6; padding: 10px;">No saved projects.</div>';
+        return;
+    }
+
+    orgs.forEach(orgId => {
+        const orgNode = createTreeNode(`Client: ${orgId}`, 'business', 'org-' + orgId);
+        let hasActiveChildInOrg = false;
+
+        // Delete button for Client
+        const orgHeader = orgNode.querySelector('.explorer-header');
+        const orgDel = createDeleteBtn(`client "${orgId}"`, async () => {
+            // Delete all files for this org
+            const files = await FileManager.getAllFiles();
+            for (const file of files) {
+                if (file.orgId === orgId) await FileManager.deleteFile(file.id);
+            }
+            await loadExplorerData();
+        });
+        orgHeader.appendChild(orgDel);
+
+        const systems = tree[orgId];
+
+        Object.keys(systems).forEach(system => {
+            const systemNode = createTreeNode(system, 'settings', `sys-${orgId}-${system}`);
+            let hasActiveChildInSys = false;
+            const sysHeader = systemNode.querySelector('.explorer-header');
+            const sysDel = createDeleteBtn(`system "${system}" in client "${orgId}"`, async () => {
+                const files = await FileManager.getAllFiles();
+                for (const file of files) {
+                    if (file.orgId === orgId && file.system === system) await FileManager.deleteFile(file.id);
+                }
+                await loadExplorerData();
+            });
+            sysHeader.appendChild(sysDel);
+
+            const folders = systems[system];
+
+            Object.keys(folders).forEach(folder => {
+                const folderNode = createTreeNode(folder, 'folder', `folder-${orgId}-${system}-${folder}`);
+                let hasActiveChildInFolder = false;
+                const foldHeader = folderNode.querySelector('.explorer-header');
+                const foldDel = createDeleteBtn(`folder "${folder}" in ${system}`, async () => {
+                    const files = await FileManager.getAllFiles();
+                    for (const file of files) {
+                        if (file.orgId === orgId && file.system === system && file.folder === folder) {
+                            await FileManager.deleteFile(file.id);
+                        }
+                    }
+                    await loadExplorerData();
+                });
+                foldHeader.appendChild(foldDel);
+
+                const functions = folders[folder];
+
+                Object.keys(functions).forEach(funcId => {
+                    const func = functions[funcId];
+                    const funcItem = document.createElement('div');
+                    funcItem.className = 'explorer-item';
+                    funcItem.style.paddingLeft = '30px';
+                    const isActive = AppState.currentFile && AppState.currentFile.id === funcId && AppState.currentFile.data.orgId === orgId;
+                    if (isActive) {
+                        funcItem.classList.add('active');
+                        hasActiveChildInOrg = true;
+                        hasActiveChildInSys = true;
+                        hasActiveChildInFolder = true;
+                    }
+
+                    const isOnline = AppState.activeTabs.some(t => t.functionId === funcId || (t.functionName === func.name && t.orgId === orgId));
+
+                    const key = getRenameKey(func.metadata);
+                    const mInfo = AppState.models[key];
+                    const isModified = mInfo && mInfo.model.getValue() !== mInfo.originalCode;
+
+                    let statusClass = isOnline ? 'active' : 'offline';
+                    let statusTitle = isOnline ? 'Online' : 'Offline';
+
+                    if (isModified) {
+                        statusClass = 'modified';
+                        statusTitle = 'Unsaved local changes';
+                    } else if (mInfo && mInfo.syncStatus && mInfo.syncStatus !== 'SYNCED') {
+                        statusClass = 'drift';
+                        statusTitle = `Drift: ${mInfo.syncStatus}`;
+                        if (mInfo.syncStatus === 'CONFLICT') statusClass = 'conflict';
+                    }
+
+                    const displayName = getDisplayName(func.metadata);
+
+                    funcItem.innerHTML = `
+                        <span class="material-icons" style="font-size:14px; color:#ce9178;">description</span>
+                        <span style="flex:1; overflow:hidden; text-overflow:ellipsis;" class="func-name-text">${displayName}</span>
+                        <span class="status-dot ${statusClass}" style="margin-right: 5px;" title="${statusTitle}"></span>
+                    `;
+
+                    const renameBtn = document.createElement('span');
+                    renameBtn.className = 'material-icons';
+                    renameBtn.innerHTML = 'edit';
+                    renameBtn.style.fontSize = '12px';
+                    renameBtn.style.color = '#888';
+                    renameBtn.style.cursor = 'pointer';
+                    renameBtn.style.marginRight = '5px';
+                    renameBtn.title = 'Rename Function';
+                    renameBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        renameFunction(func.metadata);
+                    };
+                    funcItem.appendChild(renameBtn);
+
+                    const deleteBtn = document.createElement('span');
+                    deleteBtn.className = 'material-icons';
+                    deleteBtn.innerHTML = 'close';
+                    deleteBtn.style.fontSize = '14px';
+                    deleteBtn.style.color = '#888';
+                    deleteBtn.style.cursor = 'pointer';
+                    deleteBtn.title = 'Remove from IDE';
+                    deleteBtn.onclick = async (e) => {
+                        e.stopPropagation();
+                        await safeDeleteFile(funcId, func.name);
+                    };
+                    funcItem.appendChild(deleteBtn);
+
+                    funcItem.onclick = () => {
+                        selectSavedFile(orgId, system, folder, funcId);
+                    };
+
+                    if (isActive) {
+                        setTimeout(() => {
+                            funcItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 100);
+                    }
+
+                    folderNode.querySelector('.tree-sub').appendChild(funcItem);
+                    if (hasActiveChildInFolder) {
+                        folderNode.querySelector('.explorer-header').classList.remove('collapsed');
+                        folderNode.querySelector('.tree-sub').style.display = 'block';
+                    }
+                });
+                if (hasActiveChildInSys) {
+                    systemNode.querySelector('.explorer-header').classList.remove('collapsed');
+                    systemNode.querySelector('.tree-sub').style.display = 'block';
+                }
+                systemNode.querySelector('.tree-sub').appendChild(folderNode);
+            });
+            if (hasActiveChildInOrg) {
+                orgNode.querySelector('.explorer-header').classList.remove('collapsed');
+                orgNode.querySelector('.tree-sub').style.display = 'block';
+            }
+            orgNode.querySelector('.tree-sub').appendChild(systemNode);
+        });
+        treeEl.appendChild(orgNode);
+    });
+}
+
+function createDeleteBtn(targetDesc, onDelete) {
+    const deleteBtn = document.createElement('span');
+    deleteBtn.className = 'material-icons explorer-action-btn';
+    deleteBtn.innerHTML = 'close';
+    deleteBtn.style.fontSize = '14px';
+    deleteBtn.style.color = '#888';
+    deleteBtn.style.cursor = 'pointer';
+    deleteBtn.style.marginLeft = 'auto';
+    deleteBtn.style.marginRight = '5px';
+    deleteBtn.style.flexShrink = '0';
+    deleteBtn.title = `Delete ${targetDesc} and all its functions`;
+    deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete entire ${targetDesc} and all its saved functions?`)) {
+            onDelete();
+        }
+    };
+    return deleteBtn;
+}
+
+function createTreeNode(label, icon, id) {
+    const node = document.createElement('div');
+    node.className = 'explorer-section';
+
+    const header = document.createElement('div');
+    header.className = 'explorer-header collapsed';
+    header.innerHTML = `
+        <span class="material-icons">expand_more</span>
+        <span class="material-icons" style="font-size:14px; color:#888;">${icon}</span>
+        <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 5px;">${label}</span>
+    `;
+
+    const sub = document.createElement('div');
+    sub.className = 'tree-sub explorer-tree';
+    sub.style.display = 'none';
+
+    header.onclick = () => {
+        const isCollapsed = header.classList.toggle('collapsed');
+        sub.style.display = isCollapsed ? 'none' : 'block';
+    };
+
+    node.appendChild(header);
+    node.appendChild(sub);
+    return node;
+}
+
+async function selectSavedFile(orgId, system, folder, funcId) {
+    const func = AppState.savedFunctions[orgId][system][folder][funcId];
+    AppState.currentFile = { id: funcId, type: 'saved', data: func.metadata };
+
+    const key = getRenameKey(func.metadata);
+    const mInfo = getOrCreateModel(key, func.code);
+    // If we just created it from saved file, and it had no code, set it
+    if (mInfo.model.getValue() === "" && func.code) {
+        mInfo.model.setValue(func.code);
+        mInfo.originalCode = func.code;
+    }
+    editor.setModel(mInfo.model);
+
+    await refreshContextualMappings();
+
+    // Check if we can reconnect to an active tab
+    const matchingTab = AppState.activeTabs.find(t => t.functionId === funcId || (t.functionName === func.name && t.orgId === orgId));
+    if (matchingTab) {
+        AppState.currentFile.tabId = matchingTab.tabId;
+        AppState.currentFile.type = 'tab';
+        log('System', `Reconnected to active tab: ${matchingTab.title}`);
+
+        // Detect Drift
+        chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE', tabId: matchingTab.tabId }, async (response) => {
+            if (response && response.code) {
+                const status = await SyncService.detectStatus(funcId, response.code);
+                updateDriftUI(matchingTab.tabId, status);
+                mInfo.syncStatus = status;
+                renderExplorer();
+                renderOpenEditors();
+            }
+        });
+    } else {
+        log('System', `Opened saved file (Offline)`);
+        updateDriftUI(null, 'OFFLINE');
+    }
+
+    renderExplorer();
+    renderOpenEditors();
+}
+
+function updateExplorerActiveState() {
+    renderExplorer();
 }
 
 const bind = (id, event, fn) => {
@@ -257,11 +943,63 @@ const bind = (id, event, fn) => {
     if (el) el.addEventListener(event, fn);
 };
 
+function openExtractInterfaceModal(jsonText) {
+    document.getElementById('modal-title').innerText = 'Extract to Interface';
+    document.getElementById('interface-var-name').value = 'NewInterface';
+    document.getElementById('interface-input').value = tryFixJson(jsonText);
+    document.getElementById('modal-json-status').innerHTML = '';
+
+    document.getElementById('modal-var-container').style.display = 'block';
+    document.getElementById('modal-convert').style.display = 'none';
+    document.getElementById('modal-map-only').style.display = 'block';
+    document.getElementById('modal-map-only').innerText = 'Create Interface';
+    document.getElementById('interface-modal').style.display = 'flex';
+    validateModalJson();
+}
+
 function setupEventHandlers() {
+    bind('adoption-modal-close', 'click', () => { document.getElementById('adoption-modal').style.display = 'none'; });
+    bind('adoption-cancel', 'click', () => { document.getElementById('adoption-modal').style.display = 'none'; });
+
     bind('new-btn', 'click', () => {
         if (confirm('Start a new script?')) {
             editor.setValue('// New Zoho Deluge Script\n\n');
+            AppState.currentFile = null;
+            renderOpenEditors();
+            renderExplorer();
         }
+    });
+
+    bind('open-editors-header', 'click', (e) => {
+        if (e.target.id === 'sync-tabs-btn') return;
+        const header = document.getElementById('open-editors-header');
+        const list = document.getElementById('open-editors-list');
+        const isCollapsed = header.classList.toggle('collapsed');
+        list.style.display = isCollapsed ? 'none' : 'block';
+    });
+
+    bind('sync-tabs-btn', 'click', (e) => {
+        e.stopPropagation();
+        showStatus("Syncing tabs & Resetting ignored list...");
+        AppState.ignoredTabIds.clear();
+        if (typeof chrome !== "undefined" && chrome.storage) {
+            chrome.storage.local.set({ 'zide_ignored_tabs': [] });
+        }
+        syncAppTabs();
+    });
+
+    bind('project-explorer-header', 'click', () => {
+        const header = document.getElementById('project-explorer-header');
+        const list = document.getElementById('project-explorer-tree');
+        const isCollapsed = header.classList.toggle('collapsed');
+        list.style.display = isCollapsed ? 'none' : 'block';
+    });
+
+    bind('history-header', 'click', () => {
+        const header = document.getElementById('history-header');
+        const list = document.getElementById('saved-files-list');
+        const isCollapsed = header.classList.toggle('collapsed');
+        list.style.display = isCollapsed ? 'none' : 'block';
     });
 
     bind('pull-btn', 'click', pullFromZoho);
@@ -779,30 +1517,27 @@ function convertInterfaceToDeluge(varName, jsonStr, options = {}) {
     return code;
 }
 
-function saveInterfaceMapping(name, jsonStr) {
+async function saveInterfaceMapping(name, jsonStr) {
     try {
         const obj = JSON.parse(jsonStr);
         interfaceMappings[name] = obj;
         window.interfaceMappings = interfaceMappings;
-        saveCurrentMappings();
+
+        const currentOrg = (AppState.currentFile?.data?.orgId || 'global').toString().toLowerCase();
+
+        await DB.put('Interfaces', {
+            id: `${currentOrg}:${name}`,
+            name: name,
+            structure: obj,
+            ownerId: currentOrg,
+            ownerType: currentOrg === 'global' ? 'GLOBAL' : 'SYSTEM',
+            sharedScope: currentOrg === 'global' ? 'GLOBAL' : 'SYSTEM'
+        });
+
         updateInterfaceMappingsList();
     } catch (e) {
         console.error("[ZohoIDE] saveInterfaceMapping Error:", e);
         alert('Invalid JSON: ' + e.message);
-    }
-}
-
-function saveCurrentMappings() {
-    if (typeof chrome !== "undefined" && chrome.storage) {
-        if (zideProjectUrl) {
-            chrome.storage.local.get(['project_mappings'], (result) => {
-                const projectMappings = result.project_mappings || {};
-                projectMappings[zideProjectUrl] = interfaceMappings;
-                chrome.storage.local.set({ 'project_mappings': projectMappings });
-            });
-        } else {
-            chrome.storage.local.set({ 'json_mappings': interfaceMappings });
-        }
     }
 }
 
@@ -868,7 +1603,7 @@ function updateInterfaceMappingsList() {
         const deleteBtn = document.createElement('span');
         deleteBtn.className = 'delete-mapping material-icons';
         deleteBtn.innerHTML = 'close';
-        deleteBtn.onclick = (e) => {
+        deleteBtn.onclick = async (e) => {
             e.stopPropagation();
             if (confirm(`Delete mapping "${name}"?`)) {
                 delete interfaceMappings[name];
@@ -877,7 +1612,10 @@ function updateInterfaceMappingsList() {
                     window.activeMappingName = null;
                     document.getElementById('interface-tree-view').innerHTML = '<div style="font-size:11px; opacity:0.5; text-align:center; margin-top:20px;">Select a mapping to explore its structure</div>';
                 }
-                saveCurrentMappings();
+
+                const currentOrg = (AppState.currentFile?.data?.orgId || 'global').toString().toLowerCase();
+                await DB.delete('Interfaces', `${currentOrg}:${name}`);
+
                 updateInterfaceMappingsList();
             }
         };
@@ -1092,16 +1830,29 @@ function pullFromZoho() {
     if (now - lastActionTime < 800) return;
     lastActionTime = now;
 
-    if (!isConnected) {
+    const targetTab = AppState.activeTabs.find(t => t.tabId === AppState.currentFile?.tabId) || window.currentTargetTab;
+    const targetTabId = targetTab?.tabId;
+
+    if (!targetTabId) {
         log('Error', 'No Zoho tab connected. Please open a Zoho Deluge editor tab first.');
         return;
     }
     log('System', 'Pulling code...');
     if (typeof chrome !== "undefined" && chrome.runtime) {
-        chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE' }, (response) => {
+        chrome.runtime.sendMessage({ action: 'GET_ZOHO_CODE', tabId: targetTabId }, (response) => {
             if (response && response.code) {
-                editor.setValue(response.code);
+                const key = getRenameKey(targetTab);
+                const mInfo = getOrCreateModel(key, response.code);
+                mInfo.model.setValue(response.code);
+                mInfo.originalCode = response.code;
+                editor.setModel(mInfo.model);
+
+                // Update Sync History
+                SyncService.markSynced(targetTab.functionId, response.code);
+                updateDriftUI(targetTabId, 'SYNCED');
+
                 log('Success', 'Code pulled.');
+                renderOpenEditors();
             } else { log('Error', response?.error || 'No code found.'); }
         });
     }
@@ -1112,8 +1863,20 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
     if (now - lastActionTime < 1000) return;
     lastActionTime = now;
 
-    if (!isConnected) {
-        log('Error', 'No Zoho tab connected. Sync/Execute failed.');
+    let targetTab = AppState.activeTabs.find(t => t.tabId === AppState.currentFile?.tabId);
+
+    // Fallback to any matching tab for this file if the specific tabId is gone
+    if (!targetTab && AppState.currentFile) {
+        targetTab = AppState.activeTabs.find(t => t.functionId === AppState.currentFile.id || (t.functionName === AppState.currentFile.data?.name && t.orgId === AppState.currentFile.data?.orgId));
+    }
+
+    // Ultimate fallback to currentTargetTab
+    if (!targetTab) targetTab = window.currentTargetTab;
+
+    const targetTabId = targetTab?.tabId;
+
+    if (!targetTabId) {
+        log('Error', 'No Zoho tab connected or function not found in any open tab. Sync/Execute failed.');
         return;
     }
 
@@ -1128,32 +1891,49 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 
     const code = editor.getValue();
     log('System', 'Pushing code...');
+
+    // Focus tab if requested
+    if (triggerSave) {
+        chrome.runtime.sendMessage({ action: 'OPEN_ZOHO_EDITOR', tabId: targetTabId });
+    }
+
     if (typeof chrome !== "undefined" && chrome.runtime) {
-        chrome.runtime.sendMessage({ action: 'SET_ZOHO_CODE', code: code }, (response) => {
+        chrome.runtime.sendMessage({ action: 'SET_ZOHO_CODE', code: code, tabId: targetTabId }, (response) => {
             if (response && response.success) {
                 log('Success', 'Code pushed.');
 
+                // Update originalCode to mark as synced
+                const key = getRenameKey(targetTab);
+                if (AppState.models[key]) {
+                    AppState.models[key].originalCode = code;
+                    saveModelsToStorage();
+
+                    // Update Sync History
+                    SyncService.markSynced(targetTab.functionId, code);
+                    updateDriftUI(targetTabId, 'SYNCED');
+
+                    renderOpenEditors();
+                }
+
                 if (triggerSave || triggerExecute) {
-                    // Logic: Save first. If Execute is requested, wait 500ms then Execute.
-                    chrome.runtime.sendMessage({ action: 'SAVE_ZOHO_CODE' }, (res) => {
+                    chrome.runtime.sendMessage({ action: 'SAVE_ZOHO_CODE', tabId: targetTabId }, (res) => {
                         if (res && res.success) {
                             log('Success', 'Zoho Save triggered.');
 
                             if (triggerExecute) {
                                 log('System', 'Waiting 700ms before execution...');
                                 setTimeout(() => {
-                                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (execRes) => {
+                                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE', tabId: targetTabId }, (execRes) => {
                                         if (execRes && execRes.success) log('Success', 'Zoho Execute triggered.');
                                         else log('Warning', 'Zoho Execute trigger failed.');
                                     });
                                 }, 700);
                             }
                         } else {
-                            log('Warning', 'Zoho Save trigger failed. Try clicking manually.');
-                            // Still try to execute if it was requested, as some saves might be "no-op"
+                            log('Warning', 'Zoho Save trigger failed.');
                             if (triggerExecute) {
                                 setTimeout(() => {
-                                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE' }, (execRes) => {
+                                    chrome.runtime.sendMessage({ action: 'EXECUTE_ZOHO_CODE', tabId: targetTabId }, (execRes) => {
                                         if (execRes && execRes.success) log('Success', 'Zoho Execute triggered.');
                                     });
                                 }, 700);
@@ -1168,51 +1948,57 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
     }
 }
 
-function saveLocally() {
-    // Check for errors
-    const markers = monaco.editor.getModelMarkers({ resource: editor.getModel().uri });
-    const errors = markers.filter(m => m.severity === monaco.MarkerSeverity.Error);
-    if (errors.length > 0) {
-        showStatus('Cloud Sync Paused: Errors', 'warning');
-        // We still allow local storage save but maybe skip cloud sync if it's a hard error
+async function saveLocally() {
+    const code = editor.getValue();
+    let meta = AppState.currentFile?.data || window.currentTargetTab;
+
+    if (!meta) {
+        const name = prompt('Enter a name for this script:', 'Untitled Script');
+        if (!name) return;
+        meta = {
+            orgId: 'global',
+            system: 'Generic',
+            folder: 'Manual Saves',
+            functionName: name,
+            functionId: 'manual_' + Date.now(),
+            url: 'global'
+        };
     }
 
-    const code = editor.getValue();
-    const timestamp = new Date().toLocaleString();
-    const title = 'Script ' + new Date().toLocaleTimeString();
-    const source = window.currentTargetTab?.tabTitle || 'Local Editor';
-    const vars = extractVarsFromCode(code);
-    const projectUrl = zideProjectUrl || 'global';
-    // Cloud Sync
+    const orgId = (meta.orgId || 'global').toString().toLowerCase();
+    const system = meta.system || 'Zoho';
+    const folder = meta.folder || 'General';
+    const name = meta.functionName || 'Untitled';
+    const id = meta.functionId || 'id_' + Date.now();
+
+    const fileData = {
+        id: id,
+        orgId: orgId,
+        system: system,
+        folder: folder,
+        name: name,
+        code: code,
+        originalCode: AppState.models[getRenameKey(meta)]?.originalCode || code,
+        metadata: meta
+    };
+
+    try {
+        await FileManager.saveFile(fileData);
+        log('Success', `Saved ${name} to Explorer.`);
+        showStatus('Saved locally', 'success');
+
+        // Refresh UI
+        loadExplorerData();
+    } catch (e) {
+        log('Error', 'Save failed: ' + e.message);
+    }
+
+    // Cloud Sync (Legacy support)
     if (window.activeCloudFileId && typeof CloudService !== 'undefined') {
         CloudService.saveFile(window.activeCloudFileId, {
             code: code,
             interfaceMappings: window.interfaceMappings || {},
-            url: zideProjectUrl
-        }).then(() => {
-            showStatus('Synced to Cloud', 'success');
-        }).catch(err => {
-            console.error('Cloud Sync failed:', err);
-        });
-    }
-
-
-    if (typeof chrome !== "undefined" && chrome.storage) {
-        chrome.storage.local.get(['saved_files', 'last_project_code'], (result) => {
-            const files = result.saved_files || [];
-            files.unshift({ title, code, timestamp, source, vars, projectUrl });
-            const limitedFiles = files.slice(0, 500);
-
-            const lastCodes = result.last_project_code || {};
-            lastCodes[projectUrl] = code;
-
-            chrome.storage.local.set({ 'saved_deluge_code': code, 'saved_files': limitedFiles, 'last_project_code': lastCodes }, () => {
-                log('Success', 'Saved to Explorer.');
-                const filtered = limitedFiles.filter(f => f.projectUrl === projectUrl || (!f.projectUrl && projectUrl === 'global'));
-                updateSavedFilesList(filtered);
-                const syncEl = document.getElementById('sync-status');
-                if (syncEl) syncEl.innerText = 'Saved ' + new Date().toLocaleTimeString();
-            });
+            url: meta?.url || 'global'
         });
     }
 }
@@ -1496,9 +2282,20 @@ document.getElementById('interface-search')?.addEventListener('input', (e) => {
     }, 300);
 });
 
-    // Expose internal functions to window for Cloud UI
+    // Expose internal functions to window for Cloud UI and testing
     window.updateInterfaceMappingsList = updateInterfaceMappingsList;
     window.showStatus = showStatus;
+    window.loadExplorerData = loadExplorerData;
+    window.renderExplorer = renderExplorer;
+    window.renderOpenEditors = renderOpenEditors;
+    window.renameFunction = renameFunction;
+    window.selectTabFile = selectTabFile;
+    window.selectSavedFile = selectSavedFile;
+    window.syncAppTabs = syncAppTabs;
+    window.getOrCreateModel = getOrCreateModel;
+    window.getRenameKey = getRenameKey;
+    window.safeDeleteFile = safeDeleteFile;
+    window.updateDriftUI = updateDriftUI;
 
     function syncProblemsPanel() {
         const list = document.getElementById('problems-list');

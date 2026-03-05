@@ -118,24 +118,144 @@
         flow: {
             match: (url) => url.includes('flow.zoho'),
             save: ['input[value="Save"].zf-green-btn', 'input[value="Save"]'],
-            execute: ['input[value="Execute"].zf-green-o-btn', 'input[value="Execute"]']
+            execute: ['input[value="Execute"].zf-green-o-btn', 'input[value="Execute"]'],
+            getMetadata: () => {
+                const url = window.location.href;
+                const pathParts = window.location.pathname.split('/');
+                const flowId = url.split('/flow/')[1]?.split('/')[0];
+                const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
+                const codeName = extractNameFromCode(code);
+
+                let orgName = window.zf_org_id || 'global';
+                if (pathParts[1] === 'flow' && pathParts[2] && isNaN(pathParts[2])) {
+                    orgName = pathParts[2];
+                }
+
+                return {
+                    system: 'Flow',
+                    orgId: orgName.toString().toLowerCase(),
+                    functionId: flowId || 'unknown',
+                    functionName: codeName || document.querySelector('.zf-flow-name')?.innerText || 'Untitled Flow',
+                    folder: 'My Flows'
+                };
+            }
         },
         creator: {
             match: (url) => url.includes('creator.zoho') || url.includes('creatorapp.zoho') || url.includes('creatorportal.zoho'),
             save: ['input#saveFuncBtn', 'input[elename="saveFunction"]', 'lyte-button[data-zcqa="save"]', '.zc-save-btn', 'button.save-btn'],
-            execute: ['input#executeFuncBtn', 'input[elename="executeFunction"]', 'lyte-button[data-zcqa="execute"]', '.zc-execute-btn', 'button.run-btn']
+            execute: ['input#executeFuncBtn', 'input[elename="executeFunction"]', 'lyte-button[data-zcqa="execute"]', '.zc-execute-btn', 'button.run-btn'],
+            getMetadata: () => {
+                const pathParts = window.location.pathname.split('/');
+                let appIdx = pathParts.indexOf('app');
+                const ownerName = window.ZCApp?.ownerName || (appIdx !== -1 ? pathParts[appIdx-1] : pathParts[1]);
+                const appName = window.ZCApp?.appName || (appIdx !== -1 ? pathParts[appIdx+1] : pathParts[2]);
+                const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
+                const codeName = extractNameFromCode(code);
+
+                let titleName = document.title.replace(/^\(\d+\)\s*/, '').split(' - ')[0].trim();
+                if (titleName.toLowerCase().includes("zoho creator")) titleName = null;
+
+                let functionId = (appName ? appName + ":" : "") + (window.location.hash || 'unknown');
+                if (functionId.endsWith('unknown')) {
+                    const workflowId = document.querySelector('[data-workflowid], [data-id]')?.getAttribute('data-workflowid') || document.querySelector('[data-id]')?.getAttribute('data-id');
+                    if (workflowId) functionId = (appName ? appName + ":" : "") + workflowId;
+                }
+                if (functionId.endsWith('unknown') && codeName) {
+                    functionId = (appName ? appName + ":" : "") + 'name:' + codeName;
+                }
+
+                return {
+                    system: 'Creator',
+                    orgId: (ownerName || 'global').toLowerCase(),
+                    functionId: functionId,
+                    functionName: codeName || document.querySelector('.zc-func-name, .zc-workflow-name')?.innerText || titleName || 'Untitled Creator',
+                    folder: appName || 'General'
+                };
+            }
         },
         crm: {
             match: (url) => url.includes('crm.zoho'),
             save: ['lyte-button[data-zcqa="functionSavev2"]', 'lyte-button[data-zcqa="functionSavev2"] button', '#crmsave', 'lyte-button[data-zcqa="save"]', '.crm-save-btn'],
-            execute: ['span[data-zcqa="delgv2execPlay"]', '#crmexecute', 'lyte-button[data-id="execute"]']
+            execute: ['span[data-zcqa="delgv2execPlay"]', '#crmexecute', 'lyte-button[data-id="execute"]'],
+            getMetadata: () => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const pathParts = window.location.pathname.split('/');
+                const code = Engines.Monaco.getCode() || Engines.Ace.getCode() || Engines.CodeMirror.getCode();
+                const codeName = extractNameFromCode(code);
+
+                let orgName = window.ZCRMSession?.orgName || window.ZCRMSession?.orgId || 'global';
+                if (pathParts[1] === 'crm') {
+                    if (pathParts[2] && pathParts[2] !== 'org') orgName = pathParts[2];
+                    else if (pathParts[2] === 'org' && pathParts[3]) orgName = pathParts[3];
+                }
+
+                let titleName = document.title.replace(/Zoho CRM - |Functions - |Zoho - |CRM - /g, '').replace(/-/g, '').trim();
+                if (titleName === "" || titleName === "Zoho CRM") titleName = null;
+
+                let functionId = urlParams.get('id') || urlParams.get('wfId') || window.location.href.match(/edit\/(\d+)/)?.[1] || window.location.href.split('id/')[1]?.split('/')[0] || 'unknown';
+                if (functionId === 'unknown') {
+                    const scriptEl = document.querySelector('[id*="scriptId"], [name*="scriptId"], input[name="id"], input#id, input#funcId');
+                    if (scriptEl) functionId = scriptEl.value || scriptEl.innerText;
+                }
+                if (functionId === 'unknown' && window.ZCRMSession?.functionId) functionId = window.ZCRMSession.functionId;
+
+                // Advanced Name Detection
+                const nameSelectors = [
+                    '.custom_fn_name', '[data-zcqa="function-name"]', '.fnName', '.fn_name', '#function_name',
+                    '.bread-crumb-current', '.lyteBreadcrumbItem.active', '.crm-fn-name'
+                ];
+                let domName = null;
+                for (const sel of nameSelectors) {
+                    const el = document.querySelector(sel);
+                    if (el && el.innerText.trim()) { domName = el.innerText.trim(); break; }
+                }
+
+                const finalName = codeName || domName || titleName || 'Untitled CRM';
+
+                if (functionId === 'unknown' && finalName !== 'Untitled CRM') {
+                    functionId = 'name:' + finalName;
+                }
+
+                return {
+                    system: 'CRM',
+                    orgId: orgName.toString().toLowerCase(),
+                    functionId: functionId,
+                    functionName: finalName,
+                    folder: document.querySelector('.breadcrumb-item.active, .lyteBreadcrumbItem.active')?.innerText || 'Functions'
+                };
+            }
         },
         generic: {
             match: () => true,
             save: ['#save_script', '#save_btn', 'input[value="Save"]', 'input[value="Update"]'],
-            execute: ['#execute_script', '#run_script', 'input[value="Execute"]', 'input[value="Run"]']
+            execute: ['#execute_script', '#run_script', 'input[value="Execute"]', 'input[value="Run"]'],
+            getMetadata: () => {
+                return {
+                    system: 'Zoho',
+                    orgId: 'global',
+                    functionId: window.location.pathname,
+                    functionName: document.title,
+                    folder: 'General'
+                };
+            }
         }
     };
+
+    function extractNameFromCode(code) {
+        if (!code) return null;
+        // Match common Deluge function patterns: type name(params) { ... }
+        // Support namespaces like standalone.test
+        const match = code.match(/(?:void|string|int|decimal|list|map|bool|date|datetime|json|file)\s+([a-zA-Z0-9_.]+)\s*\(/i);
+        if (match) return match[1];
+
+        // Try to match function name from a line starting with the name followed by = {
+        const simpleMatch = code.match(/^\s*([a-zA-Z0-9_.]+)\s*=\s*(?:Map|List|\{)/);
+        if (simpleMatch) return simpleMatch[1];
+
+        // Fallback for simple assignment
+        const assignmentMatch = code.match(/^\s*([a-zA-Z0-9_.]+)\s*=\s*/);
+        return assignmentMatch ? assignmentMatch[1] : null;
+    }
 
     function robustClick(el) {
         if (!el) return false;
@@ -223,18 +343,26 @@
 
         if (action === 'GET_ZOHO_CODE') {
             log('GET_ZOHO_CODE requested');
+            let found = false;
             for (let engineName of Object.keys(Engines)) {
                 const engine = Engines[engineName];
                 if (engine.isAvailable()) {
+                    log('Engine available:', engineName);
                     const code = engine.getCode();
                     if (code !== null) {
-                        log('Code retrieved from:', engineName);
+                        log('Code retrieved from:', engineName, 'Length:', code.length);
                         response = { code };
+                        found = true;
                         break;
+                    } else {
+                        log('Engine', engineName, 'returned null code');
                     }
                 }
             }
-            if (!response.code) response = { error: 'No editor found' };
+            if (!found) {
+                log('No editor engine found or returned code');
+                response = { error: 'No editor found' };
+            }
         } else if (action === 'SET_ZOHO_CODE') {
             log('SET_ZOHO_CODE requested');
             let success = false;
@@ -257,6 +385,14 @@
         } else if (action === 'EXECUTE_ZOHO_CODE') {
             log('EXECUTE_ZOHO_CODE requested');
             response = { success: triggerAction('execute') };
+        } else if (action === 'GET_ZOHO_METADATA') {
+            log('GET_ZOHO_METADATA requested');
+            const url = window.location.href;
+            let productMatch = Object.entries(Products).find(([name, p]) => p.match && p.match(url));
+            let product = productMatch ? productMatch[1] : Products.generic;
+            response = product.getMetadata ? product.getMetadata() : Products.generic.getMetadata();
+            response.url = url;
+            response.title = document.title;
         } else if (action === 'PING') {
             response = { status: 'PONG' };
         }
