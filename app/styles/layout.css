@@ -1,0 +1,184 @@
+/* app/styles/layout.css */
+#app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+#top-bar {
+    height: var(--header-height);
+    background-color: var(--md-sys-color-surface-variant);
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--md-sys-spacing-4);
+    flex-shrink: 0;
+}
+
+#main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+#sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--md-sys-color-surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: var(--md-sys-spacing-4);
+    flex-shrink: 0;
+    transition: width 0.2s;
+    border-right: 1px solid var(--md-sys-color-outline);
+}
+
+.sidebar-panel {
+    width: var(--left-sidebar-width);
+    background-color: var(--md-sys-color-surface-variant);
+    border-right: 1px solid var(--md-sys-color-outline);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#left-panel-content {
+    min-width: 150px;
+    max-width: 600px;
+    transition: width 0.2s;
+}
+
+#editor-container {
+    flex: 1;
+    height: 100%;
+    min-width: 0;
+}
+
+#right-sidebar {
+    overflow: hidden;
+    width: 250px;
+    background-color: var(--md-sys-color-surface-variant);
+    border-left: 1px solid var(--md-sys-color-outline);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    transition: width 0.2s;
+}
+
+#right-sidebar.collapsed {
+    width: 30px !important;
+}
+
+#bottom-panel {
+    height: var(--footer-height);
+    background-color: var(--md-sys-color-surface);
+    border-top: 1px solid var(--md-sys-color-outline);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+#panel-body {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+#status-bar {
+    height: 22px;
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 var(--md-sys-spacing-4);
+    font-size: var(--md-sys-typescale-body-medium);
+    flex-shrink: 0;
+}
+
+/* Specific view wrappers */
+.view-content {
+    display: none;
+    flex: 1;
+    padding: var(--md-sys-spacing-4);
+    overflow-y: auto;
+    height: calc(100% - 40px);
+    padding-bottom: 20px;
+}
+
+.view-content.active {
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-content {
+    display: none;
+    height: 100%;
+    padding: var(--md-sys-spacing-4);
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: var(--md-sys-typescale-body-large);
+    overflow-y: auto;
+    background-color: var(--md-sys-color-surface);
+    box-sizing: border-box;
+}
+
+.panel-content.active {
+    display: block;
+}
+
+/* Utilities / Structural Enhancements */
+.resizer {
+    width: 6px;
+    cursor: ew-resize;
+    background: var(--md-sys-color-outline);
+    transition: background 0.2s;
+    z-index: 1000;
+}
+.resizer:hover {
+    background: var(--md-sys-color-primary);
+}
+.resizer.horizontal {
+    height: 6px;
+    cursor: ns-resize;
+    width: 100%;
+    background: var(--md-sys-color-outline);
+    transition: background 0.2s;
+    z-index: 1001;
+}
+.resizer.horizontal:hover {
+    background: var(--md-sys-color-primary);
+}
+
+body.resizing { cursor: ew-resize !important; }
+
+/* Sidepanel Mode Overrides */
+html.sidepanel-mode #sidebar {
+    /* Optional: hide or slim down */
+}
+
+html.sidepanel-mode #top-bar {
+    height: auto !important;
+    flex-direction: column !important;
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-2) !important;
+}
+
+html.sidepanel-mode #bottom-panel {
+    /* Adjust height if needed */
+}
+
+html.sidepanel-mode #status-bar {
+    font-size: var(--md-sys-typescale-body-small) !important;
+    padding: 0 var(--md-sys-spacing-2) !important;
+}
+
+html.sidepanel-mode .sidebar-panel,
+html.sidepanel-mode #right-sidebar {
+    display: flex;
+}
+html.sidepanel-mode .resizer {
+    background: var(--md-sys-color-outline-variant);
+}

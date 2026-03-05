@@ -1,0 +1,174 @@
+/* app/styles/components/buttons.css */
+
+/* Top bar actions container */
+.actions {
+    display: flex;
+    gap: var(--md-sys-spacing-3);
+    align-items: center;
+}
+
+/* Base button styles */
+button {
+    background-color: var(--md-sys-color-secondary);
+    color: var(--md-sys-color-on-secondary);
+    border: none;
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    cursor: pointer;
+    font-size: var(--md-sys-typescale-body-large);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--md-sys-spacing-1);
+    transition: background-color 0.2s, filter 0.2s, opacity 0.2s;
+    font-family: inherit;
+}
+
+button:hover {
+    background-color: var(--md-sys-color-secondary-hover);
+}
+
+/* Icons within buttons */
+button svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+.actions button svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Header Action Buttons */
+.actions button {
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    font-size: var(--md-sys-typescale-body-medium);
+}
+
+.actions button:hover {
+    background-color: var(--md-sys-color-primary-hover);
+}
+
+.actions button#execute-btn {
+    background-color: var(--md-sys-color-tertiary);
+    color: var(--md-sys-color-on-tertiary);
+}
+
+.actions button#execute-btn:hover {
+    filter: brightness(0.9);
+}
+
+/* Modal Primary/Secondary Buttons */
+.primary-btn {
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-5);
+    border-radius: var(--md-sys-shape-corner-small);
+    font-weight: 500;
+}
+.primary-btn:hover {
+    background-color: var(--md-sys-color-primary-hover);
+}
+
+.secondary-btn {
+    background-color: var(--md-sys-color-secondary);
+    color: var(--md-sys-color-on-secondary);
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-5);
+    border-radius: var(--md-sys-shape-corner-small);
+}
+.secondary-btn:hover {
+    background-color: var(--md-sys-color-secondary-hover);
+}
+
+.success-btn {
+    background-color: var(--md-sys-color-tertiary);
+    color: var(--md-sys-color-on-tertiary);
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-5);
+    border-radius: var(--md-sys-shape-corner-small);
+}
+.success-btn:hover {
+    filter: brightness(0.9);
+}
+
+.text-btn {
+    background-color: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-4);
+}
+.text-btn:hover {
+    color: var(--md-sys-color-on-surface-strong);
+    background-color: transparent;
+}
+
+/* Sidebar and Panel Mini Buttons */
+.sidebar-btn {
+    background-color: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    border: 1px solid transparent;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    padding: var(--md-sys-spacing-1);
+    height: 24px;
+    width: 24px;
+    flex-shrink: 0;
+}
+.sidebar-btn:hover {
+    background-color: var(--md-sys-color-surface-hover);
+    color: var(--md-sys-color-on-surface-strong);
+}
+
+.mini-btn {
+    background-color: var(--md-sys-color-secondary);
+    color: var(--md-sys-color-on-secondary);
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+}
+
+.mini-action-btn {
+    background-color: rgba(45, 45, 45, 0.9);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface-variant);
+    padding: var(--md-sys-spacing-2);
+    border-radius: var(--md-sys-shape-corner-small);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.mini-action-btn:hover {
+    background-color: var(--md-sys-color-surface-hover);
+    color: var(--md-sys-color-on-surface-strong);
+    border-color: var(--md-sys-color-primary);
+}
+
+/* Status Indicator */
+#status-indicator {
+    font-size: var(--md-sys-typescale-body-medium);
+    color: var(--md-sys-color-on-surface-variant);
+    margin-right: var(--md-sys-spacing-3);
+}
+
+html.sidepanel-mode .actions {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    margin-top: var(--md-sys-spacing-2) !important;
+    gap: var(--md-sys-spacing-2) !important;
+}
+
+html.sidepanel-mode .actions button {
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-3) !important;
+    font-size: var(--md-sys-typescale-body-medium) !important;
+}
+
+/* specific fixes for tree action buttons */
+.tree-action-btn {
+    background-color: var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface);
+    padding: 2px 4px;
+    font-size: 10px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+}
+.tree-action-btn:hover {
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+}

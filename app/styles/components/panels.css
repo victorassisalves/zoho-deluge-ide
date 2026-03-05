@@ -1,0 +1,532 @@
+/* app/styles/components/panels.css */
+
+/* Generic Sidebar Styles */
+.sidebar-item {
+    padding: var(--md-sys-spacing-5) 0;
+    cursor: pointer;
+    font-size: 20px;
+    opacity: 0.6;
+    width: 100%;
+    text-align: center;
+    color: var(--md-sys-color-on-surface);
+    transition: opacity 0.2s, border-left-color 0.2s;
+    border-left: 2px solid transparent; /* Prepare for active border */
+}
+
+.sidebar-item:hover, .sidebar-item.active {
+    opacity: 1;
+    border-left-color: var(--md-sys-color-primary);
+}
+
+.sidebar-item svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+}
+
+/* Panel Header Headings (H4s) */
+.view-content h4 {
+    margin-top: 0;
+    margin-bottom: var(--md-sys-spacing-4);
+    font-size: var(--md-sys-typescale-title-small);
+    text-transform: uppercase;
+    color: var(--md-sys-color-on-surface-variant);
+    font-weight: 500;
+}
+
+/* Console and Problem Lists */
+.log-entry {
+    margin-bottom: var(--md-sys-spacing-2);
+    border-bottom: 1px solid var(--md-sys-color-surface-hover);
+    padding-bottom: var(--md-sys-spacing-1);
+    word-break: break-all;
+}
+
+.log-entry.system { color: #569cd6; } /* VS Code Blue */
+.log-entry.info { color: #9cdcfe; }
+.log-entry.error { color: var(--md-sys-color-error); }
+.log-entry.success { color: var(--md-sys-color-tertiary); }
+
+#problems-list .problem-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--md-sys-spacing-3);
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+    font-size: var(--md-sys-typescale-body-large);
+    cursor: pointer;
+    border-bottom: 1px solid var(--md-sys-color-outline);
+}
+#problems-list .problem-item:hover { background: var(--md-sys-color-surface-hover); }
+#problems-list .problem-severity-error { color: var(--md-sys-color-error); }
+#problems-list .problem-severity-warning { color: #ffb86c; } /* Dracula warning */
+#problems-list .problem-loc { color: var(--md-sys-color-on-surface-variant); font-size: var(--md-sys-typescale-body-medium); margin-left: auto; }
+
+/* Cloud Hierarchy / API View Inputs */
+.cloud-input, .cloud-select, .api-select, .api-search-input {
+    width: 100%;
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-3);
+    margin-top: var(--md-sys-spacing-2);
+    font-size: var(--md-sys-typescale-body-large);
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    font-family: inherit;
+}
+
+.cloud-input:focus, .cloud-select:focus, .api-select:focus, .api-search-input:focus {
+    border-color: var(--md-sys-color-primary);
+    outline: none;
+}
+
+/* Hierarchy List Items (Cloud / API) */
+.cloud-list {
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--md-sys-color-outline);
+    background: var(--md-sys-color-surface);
+    margin-top: var(--md-sys-spacing-2);
+    width: 100%;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+}
+
+.cloud-file-item {
+    padding: var(--md-sys-spacing-2);
+    font-size: var(--md-sys-typescale-body-medium);
+    cursor: pointer;
+    border-bottom: 1px solid var(--md-sys-color-surface-hover);
+}
+.cloud-file-item:hover {
+    background: var(--md-sys-color-surface-hover);
+}
+.cloud-file-item.active {
+    background: var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-tertiary);
+}
+
+/* Tree View Common Styles */
+.tree-node {
+    margin-left: var(--md-sys-spacing-4);
+    border-left: 1px solid var(--md-sys-color-outline);
+}
+
+.tree-label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 2px var(--md-sys-spacing-2);
+    border-radius: var(--md-sys-shape-corner-small);
+    transition: background 0.1s;
+}
+
+.tree-label:hover {
+    background: var(--md-sys-color-surface-hover);
+    color: var(--md-sys-color-primary);
+}
+
+.tree-key { color: #9cdcfe; }
+.tree-val { color: #ce9178; }
+.tree-type {
+    color: #569cd6;
+    font-size: var(--md-sys-typescale-body-small);
+    opacity: 0.6;
+    margin-left: var(--md-sys-spacing-3);
+}
+
+/* AI Agent Specifics */
+.chat-msg {
+    padding: var(--md-sys-spacing-3);
+    border-radius: var(--md-sys-shape-corner-small);
+    max-width: 90%;
+    word-break: break-word;
+}
+.chat-msg.user {
+    background-color: var(--md-sys-color-primary);
+    align-self: flex-end;
+    color: var(--md-sys-color-on-primary);
+}
+.chat-msg.ai {
+    background-color: var(--md-sys-color-surface-hover);
+    align-self: flex-start;
+    border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.ai-input-area {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-2);
+    padding: var(--md-sys-spacing-2);
+    background: var(--md-sys-color-surface-variant);
+    border-top: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-small);
+}
+
+.ai-input-area textarea {
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    padding: var(--md-sys-spacing-2);
+    resize: none;
+    min-height: 60px;
+    font-family: inherit;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+}
+
+.ai-input-area textarea:focus {
+    border-color: var(--md-sys-color-primary);
+    outline: none;
+}
+
+/* Progress bar */
+.progress-bar-bg {
+    width: 100%;
+    height: 8px;
+    background: var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-small);
+    overflow: hidden;
+}
+.progress-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--md-sys-color-tertiary);
+    transition: width 0.3s ease;
+}
+
+/* Right Sidebar (Interface Manager) */
+.right-sidebar-header {
+    padding: var(--md-sys-spacing-4) var(--md-sys-spacing-3);
+    background-color: var(--md-sys-color-surface-variant);
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-3);
+}
+
+.header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.icons-row {
+    justify-content: flex-start;
+    gap: var(--md-sys-spacing-3);
+    padding-top: var(--md-sys-spacing-1);
+}
+
+.header-title {
+    font-size: var(--md-sys-typescale-body-medium);
+    font-weight: bold;
+    text-transform: uppercase;
+    color: var(--md-sys-color-on-surface-variant);
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+
+.badge {
+    background: var(--md-sys-color-outline);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small);
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: var(--md-sys-spacing-3);
+}
+
+.mapping-item {
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-4);
+    border-bottom: 1px solid var(--md-sys-color-surface-hover);
+    cursor: pointer;
+    font-size: var(--md-sys-typescale-body-medium);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.mapping-item.active {
+    background-color: var(--md-sys-color-surface-active);
+    color: var(--md-sys-color-on-surface-strong);
+    box-shadow: inset 2px 0 0 var(--md-sys-color-primary);
+}
+
+.mapping-item:hover:not(.active) {
+    background-color: var(--md-sys-color-surface-hover);
+}
+
+/* Robust Right Sidebar Toggle Styles (Restored from old ide.css) */
+#right-sidebar.collapsed {
+    width: 30px !important;
+}
+
+#right-sidebar.collapsed .right-sidebar-header {
+    padding: 10px 0 !important;
+}
+
+#right-sidebar.collapsed .right-sidebar-header .header-row:first-child,
+#right-sidebar.collapsed .right-sidebar-header .search-container,
+#right-sidebar.collapsed #interface-mappings-list,
+#right-sidebar.collapsed #interface-tree-view {
+    display: none !important;
+}
+
+#right-sidebar.collapsed .icons-row {
+    flex-direction: column !important;
+    gap: 20px !important;
+    padding-top: 15px !important;
+}
+
+#right-sidebar.collapsed .sidebar-btn {
+    background: transparent !important;
+    border: none !important;
+    width: 100% !important;
+    opacity: 0.6;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+#right-sidebar.collapsed .sidebar-btn:hover {
+    opacity: 1;
+}
+
+#right-sidebar.collapsed #add-interface-btn {
+    font-size: 24px;
+}
+
+#right-sidebar.collapsed #toggle-right-sidebar svg {
+    width: 20px;
+    height: 20px;
+    transform: rotate(180deg);
+}
+
+#right-sidebar-resizer.collapsed {
+    display: none !important;
+}
+
+/* Instant Tooltips for Icon Buttons */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: -25px; /* Adjust based on preference */
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--md-sys-color-surface-active);
+    color: var(--md-sys-color-on-surface-strong);
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    border: 1px solid var(--md-sys-color-outline);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    opacity: 0;
+    animation: tooltip-fade-in 0.1s forwards;
+}
+
+@keyframes tooltip-fade-in {
+    to { opacity: 1; }
+}
+
+/* API Explorer Styles (Restored from old ide.css) */
+.api-explorer-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 0;
+    background: var(--md-sys-color-surface-variant);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+.api-list {
+    padding: 5px 0;
+}
+.api-item {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: var(--md-sys-shape-corner-small);
+    margin-bottom: 2px;
+}
+.api-item:hover {
+    background: var(--md-sys-color-surface-hover);
+}
+.api-item-title {
+    font-weight: bold;
+    font-size: var(--md-sys-typescale-body-large);
+    color: var(--md-sys-color-tertiary);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+.api-item-desc {
+    font-size: var(--md-sys-typescale-body-medium);
+    color: var(--md-sys-color-on-surface-variant);
+    margin-top: 4px;
+    display: block;
+}
+.api-item-tag {
+    font-size: var(--md-sys-typescale-body-small);
+    background: var(--md-sys-color-secondary);
+    color: var(--md-sys-color-on-secondary);
+    padding: 1px 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    text-transform: uppercase;
+}
+
+/* Snippet Styles (Restored from old ide.css) */
+.snippet-group h5 {
+    margin: 15px 0 8px 0;
+    color: var(--md-sys-color-primary);
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    padding-bottom: 2px;
+    font-size: var(--md-sys-typescale-body-medium);
+}
+.snippet-btn {
+    background: var(--md-sys-color-surface-variant);
+    border: 1px dashed var(--md-sys-color-outline-variant);
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+    margin-bottom: var(--md-sys-spacing-2);
+    cursor: pointer;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    font-size: var(--md-sys-typescale-body-large);
+    transition: all 0.2s;
+    color: var(--md-sys-color-on-surface);
+}
+.snippet-btn:hover {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-hover);
+    color: var(--md-sys-color-primary);
+}
+.snippets-container {
+    padding-bottom: 20px;
+}
+
+/* My Snippets Styles */
+.my-snippet-item {
+    background: var(--md-sys-color-surface-variant);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-small);
+    margin-bottom: var(--md-sys-spacing-3);
+    padding: var(--md-sys-spacing-4);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.my-snippet-item:hover {
+    border-color: var(--md-sys-color-primary);
+}
+
+.my-snippet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--md-sys-spacing-1);
+}
+
+.my-snippet-name {
+    font-weight: bold;
+    color: var(--md-sys-color-on-surface-strong);
+    font-size: var(--md-sys-typescale-title-small);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.my-snippet-trigger {
+    color: var(--md-sys-color-tertiary);
+    font-size: var(--md-sys-typescale-body-medium);
+    background: var(--md-sys-color-background);
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-2);
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    font-family: monospace;
+}
+
+.my-snippet-category {
+    font-size: var(--md-sys-typescale-body-small);
+    color: var(--md-sys-color-on-surface-variant);
+    text-transform: uppercase;
+    margin-bottom: var(--md-sys-spacing-2);
+}
+
+.my-snippet-comments {
+    font-size: var(--md-sys-typescale-body-medium);
+    color: var(--md-sys-color-on-surface-variant);
+    margin-top: var(--md-sys-spacing-2);
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.my-snippet-actions {
+    display: none;
+    position: absolute;
+    top: var(--md-sys-spacing-3);
+    right: var(--md-sys-spacing-3);
+    gap: var(--md-sys-spacing-2);
+    background: var(--md-sys-color-surface-variant);
+    padding-left: var(--md-sys-spacing-2);
+}
+
+.my-snippet-item:hover .my-snippet-actions {
+    display: flex;
+}
+
+.my-snippet-action-btn {
+    background: var(--md-sys-color-surface-active);
+    color: var(--md-sys-color-on-surface);
+    border: none;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    cursor: pointer;
+    font-size: 14px; /* for material icon */
+}
+
+.my-snippet-action-btn:hover {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+}
+
+.my-snippet-action-btn.delete:hover {
+    background: var(--md-sys-color-error);
+}
+
+.my-snippet-category-group {
+    margin-bottom: var(--md-sys-spacing-5);
+}
+
+.my-snippet-category-title {
+    font-size: var(--md-sys-typescale-body-medium);
+    color: var(--md-sys-color-primary);
+    text-transform: uppercase;
+    margin-bottom: var(--md-sys-spacing-3);
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    padding-bottom: 2px;
+    font-weight: bold;
+}
+
+/* Snippet Code Editor Styles */
+#snippet-code-editor {
+    margin-top: var(--md-sys-spacing-2);
+    background-color: var(--md-sys-color-background);
+}

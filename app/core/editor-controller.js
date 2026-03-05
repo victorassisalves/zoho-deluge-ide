@@ -313,7 +313,7 @@ async function initEditor() {
 
 async function checkConnection() {
     if (typeof chrome !== "undefined" && chrome.runtime) {
-        chrome.runtime.sendMessage({ action: "CHECK_CONNECTION" }, (response) => {
+        chrome.runtime.sendMessage({ action: "CHECK_CONNECTION", targetContextHash: currentContextHash }, (response) => {
             let nextProjectUrl = "global";
 
             if (response && response.connected) {
