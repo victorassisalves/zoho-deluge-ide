@@ -5,9 +5,13 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 console.log('[ZohoIDE] Loader starting...');
 
 window.MonacoEnvironment = {
-    getWorkerUrl: function (workerId, label) {
-        // Absolute URL, safe to use from anywhere
-        return chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
+    getWorker: function (workerId, label) {
+        // Return a native Worker directly, bypassing Monaco's internal Blob/importScripts fallback
+        const workerUrl = typeof chrome !== 'undefined' && chrome.runtime
+            ? chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js')
+            : '../assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
+
+        return new Worker(workerUrl);
     }
 };
 
