@@ -1,6 +1,8 @@
 // app/core/bus.js
 // Message Bus for communication between Client (IDE) and Host (Zoho Page) / Background
 
+import { EVENTS } from './events.js';
+
 // Generate a unique instance ID for this context to prevent infinite broadcast loops
 const INSTANCE_ID = Math.random().toString(36).substring(2, 15);
 
@@ -13,9 +15,11 @@ try {
 }
 
 export const Bus = {
+    EVENTS, // Expose events protocol directly from Bus for easy access
+
     /**
      * Listen for messages from Host, Background, or BroadcastChannel
-     * @param {string} type - The message type (e.g., MSG.CODE_EXECUTE)
+     * @param {string} type - The message type (e.g., MSG.CODE_EXECUTE, EVENTS.LINK_TAB_REQUEST)
      * @param {function} callback - The callback function(payload, source)
      */
     listen(type, callback) {

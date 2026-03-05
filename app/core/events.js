@@ -1,0 +1,14 @@
+export const EVENTS = {
+    // Explicit manual tab linking
+    LINK_TAB_REQUEST: 'LINK_TAB_REQUEST',
+    LINK_TAB_SUCCESS: 'LINK_TAB_SUCCESS',
+    LINK_TAB_FAILED: 'LINK_TAB_FAILED',
+    ZOHO_TAB_DISCONNECTED: 'ZOHO_TAB_DISCONNECTED',
+
+    // Generic UI updates
+    UI_UPDATE: 'UI_UPDATE',
+
+    // Editor status
+    EDITOR_CONNECTED: 'EDITOR_CONNECTED',
+    EDITOR_DISCONNECTED: 'EDITOR_DISCONNECTED',
+};

@@ -31,6 +31,25 @@ db.version(3).stores({
             ]);
         }
     }
+
+    // Migration logic: Convert contextHash IDs to UUIDs
+    const files = await tx.table('files').toArray();
+    for (const file of files) {
+        // contextHashes were formatted like service__org__functionName
+        if (file.id && typeof file.id === 'string' && file.id.includes('__')) {
+            const newId = crypto.randomUUID();
+            const oldId = file.id;
+            file.id = newId;
+            await tx.table('files').add(file);
+            await tx.table('files').delete(oldId);
+
+            // update any existing tabs that might be referencing the old contextHash
+            await tx.table('workspace_tabs')
+                .where('fileId')
+                .equals(oldId)
+                .modify({ fileId: newId });
+        }
+    }
 });
 
 // Helper for settings table
