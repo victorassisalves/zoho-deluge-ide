@@ -206,10 +206,35 @@ export class Explorer {
         title.innerText = displayName;
         title.title = wsData.info.id; // Tooltip shows full ID
 
-        // Archive Action
+        // Actions
         const actions = document.createElement('div');
         actions.className = 'workspace-actions';
+
+
+        // Add File
+        const addFileBtn = document.createElement('span');
+        addFileBtn.className = 'material-icons action-btn';
+        addFileBtn.innerText = 'note_add';
+        addFileBtn.title = 'New File';
+        addFileBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.createFile(wsData.info.id);
+        };
+        actions.appendChild(addFileBtn);
+
         if (wsData.info.id !== 'uncategorized') {
+            // Edit
+            const editBtn = document.createElement('span');
+            editBtn.className = 'material-icons action-btn';
+            editBtn.innerText = 'edit';
+            editBtn.title = 'Rename Workspace';
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.editWorkspace(wsData.info.id, displayName);
+            };
+            actions.appendChild(editBtn);
+
+            // Archive
             const archiveBtn = document.createElement('span');
             archiveBtn.className = 'material-icons action-btn';
             archiveBtn.innerText = 'archive';
@@ -219,6 +244,17 @@ export class Explorer {
                 this.archiveWorkspace(wsData.info.id);
             };
             actions.appendChild(archiveBtn);
+
+            // Delete
+            const deleteBtn = document.createElement('span');
+            deleteBtn.className = 'material-icons action-btn';
+            deleteBtn.innerText = 'delete';
+            deleteBtn.title = 'Delete Workspace';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.deleteWorkspace(wsData.info.id);
+            };
+            actions.appendChild(deleteBtn);
         }
 
         header.appendChild(icon);
@@ -293,8 +329,61 @@ export class Explorer {
             nameSpan.appendChild(dirtyStar);
         }
 
+        // Add Connection Icon Placeholder
+        const connectionIcon = document.createElement('span');
+        connectionIcon.className = 'material-icons file-connection';
+        connectionIcon.innerText = 'link';
+        connectionIcon.title = 'Active Tab Connected';
+
+        // File Actions
+        const actions = document.createElement('div');
+        actions.className = 'file-actions';
+
+        const linkBtn = document.createElement('span');
+        linkBtn.className = 'material-icons file-action-btn';
+        linkBtn.innerText = 'link';
+        linkBtn.title = 'Link Active Tab to this file';
+        linkBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.linkTabToFile(file);
+        };
+
+        const renameBtn = document.createElement('span');
+        renameBtn.className = 'material-icons file-action-btn';
+        renameBtn.innerText = 'edit';
+        renameBtn.title = 'Rename File';
+        renameBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.renameFile(file);
+        };
+
+        const moveBtn = document.createElement('span');
+        moveBtn.className = 'material-icons file-action-btn';
+        moveBtn.innerText = 'drive_file_move';
+        moveBtn.title = 'Move File';
+        moveBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.moveFile(file);
+        };
+
+        const deleteBtn = document.createElement('span');
+        deleteBtn.className = 'material-icons file-action-btn';
+        deleteBtn.innerText = 'delete';
+        deleteBtn.title = 'Delete File';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.deleteFile(file);
+        };
+
+        actions.appendChild(linkBtn);
+        actions.appendChild(renameBtn);
+        actions.appendChild(moveBtn);
+        actions.appendChild(deleteBtn);
+
         fileDiv.appendChild(icon);
         fileDiv.appendChild(nameSpan);
+        fileDiv.appendChild(connectionIcon);
+        fileDiv.appendChild(actions);
 
         fileDiv.onclick = (e) => {
             e.stopPropagation();
@@ -302,6 +391,58 @@ export class Explorer {
         };
 
         return fileDiv;
+    }
+
+        updateFileState(fileId, updates) {
+        if (!this.container) return;
+        const fileEl = this.container.querySelector(`.explorer-file[data-id="${fileId}"]`);
+        if (!fileEl) return; // File not in DOM, might need full refresh
+
+        if (updates.hasOwnProperty('isDirty')) {
+            if (updates.isDirty) {
+                fileEl.classList.add('is-dirty');
+                const nameSpan = fileEl.querySelector('.file-name');
+                if (nameSpan && !nameSpan.querySelector('.dirty-mark')) {
+                    const dirtyStar = document.createElement('span');
+                    dirtyStar.className = 'dirty-mark';
+                    dirtyStar.innerText = '*';
+                    nameSpan.appendChild(dirtyStar);
+                }
+            } else {
+                fileEl.classList.remove('is-dirty');
+                const dirtyStar = fileEl.querySelector('.dirty-mark');
+                if (dirtyStar) dirtyStar.remove();
+            }
+        }
+
+        if (updates.hasOwnProperty('fileName') && updates.fileName) {
+            let displayName = updates.fileName;
+            if (!displayName.endsWith('.dg')) displayName += '.dg';
+            const nameSpan = fileEl.querySelector('.file-name');
+            if (nameSpan) {
+                // Keep the dirty mark if it exists
+                const isDirty = fileEl.classList.contains('is-dirty');
+                nameSpan.innerText = displayName;
+                if (isDirty) {
+                    const dirtyStar = document.createElement('span');
+                    dirtyStar.className = 'dirty-mark';
+                    dirtyStar.innerText = '*';
+                    nameSpan.appendChild(dirtyStar);
+                }
+            }
+        }
+    }
+
+    setConnectedFile(fileId) {
+        // Clear previous connected visual states
+        const allFiles = this.container.querySelectorAll('.explorer-file');
+        allFiles.forEach(el => el.classList.remove('is-connected'));
+
+        // Add connected state to current target
+        if (fileId) {
+            const connectedEl = this.container.querySelector(`.explorer-file[data-id="${fileId}"]`);
+            if (connectedEl) connectedEl.classList.add('is-connected');
+        }
     }
 
     async loadFile(file) {
@@ -322,6 +463,163 @@ export class Explorer {
     async archiveWorkspace(id) {
         if (confirm('Archive this workspace? It will be hidden from the explorer.')) {
             await db.workspaces.update(id, { isArchived: true });
+            this.refresh();
+        }
+    }
+
+    async editWorkspace(id, currentName) {
+        const newName = prompt('Enter new workspace name:', currentName);
+        if (newName !== null && newName.trim() !== '') {
+            await db.workspaces.update(id, { name: newName.trim() });
+            this.refresh();
+        }
+    }
+
+    async moveFile(file) {
+        // Fetch all active workspaces to choose from
+        const workspaces = await db.workspaces.where('isArchived').equals(false).toArray();
+        if (workspaces.length === 0) {
+            alert('No active workspaces to move to.');
+            return;
+        }
+
+        let promptText = 'Move file to which workspace?\n\n';
+        workspaces.forEach((ws, idx) => {
+            promptText += `${idx + 1}. ${this.formatWorkspaceName(ws.name, ws.id)}\n`;
+        });
+
+        const selection = prompt(promptText + '\nEnter number:');
+        const idx = parseInt(selection, 10) - 1;
+
+        if (!isNaN(idx) && workspaces[idx]) {
+            const newWsId = workspaces[idx].id;
+            await db.files.update(file.id, { workspaceId: newWsId });
+            this.refresh();
+        }
+    }
+
+    async linkTabToFile(file) {
+        if (!chrome || !chrome.runtime) return;
+
+        // Show status?
+        const event = new CustomEvent('zoho-ide:status', { detail: { msg: 'Searching for open Zoho tabs...', type: 'info' } });
+        document.dispatchEvent(event);
+
+        chrome.runtime.sendMessage({ action: 'GET_ALL_ZOHO_TABS' }, (response) => {
+            if (!response || !response.tabs || response.tabs.length === 0) {
+                const errEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'No open Zoho tabs found to link.', type: 'error' } });
+                document.dispatchEvent(errEvent);
+                return;
+            }
+
+            let promptText = `Select a Zoho tab to link to "${file.fileName}":\n\n`;
+            response.tabs.forEach((tab, idx) => {
+                promptText += `${idx + 1}. ${tab.title} (...${tab.url.substring(tab.url.length - 30)})\n`;
+            });
+
+            const selection = prompt(promptText + '\nEnter number:');
+            if (selection === null) return;
+            const idx = parseInt(selection, 10) - 1;
+
+            if (!isNaN(idx) && response.tabs[idx]) {
+                const targetTabId = response.tabs[idx].id;
+
+                const linkingEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Linking...', type: 'info' } });
+                document.dispatchEvent(linkingEvent);
+
+                chrome.runtime.sendMessage({ action: 'LINK_FILE_TO_TAB', fileId: file.id, tabId: targetTabId }, (linkResponse) => {
+                    if (linkResponse && linkResponse.success && linkResponse.context) {
+                        const successEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Tab successfully linked!', type: 'success' } });
+                        document.dispatchEvent(successEvent);
+                        // Trigger context switch to focus
+                        const linkEvent = new CustomEvent('zoho-ide:force-context-switch', { detail: linkResponse.context });
+                        document.dispatchEvent(linkEvent);
+                        this.setConnectedFile(file.id);
+                    } else {
+                        const errEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Failed to link: ' + (linkResponse.error || 'Unknown Error'), type: 'error' } });
+                        document.dispatchEvent(errEvent);
+                    }
+                });
+            } else {
+                const errEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Invalid tab selection.', type: 'warning' } });
+                document.dispatchEvent(errEvent);
+            }
+        });
+    }
+
+    async renameFile(file) {
+        const newName = prompt('Enter new file name:', file.fileName);
+        if (newName && newName.trim()) {
+            await db.files.update(file.id, { fileName: newName.trim() });
+            this.refresh();
+        }
+    }
+
+    async deleteFile(file) {
+        if (confirm(`Delete file "${file.fileName}" permanently?`)) {
+            await db.files.delete(file.id);
+            if (this.activeFileId === file.id) {
+                // Tell editor to clear? For now just remove active state
+                this.setActiveFile(null);
+            }
+            this.refresh();
+        }
+    }
+
+
+    async createFile(workspaceId) {
+        let name = prompt('Enter new file name:');
+        if (!name || !name.trim()) return;
+        name = name.trim();
+        if (!name.endsWith('.dg')) name += '.dg';
+
+        // Use a clean UUID string for the new file ID to avoid numeric casting issues
+        const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+        const newFile = {
+            id: fileId,
+            workspaceId: workspaceId,
+            fileName: name,
+            code: '// New Zoho Deluge Script\n\n',
+            variables: [],
+            lastSaved: Date.now(),
+            isDirty: false
+        };
+
+        await db.files.put(newFile);
+
+        // Refresh explorer to show it
+        this.refresh();
+
+        // Auto-load it
+        this.loadFile(newFile);
+    }
+
+    async createWorkspace() {
+        const name = prompt('Enter new workspace name:');
+        if (name && name.trim()) {
+            const id = 'ws_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+            await db.workspaces.put({
+                id: id,
+                orgId: id,
+                service: 'custom',
+                name: name.trim(),
+                lastAccessed: Date.now(),
+                isArchived: false
+            });
+            this.expandedWorkspaces.add(id);
+            this.refresh();
+        }
+    }
+
+    async deleteWorkspace(id) {
+        if (confirm('Delete this workspace? All files inside will become Uncategorized.')) {
+            // Uncategorize files
+            const files = await db.files.where('workspaceId').equals(id).toArray();
+            for (let f of files) {
+                await db.files.update(f.id, { workspaceId: 'uncategorized' });
+            }
+            await db.workspaces.delete(id);
             this.refresh();
         }
     }

@@ -30,7 +30,7 @@ export function getContext() {
     if (!meta.functionName) meta.functionName = 'Unsaved_Draft_Function';
 
     // Construct Hash: [service]__[org_identifier]__[function_name]
-    const hash = `${meta.service}__${meta.orgId}__${meta.functionName}`;
+    const hash = window.__zide_manual_context_hash || `${meta.service}__${meta.orgId}__${meta.functionName}`;
 
     return {
         ...meta,

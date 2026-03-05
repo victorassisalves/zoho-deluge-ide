@@ -338,9 +338,13 @@ async function checkConnection() {
                             console.log('[ZohoIDE] Initial Context Switched:', newHash);
                             handleContextSwitch(response.context);
                         } else {
-                            // Background discovery
+                            // Background discovery is now safe because scrapers cache their window.__zide_unsaved_id
+                            // It will create exactly 1 file per open un-saved tab.
                             silentlyDiscoverContext(response.context);
                         }
+                    } else {
+                        // Same hash, just ensure it's visually marked as connected
+                        if (explorer) explorer.setConnectedFile(newHash);
                     }
                 }
 
@@ -371,20 +375,9 @@ async function checkConnection() {
 }
 
 async function handleContextSwitch(context) {
+    if (!context || !context.contextHash || context.contextHash.includes('LOADING')) return;
     currentContext = context;
     currentContextHash = context.contextHash;
-
-    // Save current workspace info
-    try {
-        await db.workspaces.put({
-            id: context.orgId || context.service,
-            orgId: context.orgId,
-            service: context.service,
-            name: context.orgId, // Can be improved
-            lastAccessed: Date.now(),
-            isArchived: false
-        });
-    } catch(e) { console.warn('Failed to save workspace:', e); }
 
     // Load file for this context
     try {
@@ -396,24 +389,16 @@ async function handleContextSwitch(context) {
             if (explorer) explorer.setActiveFile(currentContextHash);
         } else {
             console.log('[ZohoIDE] No local draft found for:', currentContextHash);
-            // Optional: Auto-pull if empty?
-            // For now, let's notify the user
-            showStatus('New Context Detected', 'info');
-            // We could trigger a pull here if we want seamless experience
-            // pullFromZoho();
+            showStatus('New Context Detected. Pull code or save to create file.', 'info');
             if (explorer) explorer.setActiveFile(null);
         }
-
-        // Refresh explorer to show new context/workspace potentially created
-        if (explorer) explorer.refresh();
-
     } catch (e) {
         console.error('[ZohoIDE] DB Load Error:', e);
     }
 }
 
 async function saveToDexie(isDirty = true) {
-    if (!currentContextHash || !currentContext) return;
+    if (!currentContextHash || !currentContext || currentContextHash.includes('LOADING')) return;
 
     const code = editor.getValue();
     const fileName = currentContext.functionName || 'untitled';
@@ -431,13 +416,14 @@ async function saveToDexie(isDirty = true) {
 
         // Update Explorer immediately if instance exists
         if (explorer) {
-            // If it's a new file (not likely here as we update existing), refresh might be needed
-            // But usually just state update is fine.
-            // However, Dexie put implies create or update.
-            // If we just created it, we need a refresh.
-            // For performance, we can just check if we have this file in DOM?
-            // Or just refresh for now as it's not super frequent (debounce 1s)
-            explorer.refresh();
+            // Check if file is already in explorer
+            const exists = explorer.container && explorer.container.querySelector(`.explorer-file[data-id="${currentContextHash}"]`);
+            if (exists) {
+                explorer.updateFileState(currentContextHash, { isDirty: isDirty, fileName: fileName });
+            } else {
+                // If it's a newly created file, we must refresh to show it
+                explorer.refresh();
+            }
         }
 
         if (!isDirty) {
@@ -483,6 +469,52 @@ const bind = (id, event, fn) => {
 };
 
 function setupEventHandlers() {
+    bind('create-ws-btn', 'click', () => {
+        if (explorer) explorer.createWorkspace();
+    });
+
+    bind('link-tab-btn', 'click', () => {
+        if (!currentContextHash) {
+            showStatus('Open or create a file to link first.', 'error');
+            return;
+        }
+
+        showStatus('Searching for open Zoho tabs...', 'info');
+        chrome.runtime.sendMessage({ action: 'GET_ALL_ZOHO_TABS' }, (response) => {
+            if (!response || !response.tabs || response.tabs.length === 0) {
+                showStatus('No open Zoho tabs found.', 'error');
+                return;
+            }
+
+            let promptText = 'Select a Zoho tab to link to this file:\n\n';
+            response.tabs.forEach((tab, idx) => {
+                promptText += `${idx + 1}. ${tab.title} (...${tab.url.substring(tab.url.length - 30)})\n`;
+            });
+
+            const selection = prompt(promptText + '\nEnter number:');
+            if (selection === null) return;
+            const idx = parseInt(selection, 10) - 1;
+
+            if (!isNaN(idx) && response.tabs[idx]) {
+                const targetTabId = response.tabs[idx].id;
+                showStatus('Linking...', 'info');
+
+                chrome.runtime.sendMessage({ action: 'LINK_FILE_TO_TAB', fileId: currentContextHash, tabId: targetTabId }, (linkResponse) => {
+                    if (linkResponse && linkResponse.success && linkResponse.context) {
+                        showStatus('Tab successfully linked!', 'success');
+                        console.log('[ZohoIDE] Manual Link:', linkResponse.context);
+                        handleContextSwitch(linkResponse.context);
+                        if (explorer) explorer.setConnectedFile(currentContextHash);
+                    } else {
+                        showStatus('Failed to link: ' + (linkResponse.error || 'Unknown Error'), 'error');
+                    }
+                });
+            } else {
+                showStatus('Invalid tab selection.', 'warning');
+            }
+        });
+    });
+
     bind('new-btn', 'click', () => {
         if (confirm('Start a new script?')) {
             editor.setValue('// New Zoho Deluge Script\\n\\n');
@@ -852,7 +884,15 @@ function tryFixJson(str) {
     if (!str) return str;
     let fixed = str.trim();
 
-    // 0. Try to extract JSON if it's wrapped in other text
+    // 0. Try standard JSON parse first
+    try {
+        const obj = JSON.parse(fixed);
+        return JSON.stringify(obj, null, 2);
+    } catch (e) {
+        // Continue to fallback fixes
+    }
+
+    // 0.5 Try to extract JSON if it's wrapped in other text
     const firstBrace = fixed.indexOf('{');
     const firstBracket = fixed.indexOf('[');
     let startPos = -1;
@@ -871,8 +911,8 @@ function tryFixJson(str) {
         }
     }
 
-    // 1. Remove comments
-    fixed = fixed.replace(/\/\/.*$/gm, '');
+    // 1. Remove comments safely (ignore if preceded by :)
+    fixed = fixed.replace(/(?<!:)\/\/.*/gm, '');
     fixed = fixed.replace(/\/\*[\s\S]*?\*\//g, '');
 
     // 2. Replace single quotes with double quotes for keys
@@ -881,12 +921,12 @@ function tryFixJson(str) {
     // 3. Replace single quotes with double quotes for values
     fixed = fixed.replace(/([:\[,]\s*)'([^'\\]*(?:\\.[^'\\]*)*)'/g, '$1"$2"');
 
-    // 4. Quote unquoted keys
-    const keyPattern = /([{,]\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/g;
+    // 4. Quote unquoted keys (but ignore if already inside quotes, and ignore urls like http: or https:)
+    const keyPattern = /([{,]\s*)(?!http[s]?:)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/gi;
     fixed = fixed.replace(keyPattern, '$1"$2":');
 
     // Also handle keys at the start of a line (missing commas or object body)
-    fixed = fixed.replace(/^(\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/gm, '$1"$2":');
+    fixed = fixed.replace(/^(\s*)(?!http[s]?:)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/gmi, '$1"$2":');
 
     // 5. Remove trailing commas
     fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
@@ -1651,29 +1691,9 @@ window.addEventListener('mouseup', () => {
 
 async function silentlyDiscoverContext(context) {
     try {
-        await db.workspaces.put({
-            id: context.orgId || context.service,
-            orgId: context.orgId,
-            service: context.service,
-            name: context.orgId,
-            lastAccessed: Date.now(),
-            isArchived: false
-        });
-
-        // Ensure file exists in DB so it shows in explorer
-        const file = await db.files.get(context.contextHash);
-        if (!file) {
-            await db.files.put({
-                id: context.contextHash,
-                workspaceId: context.orgId || context.service,
-                fileName: context.functionName || 'untitled',
-                code: '// Discovered code snippet',
-                variables: [],
-                lastSaved: Date.now(),
-                isDirty: false
-            });
-        }
-        if (explorer) explorer.refresh();
+        // Stop auto-generating workspaces and files from discovered tabs.
+        // We only update the visual connection state.
+        if (explorer) explorer.setConnectedFile(context.contextHash);
     } catch(e) {
         console.error('[ZohoIDE] DB Discovery Error:', e);
     }

@@ -31,7 +31,7 @@ export const BooksConfig = {
         return {
             service: 'books',
             orgId: orgId,
-            functionName: functionName || `unsaved_books_${Date.now()}`
+            functionName: functionName || `unsaved_books_${(window.__zide_unsaved_id || (window.__zide_unsaved_id = Date.now()))}`
         };
     }
 };

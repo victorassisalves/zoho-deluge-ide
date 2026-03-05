@@ -14,7 +14,7 @@ export const GenericConfig = {
         }
 
         if (!functionName) {
-            functionName = `unsaved_${Date.now()}`;
+            functionName = `unsaved_${(window.__zide_unsaved_id || (window.__zide_unsaved_id = Date.now()))}`;
         }
 
         return {

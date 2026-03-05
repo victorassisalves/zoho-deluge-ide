@@ -32,7 +32,7 @@ export const FlowConfig = {
         return {
             service: 'flow',
             orgId: orgId,
-            functionName: functionName || `unsaved_flow_${Date.now()}`
+            functionName: functionName || `unsaved_flow_${(window.__zide_unsaved_id || (window.__zide_unsaved_id = Date.now()))}`
         };
     }
 };
