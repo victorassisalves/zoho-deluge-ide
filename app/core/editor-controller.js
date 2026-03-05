@@ -379,18 +379,6 @@ async function handleContextSwitch(context) {
     currentContext = context;
     currentContextHash = context.contextHash;
 
-    // Save current workspace info
-    try {
-        await db.workspaces.put({
-            id: context.orgId || context.service,
-            orgId: context.orgId,
-            service: context.service,
-            name: context.orgId, // Can be improved
-            lastAccessed: Date.now(),
-            isArchived: false
-        });
-    } catch(e) { console.warn('Failed to save workspace:', e); }
-
     // Load file for this context
     try {
         const file = await db.files.get(currentContextHash);
@@ -401,17 +389,9 @@ async function handleContextSwitch(context) {
             if (explorer) explorer.setActiveFile(currentContextHash);
         } else {
             console.log('[ZohoIDE] No local draft found for:', currentContextHash);
-            // Optional: Auto-pull if empty?
-            // For now, let's notify the user
-            showStatus('New Context Detected', 'info');
-            // We could trigger a pull here if we want seamless experience
-            // pullFromZoho();
+            showStatus('New Context Detected. Pull code or save to create file.', 'info');
             if (explorer) explorer.setActiveFile(null);
         }
-
-        // Refresh explorer to show new context/workspace potentially created
-        if (explorer) explorer.refresh();
-
     } catch (e) {
         console.error('[ZohoIDE] DB Load Error:', e);
     }
@@ -436,13 +416,14 @@ async function saveToDexie(isDirty = true) {
 
         // Update Explorer immediately if instance exists
         if (explorer) {
-            // If it's a new file (not likely here as we update existing), refresh might be needed
-            // But usually just state update is fine.
-            // However, Dexie put implies create or update.
-            // If we just created it, we need a refresh.
-            // For performance, we can just check if we have this file in DOM?
-            // Or just refresh for now as it's not super frequent (debounce 1s)
-            explorer.refresh();
+            // Check if file is already in explorer
+            const exists = explorer.container && explorer.container.querySelector(`.explorer-file[data-id="${currentContextHash}"]`);
+            if (exists) {
+                explorer.updateFileState(currentContextHash, { isDirty: isDirty, fileName: fileName });
+            } else {
+                // If it's a newly created file, we must refresh to show it
+                explorer.refresh();
+            }
         }
 
         if (!isDirty) {
@@ -1710,34 +1691,8 @@ window.addEventListener('mouseup', () => {
 
 async function silentlyDiscoverContext(context) {
     try {
-        await db.workspaces.put({
-            id: context.orgId || context.service,
-            orgId: context.orgId,
-            service: context.service,
-            name: context.orgId,
-            lastAccessed: Date.now(),
-            isArchived: false
-        });
-
-        // Ensure file exists in DB so it shows in explorer
-        const file = await db.files.get(context.contextHash);
-        let needsRefresh = false;
-        if (!file) {
-            await db.files.put({
-                id: context.contextHash,
-                workspaceId: context.orgId || context.service,
-                fileName: context.functionName || 'untitled',
-                code: '// Discovered code snippet',
-                variables: [],
-                lastSaved: Date.now(),
-                isDirty: false
-            });
-            needsRefresh = true;
-        }
-        if (explorer && needsRefresh) {
-            explorer.refresh();
-        }
-        // Update connection state visual
+        // Stop auto-generating workspaces and files from discovered tabs.
+        // We only update the visual connection state.
         if (explorer) explorer.setConnectedFile(context.contextHash);
     } catch(e) {
         console.error('[ZohoIDE] DB Discovery Error:', e);
