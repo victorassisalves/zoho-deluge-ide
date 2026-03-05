@@ -107,6 +107,10 @@
 /* Tree View Common Styles */
 .tree-node {
     margin-left: var(--md-sys-spacing-4);
+    border-left: 1px solid var(--md-sys-color-outline-variant);
+    position: relative;
+}
+    margin-left: var(--md-sys-spacing-4);
     border-left: 1px solid var(--md-sys-color-outline);
 }
 
@@ -212,6 +216,12 @@
     justify-content: flex-start;
     gap: var(--md-sys-spacing-3);
     padding-top: var(--md-sys-spacing-1);
+    position: relative;
+    overflow: visible;
+}
+    justify-content: flex-start;
+    gap: var(--md-sys-spacing-3);
+    padding-top: var(--md-sys-spacing-1);
 }
 
 .header-title {
@@ -272,7 +282,13 @@
     display: none !important;
 }
 
-#right-sidebar.collapsed .icons-row {
+.icons-row {
+    justify-content: flex-start;
+    gap: var(--md-sys-spacing-3);
+    padding-top: var(--md-sys-spacing-1);
+    position: relative;
+    overflow: visible;
+}
     flex-direction: column !important;
     gap: 20px !important;
     padding-top: 15px !important;
@@ -315,7 +331,7 @@
 [data-tooltip]:hover::after {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: -25px; /* Adjust based on preference */
+    top: calc(100% + 4px); /* Adjust based on preference */
     left: 50%;
     transform: translateX(-50%);
     background: var(--md-sys-color-surface-active);
@@ -529,4 +545,266 @@
 #snippet-code-editor {
     margin-top: var(--md-sys-spacing-2);
     background-color: var(--md-sys-color-background);
+}
+
+/* Interface Tree Actions Overrides */
+.tree-label {
+    display: flex;
+    align-items: center;
+    padding: 4px var(--md-sys-spacing-2);
+    border-radius: var(--md-sys-shape-corner-small);
+    transition: background 0.2s, color 0.2s;
+    user-select: none;
+    position: relative;
+}
+
+.tree-label:hover {
+    background: var(--md-sys-color-surface-hover);
+}
+
+.tree-actions {
+    display: none;
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--md-sys-color-surface-hover);
+    padding-left: 8px;
+    box-shadow: -8px 0 8px var(--md-sys-color-surface-hover);
+    border-radius: var(--md-sys-shape-corner-small);
+    align-items: center;
+    gap: 4px;
+}
+
+.tree-label:hover .tree-actions {
+    display: flex;
+}
+
+.tree-action-btn {
+    background: transparent;
+    border: 1px solid var(--md-sys-color-outline);
+    color: var(--md-sys-color-on-surface-variant);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.tree-action-btn:hover {
+    color: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-active);
+}
+
+.tree-type {
+    font-size: 10px;
+    text-transform: uppercase;
+    background: var(--md-sys-color-surface-variant);
+    color: var(--md-sys-color-on-surface-variant);
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-left: auto; /* Pushes to the right if possible, or before actions */
+    border: 1px solid var(--md-sys-color-outline);
+    font-weight: 500;
+}
+
+.tree-key {
+    font-weight: 500;
+}
+
+.toggle-icon, .node-icon {
+    opacity: 0.7;
+    margin-right: 4px;
+}
+.tree-label:hover .toggle-icon, .tree-label:hover .node-icon {
+    opacity: 1;
+}
+
+
+/* Fix Top Icon Tooltips */
+[data-tooltip] {
+    position: relative;
+    z-index: 1000;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 4px); /* Fall below the element */
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--md-sys-color-surface-active);
+    color: var(--md-sys-color-on-surface-strong);
+    padding: 6px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 9999;
+    pointer-events: none;
+    border: 1px solid var(--md-sys-color-outline);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    opacity: 0;
+    animation: tooltip-fade-in 0.1s forwards;
+}
+
+/* Fix right sidebar icons container to ensure tooltips don't clip */
+.icons-row {
+    justify-content: flex-start;
+    gap: var(--md-sys-spacing-3);
+    padding-top: var(--md-sys-spacing-1);
+    position: relative;
+    overflow: visible;
+}
+    position: relative;
+    overflow: visible;
+}
+
+/* Fix Tree View Header (Collapse/Expand buttons) */
+.tree-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-3);
+    background: var(--md-sys-color-surface-variant);
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    border-top: 1px solid var(--md-sys-color-outline);
+    margin-bottom: var(--md-sys-spacing-2);
+}
+
+.tree-header-info {
+    display: flex;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+}
+
+.tree-header-title {
+    font-weight: bold;
+    color: var(--md-sys-color-on-surface);
+}
+
+.tree-header-actions {
+    display: flex;
+    gap: var(--md-sys-spacing-2);
+    align-items: center;
+}
+
+.tree-header-actions button {
+    background: transparent;
+    border: 1px solid var(--md-sys-color-outline);
+    color: var(--md-sys-color-on-surface-variant);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.tree-header-actions button:hover {
+    color: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-active);
+}
+
+/* Fix Tooltips for Right Sidebar Specifically */
+#right-sidebar.collapsed {
+    overflow: visible !important;
+}
+
+#right-sidebar.collapsed [data-tooltip]:hover::after {
+    top: 50%;
+    left: calc(100% + 4px);
+    transform: translateY(-50%);
+}
+
+#right-sidebar [data-tooltip]:hover::after {
+    /* If expanded, stay below */
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+#right-sidebar.collapsed .right-sidebar-header {
+    height: 100%;
+    border-right: 1px solid var(--md-sys-color-outline);
+}
+
+#right-sidebar.collapsed .icons-row {
+    flex-direction: column !important;
+    gap: var(--md-sys-spacing-4) !important;
+    padding-top: var(--md-sys-spacing-4) !important;
+    align-items: center;
+}
+
+
+/* Explicitly fix collapsed tooltips to shoot right */
+#right-sidebar.collapsed [data-tooltip]:hover::after {
+    top: 50% !important;
+    left: calc(100% + 8px) !important;
+    transform: translateY(-50%) !important;
+    white-space: nowrap !important;
+}
+
+/* Explicitly fix expanded tooltips to shoot down */
+#right-sidebar:not(.collapsed) [data-tooltip]:hover::after {
+    top: calc(100% + 8px) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    white-space: nowrap !important;
+}
+
+/* Ensure container allows overflow */
+.right-sidebar-header, .icons-row {
+    overflow: visible !important;
+}
+
+/* Fix vanishing + button */
+#right-sidebar.collapsed .right-sidebar-header {
+    height: 100vh; /* Give it enough space so flex children don't squish or hide */
+    justify-content: flex-start;
+}
+
+#right-sidebar.collapsed .icons-row {
+    flex-direction: column !important;
+    gap: var(--md-sys-spacing-4) !important;
+    padding-top: var(--md-sys-spacing-4) !important;
+    display: flex !important;
+}
+
+#right-sidebar.collapsed #add-interface-btn {
+    display: flex !important;
+}
+
+
+/* Interface Tree Interaction Styles */
+.tree-sub {
+    display: block;
+}
+
+.tree-sub.collapsed {
+    display: none !important;
+}
+
+.toggle-icon {
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.toggle-icon.collapsed {
+    transform: rotate(-90deg);
+}
+
+.tree-footer {
+    display: block;
+}
+
+.tree-footer.collapsed {
+    display: none !important;
 }

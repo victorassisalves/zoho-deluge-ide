@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+:root {
+  --md-sys-spacing-1: 4px;
+  --md-sys-spacing-2: 8px;
+  --md-sys-spacing-3: 12px;
+  --md-sys-spacing-4: 16px;
+  --md-sys-color-outline: #333;
+  --md-sys-color-outline-variant: #444;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-color-surface-hover: #222;
+  --md-sys-color-on-surface-variant: #888;
+  --md-sys-color-surface-variant: #333;
+  --md-sys-color-primary: #55f;
+  --md-sys-color-surface-active: #111;
+  --md-sys-color-on-surface-strong: #fff;
+}
+body { background: #000; color: white; margin: 50px; }
+
+#right-sidebar {
+    width: 250px;
+    background-color: var(--md-sys-color-surface-variant);
+    border-left: 1px solid var(--md-sys-color-outline);
+    display: flex;
+    flex-direction: column;
+    height: 300px;
+    transition: width 0.2s;
+    overflow: visible;
+}
+
+#right-sidebar.collapsed {
+    width: 30px !important;
+}
+
+.right-sidebar-header {
+    padding: var(--md-sys-spacing-4) var(--md-sys-spacing-3);
+    background-color: var(--md-sys-color-surface-variant);
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-3);
+}
+
+#right-sidebar.collapsed .right-sidebar-header {
+    padding: 10px 0 !important;
+    height: 100%;
+}
+
+.icons-row {
+    justify-content: flex-start;
+    gap: var(--md-sys-spacing-3);
+    padding-top: var(--md-sys-spacing-1);
+    position: relative;
+    display: flex;
+    overflow: visible;
+}
+
+#right-sidebar.collapsed .icons-row {
+    flex-direction: column !important;
+    gap: 20px !important;
+    padding-top: 15px !important;
+    align-items: center;
+}
+
+.sidebar-btn {
+    background: transparent;
+    border: 1px solid var(--md-sys-color-outline);
+    color: white;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+}
+
+#right-sidebar.collapsed .sidebar-btn {
+    border: none !important;
+    width: 100% !important;
+    opacity: 0.6;
+    height: 40px !important;
+    justify-content: center;
+}
+
+[data-tooltip] {
+    position: relative;
+    z-index: 1000;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    background: var(--md-sys-color-surface-active);
+    color: var(--md-sys-color-on-surface-strong);
+    padding: 6px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    white-space: nowrap;
+    border: 1px solid var(--md-sys-color-outline);
+    opacity: 1; /* For testing */
+}
+
+/* Expanded state defaults */
+#right-sidebar [data-tooltip]:hover::after {
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Collapsed state overrides */
+#right-sidebar.collapsed [data-tooltip]:hover::after {
+    top: 50%;
+    left: calc(100% + 4px);
+    transform: translateY(-50%);
+}
+
+.header-row:first-child, .search-container {
+    display: block;
+}
+
+#right-sidebar.collapsed .header-row:first-child,
+#right-sidebar.collapsed .search-container {
+    display: none !important;
+}
+</style>
+</head>
+<body>
+
+<button onclick="document.getElementById('right-sidebar').classList.toggle('collapsed')">Toggle Collapse</button>
+<br><br>
+
+<div id="right-sidebar" class="collapsed">
+    <div class="right-sidebar-header">
+        <div class="header-row">Title</div>
+        <div class="header-row icons-row">
+            <button class="sidebar-btn" data-tooltip="Toggle Sidebar">></button>
+            <button class="sidebar-btn" data-tooltip="Add Interface Mapping">+</button>
+        </div>
+        <div class="search-container">Search...</div>
+    </div>
+</div>
+
+</body>
+</html>
