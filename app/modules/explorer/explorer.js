@@ -210,6 +210,18 @@ export class Explorer {
         const actions = document.createElement('div');
         actions.className = 'workspace-actions';
 
+
+        // Add File
+        const addFileBtn = document.createElement('span');
+        addFileBtn.className = 'material-icons action-btn';
+        addFileBtn.innerText = 'note_add';
+        addFileBtn.title = 'New File';
+        addFileBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.createFile(wsData.info.id);
+        };
+        actions.appendChild(addFileBtn);
+
         if (wsData.info.id !== 'uncategorized') {
             // Edit
             const editBtn = document.createElement('span');
@@ -381,7 +393,47 @@ export class Explorer {
         return fileDiv;
     }
 
-        setConnectedFile(fileId) {
+        updateFileState(fileId, updates) {
+        if (!this.container) return;
+        const fileEl = this.container.querySelector(`.explorer-file[data-id="${fileId}"]`);
+        if (!fileEl) return; // File not in DOM, might need full refresh
+
+        if (updates.hasOwnProperty('isDirty')) {
+            if (updates.isDirty) {
+                fileEl.classList.add('is-dirty');
+                const nameSpan = fileEl.querySelector('.file-name');
+                if (nameSpan && !nameSpan.querySelector('.dirty-mark')) {
+                    const dirtyStar = document.createElement('span');
+                    dirtyStar.className = 'dirty-mark';
+                    dirtyStar.innerText = '*';
+                    nameSpan.appendChild(dirtyStar);
+                }
+            } else {
+                fileEl.classList.remove('is-dirty');
+                const dirtyStar = fileEl.querySelector('.dirty-mark');
+                if (dirtyStar) dirtyStar.remove();
+            }
+        }
+
+        if (updates.hasOwnProperty('fileName') && updates.fileName) {
+            let displayName = updates.fileName;
+            if (!displayName.endsWith('.dg')) displayName += '.dg';
+            const nameSpan = fileEl.querySelector('.file-name');
+            if (nameSpan) {
+                // Keep the dirty mark if it exists
+                const isDirty = fileEl.classList.contains('is-dirty');
+                nameSpan.innerText = displayName;
+                if (isDirty) {
+                    const dirtyStar = document.createElement('span');
+                    dirtyStar.className = 'dirty-mark';
+                    dirtyStar.innerText = '*';
+                    nameSpan.appendChild(dirtyStar);
+                }
+            }
+        }
+    }
+
+    setConnectedFile(fileId) {
         // Clear previous connected visual states
         const allFiles = this.container.querySelectorAll('.explorer-file');
         allFiles.forEach(el => el.classList.remove('is-connected'));
@@ -512,6 +564,35 @@ export class Explorer {
             }
             this.refresh();
         }
+    }
+
+
+    async createFile(workspaceId) {
+        let name = prompt('Enter new file name:');
+        if (!name || !name.trim()) return;
+        name = name.trim();
+        if (!name.endsWith('.dg')) name += '.dg';
+
+        // Use a clean UUID string for the new file ID to avoid numeric casting issues
+        const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+        const newFile = {
+            id: fileId,
+            workspaceId: workspaceId,
+            fileName: name,
+            code: '// New Zoho Deluge Script\n\n',
+            variables: [],
+            lastSaved: Date.now(),
+            isDirty: false
+        };
+
+        await db.files.put(newFile);
+
+        // Refresh explorer to show it
+        this.refresh();
+
+        // Auto-load it
+        this.loadFile(newFile);
     }
 
     async createWorkspace() {
