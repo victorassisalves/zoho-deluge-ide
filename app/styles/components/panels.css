@@ -781,3 +781,30 @@
 #right-sidebar.collapsed #add-interface-btn {
     display: flex !important;
 }
+
+
+/* Interface Tree Interaction Styles */
+.tree-sub {
+    display: block;
+}
+
+.tree-sub.collapsed {
+    display: none !important;
+}
+
+.toggle-icon {
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.toggle-icon.collapsed {
+    transform: rotate(-90deg);
+}
+
+.tree-footer {
+    display: block;
+}
+
+.tree-footer.collapsed {
+    display: none !important;
+}
