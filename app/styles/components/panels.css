@@ -255,3 +255,160 @@
 .mapping-item:hover:not(.active) {
     background-color: var(--md-sys-color-surface-hover);
 }
+
+/* Robust Right Sidebar Toggle Styles (Restored from old ide.css) */
+#right-sidebar.collapsed {
+    width: 30px !important;
+}
+
+#right-sidebar.collapsed .right-sidebar-header {
+    padding: 10px 0 !important;
+}
+
+#right-sidebar.collapsed .right-sidebar-header .header-row:first-child,
+#right-sidebar.collapsed .right-sidebar-header .search-container,
+#right-sidebar.collapsed #interface-mappings-list,
+#right-sidebar.collapsed #interface-tree-view {
+    display: none !important;
+}
+
+#right-sidebar.collapsed .icons-row {
+    flex-direction: column !important;
+    gap: 20px !important;
+    padding-top: 15px !important;
+}
+
+#right-sidebar.collapsed .sidebar-btn {
+    background: transparent !important;
+    border: none !important;
+    width: 100% !important;
+    opacity: 0.6;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+#right-sidebar.collapsed .sidebar-btn:hover {
+    opacity: 1;
+}
+
+#right-sidebar.collapsed #add-interface-btn {
+    font-size: 24px;
+}
+
+#right-sidebar.collapsed #toggle-right-sidebar svg {
+    width: 20px;
+    height: 20px;
+    transform: rotate(180deg);
+}
+
+#right-sidebar-resizer.collapsed {
+    display: none !important;
+}
+
+/* Instant Tooltips for Icon Buttons */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: -25px; /* Adjust based on preference */
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--md-sys-color-surface-active);
+    color: var(--md-sys-color-on-surface-strong);
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    border: 1px solid var(--md-sys-color-outline);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    opacity: 0;
+    animation: tooltip-fade-in 0.1s forwards;
+}
+
+@keyframes tooltip-fade-in {
+    to { opacity: 1; }
+}
+
+/* API Explorer Styles (Restored from old ide.css) */
+.api-explorer-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 0;
+    background: var(--md-sys-color-surface-variant);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+.api-list {
+    padding: 5px 0;
+}
+.api-item {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: var(--md-sys-shape-corner-small);
+    margin-bottom: 2px;
+}
+.api-item:hover {
+    background: var(--md-sys-color-surface-hover);
+}
+.api-item-title {
+    font-weight: bold;
+    font-size: var(--md-sys-typescale-body-large);
+    color: var(--md-sys-color-tertiary);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+.api-item-desc {
+    font-size: var(--md-sys-typescale-body-medium);
+    color: var(--md-sys-color-on-surface-variant);
+    margin-top: 4px;
+    display: block;
+}
+.api-item-tag {
+    font-size: var(--md-sys-typescale-body-small);
+    background: var(--md-sys-color-secondary);
+    color: var(--md-sys-color-on-secondary);
+    padding: 1px 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    text-transform: uppercase;
+}
+
+/* Snippet Styles (Restored from old ide.css) */
+.snippet-group h5 {
+    margin: 15px 0 8px 0;
+    color: var(--md-sys-color-primary);
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    padding-bottom: 2px;
+    font-size: var(--md-sys-typescale-body-medium);
+}
+.snippet-btn {
+    background: var(--md-sys-color-surface-variant);
+    border: 1px dashed var(--md-sys-color-outline-variant);
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+    margin-bottom: var(--md-sys-spacing-2);
+    cursor: pointer;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    font-size: var(--md-sys-typescale-body-large);
+    transition: all 0.2s;
+    color: var(--md-sys-color-on-surface);
+}
+.snippet-btn:hover {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-hover);
+    color: var(--md-sys-color-primary);
+}
+.snippets-container {
+    padding-bottom: 20px;
+}

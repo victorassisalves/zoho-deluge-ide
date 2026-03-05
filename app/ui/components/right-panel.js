@@ -8,10 +8,10 @@ export function renderRightPanel() {
                 <span id="mapping-count" class="badge">0</span>
             </div>
             <div class="header-row icons-row">
-                <button id="toggle-right-sidebar" class="sidebar-btn" title="Toggle Sidebar">
+                <button id="toggle-right-sidebar" class="sidebar-btn" title="" data-tooltip="Toggle Sidebar">
                     ${Icons.chevron_right}
                 </button>
-                <button id="add-interface-btn" class="sidebar-btn" title="Add Interface Mapping">
+                <button id="add-interface-btn" class="sidebar-btn" title="" data-tooltip="Add Interface Mapping">
                     ${Icons.add}
                 </button>
             </div>

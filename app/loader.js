@@ -68,6 +68,7 @@ async function boot() {
                 // Modules
                 await loadScript('modules/snippets/snippet-manager.js');
                 await loadScript('../api_data.js');
+                await loadScript('../my_snippets.js');
 
                 // The Controller (Client Logic)
                 await loadScript('core/editor-controller.js', true);
