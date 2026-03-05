@@ -28,44 +28,60 @@ function loadScript(src, isModule = false) {
     });
 }
 
-require(['vs/editor/editor.main'], async function() {
-    console.log('[ZohoIDE] Monaco Core loaded.');
-
+// Ensure UI is initialized first
+async function boot() {
     try {
-        const originalDefine = window.define;
-        window.define = undefined;
+        console.log('[ZohoIDE] Initializing UI components...');
+        // Dynamically import the UI initializer
+        const uiModule = await import('./ui/index.js');
+        uiModule.initializeUI();
+        console.log('[ZohoIDE] UI components injected.');
 
-        // Firebase - stored in assets (root relative to app/ is ../assets)
-        await loadScript('../assets/firebase-app-compat.js');
-        await loadScript('../assets/firebase-auth-compat.js');
-        await loadScript('../assets/firebase-firestore-compat.js');
+        require(['vs/editor/editor.main'], async function() {
+            console.log('[ZohoIDE] Monaco Core loaded.');
 
-        window.define = originalDefine;
+            try {
+                const originalDefine = window.define;
+                window.define = undefined;
 
-        // Configs - in root
-        await loadScript('../firebase-config.js');
+                // Firebase - stored in assets (root relative to app/ is ../assets)
+                await loadScript('../assets/firebase-app-compat.js');
+                await loadScript('../assets/firebase-auth-compat.js');
+                await loadScript('../assets/firebase-firestore-compat.js');
 
-        // Services
-        await loadScript('services/firebase-store.js'); // Was cloud-service.js
-        await loadScript('../cloud-ui.js'); // Still in root? Yes, prompt didn't say move it.
+                window.define = originalDefine;
 
-        console.log('[ZohoIDE] Firebase initialized.');
+                // Configs - in root
+                await loadScript('../firebase-config.js');
 
-        // Main Logic
-        await loadScript('../src/main.js', true);
+                // Services
+                await loadScript('services/firebase-store.js'); // Was cloud-service.js
+                await loadScript('../cloud-ui.js'); // Still in root? Yes, prompt didn't say move it.
 
-        // Core / Utils
+                console.log('[ZohoIDE] Firebase initialized.');
 
-        // Modules
-        await loadScript('modules/snippets/snippet-manager.js');
-        await loadScript('../api_data.js');
+                // Main Logic
+                await loadScript('../src/main.js', true);
 
-        // The Controller (Client Logic)
-        await loadScript('core/editor-controller.js', true);
+                // Core / Utils
 
-        console.log('[ZohoIDE] Modular logic loaded.');
+                // Modules
+                await loadScript('modules/snippets/snippet-manager.js');
+                await loadScript('../api_data.js');
 
+                // The Controller (Client Logic)
+                await loadScript('core/editor-controller.js', true);
+
+                console.log('[ZohoIDE] Modular logic loaded.');
+
+            } catch (err) {
+                console.error('[ZohoIDE] Initialization Error:', err);
+            }
+        });
     } catch (err) {
-        console.error('[ZohoIDE] Initialization Error:', err);
+        console.error('[ZohoIDE] Boot Error:', err);
     }
-});
+}
+
+// Start boot sequence
+boot();
