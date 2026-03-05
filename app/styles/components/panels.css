@@ -412,3 +412,121 @@
 .snippets-container {
     padding-bottom: 20px;
 }
+
+/* My Snippets Styles */
+.my-snippet-item {
+    background: var(--md-sys-color-surface-variant);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-small);
+    margin-bottom: var(--md-sys-spacing-3);
+    padding: var(--md-sys-spacing-4);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.my-snippet-item:hover {
+    border-color: var(--md-sys-color-primary);
+}
+
+.my-snippet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--md-sys-spacing-1);
+}
+
+.my-snippet-name {
+    font-weight: bold;
+    color: var(--md-sys-color-on-surface-strong);
+    font-size: var(--md-sys-typescale-title-small);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.my-snippet-trigger {
+    color: var(--md-sys-color-tertiary);
+    font-size: var(--md-sys-typescale-body-medium);
+    background: var(--md-sys-color-background);
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-2);
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    font-family: monospace;
+}
+
+.my-snippet-category {
+    font-size: var(--md-sys-typescale-body-small);
+    color: var(--md-sys-color-on-surface-variant);
+    text-transform: uppercase;
+    margin-bottom: var(--md-sys-spacing-2);
+}
+
+.my-snippet-comments {
+    font-size: var(--md-sys-typescale-body-medium);
+    color: var(--md-sys-color-on-surface-variant);
+    margin-top: var(--md-sys-spacing-2);
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.my-snippet-actions {
+    display: none;
+    position: absolute;
+    top: var(--md-sys-spacing-3);
+    right: var(--md-sys-spacing-3);
+    gap: var(--md-sys-spacing-2);
+    background: var(--md-sys-color-surface-variant);
+    padding-left: var(--md-sys-spacing-2);
+}
+
+.my-snippet-item:hover .my-snippet-actions {
+    display: flex;
+}
+
+.my-snippet-action-btn {
+    background: var(--md-sys-color-surface-active);
+    color: var(--md-sys-color-on-surface);
+    border: none;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    cursor: pointer;
+    font-size: 14px; /* for material icon */
+}
+
+.my-snippet-action-btn:hover {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+}
+
+.my-snippet-action-btn.delete:hover {
+    background: var(--md-sys-color-error);
+}
+
+.my-snippet-category-group {
+    margin-bottom: var(--md-sys-spacing-5);
+}
+
+.my-snippet-category-title {
+    font-size: var(--md-sys-typescale-body-medium);
+    color: var(--md-sys-color-primary);
+    text-transform: uppercase;
+    margin-bottom: var(--md-sys-spacing-3);
+    border-bottom: 1px solid var(--md-sys-color-outline);
+    padding-bottom: 2px;
+    font-weight: bold;
+}
+
+/* Snippet Code Editor Styles */
+#snippet-code-editor {
+    margin-top: var(--md-sys-spacing-2);
+    background-color: var(--md-sys-color-background);
+}
