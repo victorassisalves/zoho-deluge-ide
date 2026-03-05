@@ -903,7 +903,15 @@ function tryFixJson(str) {
     if (!str) return str;
     let fixed = str.trim();
 
-    // 0. Try to extract JSON if it's wrapped in other text
+    // 0. Try standard JSON parse first
+    try {
+        const obj = JSON.parse(fixed);
+        return JSON.stringify(obj, null, 2);
+    } catch (e) {
+        // Continue to fallback fixes
+    }
+
+    // 0.5 Try to extract JSON if it's wrapped in other text
     const firstBrace = fixed.indexOf('{');
     const firstBracket = fixed.indexOf('[');
     let startPos = -1;
@@ -922,8 +930,8 @@ function tryFixJson(str) {
         }
     }
 
-    // 1. Remove comments
-    fixed = fixed.replace(/\/\/.*$/gm, '');
+    // 1. Remove comments safely (ignore if preceded by :)
+    fixed = fixed.replace(/(?<!:)\/\/.*/gm, '');
     fixed = fixed.replace(/\/\*[\s\S]*?\*\//g, '');
 
     // 2. Replace single quotes with double quotes for keys
@@ -932,12 +940,12 @@ function tryFixJson(str) {
     // 3. Replace single quotes with double quotes for values
     fixed = fixed.replace(/([:\[,]\s*)'([^'\\]*(?:\\.[^'\\]*)*)'/g, '$1"$2"');
 
-    // 4. Quote unquoted keys
-    const keyPattern = /([{,]\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/g;
+    // 4. Quote unquoted keys (but ignore if already inside quotes, and ignore urls like http: or https:)
+    const keyPattern = /([{,]\s*)(?!http[s]?:)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/gi;
     fixed = fixed.replace(keyPattern, '$1"$2":');
 
     // Also handle keys at the start of a line (missing commas or object body)
-    fixed = fixed.replace(/^(\s*)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/gm, '$1"$2":');
+    fixed = fixed.replace(/^(\s*)(?!http[s]?:)([a-zA-Z0-9_.\-@$!#%^&*+]+)\s*:/gmi, '$1"$2":');
 
     // 5. Remove trailing commas
     fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
