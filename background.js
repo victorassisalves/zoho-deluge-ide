@@ -1,3 +1,141 @@
+
+// Step 1: Explicit Manual Linking - Closed Tab Listener
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+    try {
+        const syncBus = new BroadcastChannel('deluge_ide_sync');
+        syncBus.postMessage({
+            type: 'ZOHO_TAB_DISCONNECTED',
+            payload: { chromeTabId: tabId }
+        });
+        syncBus.close();
+    } catch(e) {}
+    console.log('[ZohoIDE] [BACKGROUND] Tab closed, broadcasted ZOHO_TAB_DISCONNECTED:', tabId);
+});
+
+// Step 1: Explicit Manual Linking - Link Request Logic
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'LINK_TAB_REQUEST') {
+        console.log('[ZohoIDE] [BACKGROUND] Received LINK_TAB_REQUEST');
+
+        const findLinkTarget = (queryObj) => {
+            return new Promise(resolve => {
+                chrome.tabs.query(queryObj, (tabs) => {
+                    const zohoTab = tabs.find(t => isZohoUrl(t.url));
+                    resolve(zohoTab);
+                });
+            });
+        };
+
+        (async () => {
+            // 1. Fallback Strategy: Last Focused Window -> Current Window
+            let targetTab = await findLinkTarget({ active: true, lastFocusedWindow: true });
+            if (!targetTab) {
+                targetTab = await findLinkTarget({ active: true, currentWindow: true });
+            }
+
+            if (!targetTab) {
+                console.warn('[ZohoIDE] [BACKGROUND] LINK_TAB_FAILED: No active Zoho tab found.');
+                sendResponse({ status: 'ERROR', code: 'NO_ZOHO_TAB' });
+                return;
+            }
+
+            // 2. Scrape details from the tab
+            chrome.tabs.sendMessage(targetTab.id, { action: 'PING' }, (response) => {
+                if (chrome.runtime.lastError || !response || !response.context) {
+                    // Try injecting scraper if it fails
+                    chrome.scripting.executeScript({
+                        target: { tabId: targetTab.id },
+                        files: ['extension/host/content.js']
+                    }).then(() => {
+                         setTimeout(() => {
+                             chrome.tabs.sendMessage(targetTab.id, { action: 'PING' }, (retryRes) => {
+                                 if (retryRes && retryRes.context) {
+                                     sendResponse({ status: 'SUCCESS', chromeTabId: targetTab.id, context: retryRes.context });
+                                 } else {
+                                     sendResponse({ status: 'ERROR', code: 'SCRAPER_FAILED' });
+                                 }
+                             });
+                         }, 500);
+                    }).catch(() => sendResponse({ status: 'ERROR', code: 'INJECTION_FAILED' }));
+                } else {
+                    sendResponse({ status: 'SUCCESS', chromeTabId: targetTab.id, context: response.context });
+                }
+            });
+        })();
+        return true;
+    }
+});
+
+
+
+// Step 1: Explicit Manual Linking - Closed Tab Listener
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+    try {
+        const syncBus = new BroadcastChannel('deluge_ide_sync');
+        syncBus.postMessage({
+            type: 'ZOHO_TAB_DISCONNECTED',
+            payload: { chromeTabId: tabId }
+        });
+        syncBus.close();
+    } catch(e) {}
+    console.log('[ZohoIDE] [BACKGROUND] Tab closed, broadcasted ZOHO_TAB_DISCONNECTED:', tabId);
+});
+
+
+// Step 1: Explicit Manual Linking - Link Request Logic
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'LINK_TAB_REQUEST') {
+        console.log('[ZohoIDE] [BACKGROUND] Received LINK_TAB_REQUEST');
+
+        const findLinkTarget = (queryObj) => {
+            return new Promise(resolve => {
+                chrome.tabs.query(queryObj, (tabs) => {
+                    const zohoTab = tabs.find(t => isZohoUrl(t.url));
+                    resolve(zohoTab);
+                });
+            });
+        };
+
+        (async () => {
+            // 1. Fallback Strategy: Last Focused Window -> Current Window
+            let targetTab = await findLinkTarget({ active: true, lastFocusedWindow: true });
+            if (!targetTab) {
+                targetTab = await findLinkTarget({ active: true, currentWindow: true });
+            }
+
+            if (!targetTab) {
+                console.warn('[ZohoIDE] [BACKGROUND] LINK_TAB_FAILED: No active Zoho tab found.');
+                sendResponse({ status: 'ERROR', code: 'NO_ZOHO_TAB' });
+                return;
+            }
+
+            // 2. Scrape details from the tab
+            chrome.tabs.sendMessage(targetTab.id, { action: 'PING' }, (response) => {
+                if (chrome.runtime.lastError || !response || !response.context) {
+                    // Try injecting scraper if it fails
+                    chrome.scripting.executeScript({
+                        target: { tabId: targetTab.id },
+                        files: ['extension/host/content.js']
+                    }).then(() => {
+                         setTimeout(() => {
+                             chrome.tabs.sendMessage(targetTab.id, { action: 'PING' }, (retryRes) => {
+                                 if (retryRes && retryRes.context) {
+                                     sendResponse({ status: 'SUCCESS', chromeTabId: targetTab.id, context: retryRes.context });
+                                 } else {
+                                     sendResponse({ status: 'ERROR', code: 'SCRAPER_FAILED' });
+                                 }
+                             });
+                         }, 500);
+                    }).catch(() => sendResponse({ status: 'ERROR', code: 'INJECTION_FAILED' }));
+                } else {
+                    sendResponse({ status: 'SUCCESS', chromeTabId: targetTab.id, context: response.context });
+                }
+            });
+        })();
+        return true;
+    }
+});
+
 // Background script for Zoho Deluge IDE
 
 let lastZohoTabId = null;
@@ -65,43 +203,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
     let targetTabId = isSidePanel ? sender.tab.id : null;
 
+
     if (request.action === 'CHECK_CONNECTION') {
         const verifyConnection = (tabId) => {
             chrome.tabs.sendMessage(tabId, { action: 'PING' }, (response) => {
                 if (chrome.runtime.lastError || !response || response.status !== 'PONG') {
-                     // Try injecting content script if ping fails (maybe reload happened)
                     chrome.scripting.executeScript({
                         target: { tabId: tabId },
                         files: ['extension/host/content.js']
                     }).then(() => {
-                        // Retry Ping once
                         setTimeout(() => {
                             chrome.tabs.sendMessage(tabId, { action: 'PING' }, (retryRes) => {
                                 if (retryRes && retryRes.status === 'PONG') {
-                                    chrome.tabs.get(tabId, (tab) => {
-                                        sendResponse({
-                                            connected: true,
-                                            tabTitle: tab.title,
-                                            url: tab.url,
-                                            context: retryRes.context,
-                                            isStandalone: !isSidePanel
-                                        });
+                                    sendResponse({
+                                        connected: true,
+                                        chromeTabId: tabId,
+                                        context: retryRes.context
                                     });
                                 } else {
                                     sendResponse({ connected: false });
                                 }
                             });
-                        }, 500); // Increased wait time for injection
+                        }, 500);
                     }).catch(() => sendResponse({ connected: false }));
                 } else {
-                    chrome.tabs.get(tabId, (tab) => {
-                        sendResponse({
-                            connected: true,
-                            tabTitle: tab.title,
-                            url: tab.url,
-                            context: response.context,
-                            isStandalone: !isSidePanel
-                        });
+                    sendResponse({
+                        connected: true,
+                        chromeTabId: tabId,
+                        context: response.context
                     });
                 }
             });
@@ -117,6 +246,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         return true;
     }
+
 
     if (request.action === 'OPEN_ZOHO_EDITOR') {
         const handleOpen = (tabId) => {
@@ -205,6 +335,108 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 sendResponse({ error: 'No matching Zoho tab found for context' });
             }
         }, (request.payload && request.payload.targetContextHash) || request.targetContextHash);
+        return true;
+    }
+
+
+
+    // Step 4: Explicit Manual Linking - Functionality Bridge
+    if (request.type === 'EXECUTE_DOM_ACTION' || request.action === 'EXECUTE_DOM_ACTION') {
+        const payloadData = request.payload || request; // Support both forms
+        const { chromeTabId, fileId, action, code: srcCode } = payloadData;
+
+        const broadcastTelemetry = (level, msg, args) => {
+            try {
+                const channel = new BroadcastChannel('zoho_ide_telemetry');
+                channel.postMessage({
+                    instanceId: request.instanceId,
+                    origin: '[BACKGROUND]',
+                    level,
+                    message: msg,
+                    args,
+                    timestamp: Date.now()
+                });
+                channel.close();
+            } catch (e) { }
+        };
+
+        if (!chromeTabId) {
+            broadcastTelemetry('ERROR', 'No chromeTabId provided. Push aborted.', [fileId]);
+            sendResponse({ status: 'ERROR', code: 'MISSING_TAB_ID' });
+            return true;
+        }
+
+        // 1. Memorize the IDE's location (The "Boomerang" origin)
+        const ideTabId = sender.tab ? sender.tab.id : null;
+        const ideWindowId = sender.tab ? sender.tab.windowId : null;
+
+        // 2. Focus the Zoho Tab (The "Focus")
+        chrome.tabs.update(chromeTabId, { active: true }, () => {
+            // Check for Race Condition (Tab closed before disconnect event processed)
+            if (chrome.runtime.lastError) {
+                broadcastTelemetry('WARN', 'Failed to focus tab, broadcasting failure.', [chromeTabId, chrome.runtime.lastError.message]);
+
+                try {
+                    const syncBus = new BroadcastChannel('deluge_ide_sync');
+                    syncBus.postMessage({
+                        type: 'EXECUTE_ACTION_FAILED',
+                        payload: { fileId, reason: 'Target tab closed unexpectedly. Operation aborted.', chromeTabId }
+                    });
+
+                    syncBus.postMessage({
+                        type: 'ZOHO_TAB_DISCONNECTED',
+                        payload: { chromeTabId }
+                    });
+                    syncBus.close();
+                } catch(e) { console.warn(e); }
+
+                sendResponse({ status: 'ERROR', code: 'TAB_NOT_FOUND' });
+                return;
+            }
+
+            // 3. Send the command to the Content Script (The "Fire")
+            const contentScriptPayload = {
+                type: action,
+                instanceId: request.instanceId || Date.now().toString(),
+                payload: { code: srcCode }
+            };
+
+            broadcastTelemetry('INFO', `Firing ${action} to Content Script`, [chromeTabId, fileId]);
+
+            chrome.tabs.sendMessage(chromeTabId, contentScriptPayload, (response) => {
+
+                // 4. Boomerang back to the IDE
+                if (ideTabId) {
+                    chrome.tabs.update(ideTabId, { active: true });
+                }
+                if (ideWindowId) {
+                    chrome.windows.update(ideWindowId, { focused: true });
+                }
+
+                if (chrome.runtime.lastError) {
+                    broadcastTelemetry('ERROR', 'Content script execution failed:', [chrome.runtime.lastError.message]);
+                    try {
+                        const syncBus = new BroadcastChannel('deluge_ide_sync');
+                        syncBus.postMessage({
+                            type: 'EXECUTE_ACTION_FAILED',
+                            payload: { fileId, reason: chrome.runtime.lastError.message, chromeTabId }
+                        });
+                        syncBus.close();
+                    } catch(e) {}
+                    sendResponse({ status: 'ERROR', code: 'CONTENT_SCRIPT_FAILED', message: chrome.runtime.lastError.message });
+                } else {
+                    // If it's PULL, forward via standard protocol for legacy support
+                    if (action === 'editor:pull' || action === 'GET_ZOHO_CODE') {
+                        chrome.runtime.sendMessage({
+                            action: 'editor:pull:response',
+                            payload: response
+                        });
+                    }
+                    sendResponse(response || { status: 'SUCCESS' });
+                }
+            });
+        });
+
         return true;
     }
 

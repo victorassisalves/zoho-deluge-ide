@@ -1,4 +1,30 @@
 
+
+/**
+ * Event-Driven Drift Detection
+ */
+window.addEventListener('focus', async () => {
+    try {
+        const activeTabId = await getSetting('activeTabId_full');
+        if (!activeTabId) return;
+
+        const tab = await db.workspace_tabs.get(activeTabId);
+        if (!tab || !tab.chromeTabId) return; // ORPHANED
+
+        Bus.send('EXECUTE_DOM_ACTION', { action: 'GET_DOM_HASH', chromeTabId: tab.chromeTabId });
+    } catch (e) {
+        console.warn('Drift detection failed:', e);
+    }
+});
+
+// Assuming SyncService exists and returns Drift status on GET_DOM_HASH response
+Bus.listen('GET_DOM_HASH:response', async (payload) => {
+    // In a full implementation, SyncService would compare payload.domHash
+    // to db.files.get(currentFileId).vfsHash and broadcast TAB_STATUS_CHANGED
+});
+
+
+
 import { Bus } from './bus.js';
 import { ZohoRunner } from '../services/zoho-runner.js';
 import { MSG } from '../../shared/protocol.js';
@@ -1343,7 +1369,11 @@ function pullFromZoho() {
     lastActionTime = now;
 
     log('System', 'Pulling code...');
-    ZohoRunner.pullFromZoho(currentContextHash);
+    db.workspace_tabs.get(currentContextHash).then(tab => {
+        const tabId = tab ? tab.chromeTabId : null;
+        if (tabId) ZohoRunner.pullFromZoho(tabId);
+        else console.warn("No chromeTabId found for this file. Please link a tab.");
+    });
 }
 
 function pushToZoho(triggerSave = false, triggerExecute = false) {
@@ -1362,7 +1392,15 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
 
     const code = editor.getValue();
     log('System', 'Pushing code...');
-    ZohoRunner.pushToZoho(code, triggerSave, triggerExecute, currentContextHash);
+    const activeTabId = Object.keys(tabModelCache).find(id => tabModelCache[id] === editor.getModel());
+    const chromeTabId = activeTabId ? parseInt(activeTabId, 10) : null; // In the real app, this should fetch chromeTabId from DB, this is a placeholder if tab ID does not match
+
+    // Proper fetching of chromeTabId:
+    db.workspace_tabs.get(currentContextHash).then(tab => {
+        const tabId = tab ? tab.chromeTabId : null;
+        if (tabId) ZohoRunner.pushToZoho(code, triggerSave, triggerExecute, tabId);
+        else console.warn("No chromeTabId found for this file. Please link a tab.");
+    });
 }
 
 function createSnapshot() {
@@ -1677,4 +1715,110 @@ async function silentlyDiscoverContext(context) {
     } catch(e) {
         console.error('[ZohoIDE] DB Discovery Error:', e);
     }
+}
+
+
+// ---- REWRITE LOGIC OVERRIDES ----
+
+/**
+ * Event-Driven Drift Detection
+ */
+window.addEventListener('focus', async () => {
+    try {
+        const activeTabId = await getSetting('activeTabId_full');
+        if (!activeTabId) return;
+
+        const tab = await db.workspace_tabs.get(activeTabId);
+        if (!tab || !tab.chromeTabId) return; // ORPHANED
+
+        Bus.send('EXECUTE_DOM_ACTION', { action: 'GET_DOM_HASH', chromeTabId: tab.chromeTabId, fileId: currentFileId });
+    } catch (e) {
+        console.warn('Drift detection failed:', e);
+    }
+});
+
+// Sync Bus initialization for specific Event-Driven Option B error handling
+let syncBus;
+try {
+    syncBus = new BroadcastChannel('deluge_ide_sync');
+    syncBus.addEventListener('message', (event) => {
+        if (event.data.type === 'EXECUTE_ACTION_FAILED') {
+            if (event.data.payload.fileId === currentFileId) {
+                 Bus.send(Bus.EVENTS.UI_UPDATE, { type: 'toast', message: event.data.payload.reason, style: 'error' });
+            }
+        }
+    });
+} catch (e) {}
+
+Bus.listen(Bus.EVENTS.EXECUTE_ACTION_FAILED, (payload) => {
+    if (payload.fileId === currentFileId) {
+        Bus.send(Bus.EVENTS.UI_UPDATE, { type: 'toast', message: payload.reason, style: 'error' });
+    }
+});
+
+function checkConnection() {
+    Bus.send('CHECK_CONNECTION', {}, async (response) => {
+        if (!response || !response.chromeTabId) {
+            // No active Zoho tab found. We are in the ORPHANED state.
+            return handleOrphanedState();
+        }
+
+        // Find the IDE tab that explicitly claimed this chromeTabId
+        const linkedTab = await db.workspace_tabs
+                                .where('chromeTabId')
+                                .equals(response.chromeTabId)
+                                .first();
+
+        if (linkedTab && linkedTab.fileId) {
+            // UUID Found!
+            handleContextSwitch(linkedTab.fileId);
+        } else {
+            // Chrome tab is open, but user hasn't linked it yet.
+            showLinkPrompt(response.chromeTabId, response.context);
+        }
+    });
+}
+
+async function handleContextSwitch(fileIdUUID) {
+    if (fileIdUUID === currentFileId) return;
+
+    currentFileId = fileIdUUID;
+    const file = await db.files.get(fileIdUUID);
+    if (!file) return;
+
+    let model = tabModelCache[fileIdUUID];
+    if (!model) {
+        model = monaco.editor.createModel(file.code || '', 'deluge');
+        tabModelCache[fileIdUUID] = model;
+    }
+
+    editor.setModel(model);
+    Bus.send(Bus.EVENTS.UI_UPDATE, { type: 'icon', state: 'CONNECTED', tabId: fileIdUUID });
+
+    setTimeout(() => editor.layout(), 100);
+}
+
+function handleOrphanedState() {
+    Bus.send(Bus.EVENTS.UI_UPDATE, { type: 'icon', state: 'DISCONNECTED' });
+    console.warn("IDE Orphaned - No active chromeTabId");
+}
+
+function showLinkPrompt(chromeTabId, context) {
+    Bus.send(Bus.EVENTS.UI_UPDATE, { type: 'toast', message: 'Ready to link Zoho Tab' });
+}
+
+function pushToZoho(triggerSave = false, triggerExecute = false) {
+    db.workspace_tabs.where('fileId').equals(currentFileId).first().then(tab => {
+        const tabId = tab ? tab.chromeTabId : null;
+        if (tabId) ZohoRunner.pushToZoho(editor.getValue(), triggerSave, triggerExecute, tabId, currentFileId);
+        else console.warn("No chromeTabId found for this file. Please link a tab.");
+    });
+}
+
+function pullFromZoho() {
+    db.workspace_tabs.where('fileId').equals(currentFileId).first().then(tab => {
+        const tabId = tab ? tab.chromeTabId : null;
+        if (tabId) ZohoRunner.pullFromZoho(tabId, currentFileId);
+        else console.warn("No chromeTabId found for this file. Please link a tab.");
+    });
 }
