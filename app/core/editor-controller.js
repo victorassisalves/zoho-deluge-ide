@@ -1761,6 +1761,7 @@ Bus.listen('METADATA_INTERCEPTED', async (payload) => {
             console.log('[EditorController] Saved Creator schema to KV store:', schemaKey);
 
             // Broadcast so the active provider can update its internal cache
+            // Broadcast so the active provider can update its internal cache
             Bus.send('SCHEMA_CAPTURED', { schema: payload.schema, appKey: payload.appKey });
 
             // --- Phase 7: Add to Interface Manager ---
@@ -1775,3 +1776,43 @@ Bus.listen('METADATA_INTERCEPTED', async (payload) => {
                             const fieldDef = formDef.fields[fieldKey];
                             fieldsObj[fieldDef.linkName || fieldKey] = `[${fieldDef.type}] ${fieldDef.isMandatory ? '(Mandatory)' : ''}`;
                         });
+                    }
+                    schemaObj[formKey] = fieldsObj;
+                });
+
+                // Add to interfaceMappings
+                if (typeof window !== 'undefined') {
+                    if (!window.interfaceMappings) window.interfaceMappings = {};
+                    window.interfaceMappings[`creator_schema_${payload.appKey}`] = schemaObj;
+                    if (typeof updateInterfaceMappingsList === 'function') {
+                        try { updateInterfaceMappingsList(); } catch (e) {}
+                    }
+                }
+            }
+
+            // UPDATE THE ACTIVE FILE'S METADATA to enable Autocomplete Sandbox dynamically!
+            if (currentContextHash) {
+                const activeFile = await db.files.get(currentContextHash);
+                if (activeFile) {
+                    if (!activeFile.metadata) activeFile.metadata = {};
+                    let updated = false;
+                    if (activeFile.metadata.product !== 'creator') {
+                        activeFile.metadata.product = 'creator';
+                        updated = true;
+                    }
+                    if (activeFile.metadata.appKey !== payload.appKey) {
+                        activeFile.metadata.appKey = payload.appKey;
+                        updated = true;
+                    }
+                    if (updated) {
+                        await db.files.put(activeFile);
+                        console.log('[EditorController] Updated active file metadata to creator');
+                        mountCreatorSandbox(activeFile);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[EditorController] Failed to save metadata to KV store:', e);
+        }
+    }
+});
