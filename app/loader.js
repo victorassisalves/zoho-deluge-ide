@@ -8,16 +8,22 @@ console.log('[ZohoIDE] Loader starting...');
 
 
 
-window.MonacoEnvironment = {
-    getWorkerUrl: function(workerId, label) {
-        // MV3 CSP safe way: force Monaco to fail worker instantiation instantly.
-        // Returning an empty string causes `new Worker('')` to throw a DOMException
-        // synchronously. Monaco's internal wrapper catches this DOMException
-        // and falls back to main-thread execution gracefully.
-        return '';
-    }
-};
-
+// Freeze MonacoEnvironment so the Vite bundle cannot overwrite it with its Blob/importScripts implementation
+Object.defineProperty(window, 'MonacoEnvironment', {
+    value: {
+        getWorker: function (moduleId, label) {
+            // MV3 CSP safe way: return a dummy proxy.
+            return {
+                postMessage: function() {},
+                addEventListener: function() {},
+                removeEventListener: function() {},
+                terminate: function() {}
+            };
+        }
+    },
+    writable: false,
+    configurable: false
+});
 
 require.config({
     // Adjusted for app/index.html location (one level deep)
