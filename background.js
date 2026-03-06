@@ -164,14 +164,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const verifyConnection = (tabId) => {
             chrome.tabs.sendMessage(tabId, { action: 'PING' }, (response) => {
                 if (chrome.runtime.lastError || !response || response.status !== 'PONG') {
-                     // Try injecting content script if ping fails (maybe reload happened)
+                    // Inject script if ping fails (e.g. page reloaded)
                     chrome.scripting.executeScript({
                         target: { tabId: tabId },
                         files: ['extension/host/content.js']
                     }).then(() => {
-                        // Retry Ping once
+                        // Retry ping
                         setTimeout(() => {
                             chrome.tabs.sendMessage(tabId, { action: 'PING' }, (retryRes) => {
+                                let _ = chrome.runtime.lastError; // clear error
                                 if (retryRes && retryRes.status === 'PONG') {
                                     chrome.tabs.get(tabId, (tab) => {
                                         sendResponse({
@@ -186,8 +187,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                                     sendResponse({ connected: false });
                                 }
                             });
-                        }, 500); // Increased wait time for injection
-                    }).catch(() => sendResponse({ connected: false }));
+                        }, 500);
+                    }).catch((e) => {
+                        console.warn("[ZohoIDE] Script injection failed:", e);
+                        sendResponse({ connected: false });
+                    });
                 } else {
                     chrome.tabs.get(tabId, (tab) => {
                         sendResponse({
@@ -202,30 +206,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
         };
 
+        const targetTabId = (request.payload && request.payload.targetTabId) || request.targetTabId;
+        const targetHash = (request.payload && request.payload.targetContextHash) || request.targetContextHash;
+
         if (targetTabId) {
             verifyConnection(targetTabId);
         } else {
-            // Find ALL active zoho tabs across ALL windows to ensure they are discovered
-            chrome.tabs.query({}, (allTabs) => {
-                const zohoTabs = allTabs.filter(t => t.url && isZohoUrl(t.url));
-
-                // If a specific context hash is requested, find it
-                const targetHash = (request.payload && request.payload.targetContextHash) || request.targetContextHash;
-
-                findZohoTab((tab) => {
-                    if (tab) verifyConnection(tab.id);
-                    else sendResponse({ connected: false });
-                }, targetHash);
-
-                // Silently ping other tabs to trigger background discovery
-                if (zohoTabs.length > 1) {
-                    zohoTabs.forEach(t => {
-                        chrome.tabs.sendMessage(t.id, { action: 'PING' });
-                    });
+            findZohoTab((tab) => {
+                if (tab) {
+                    verifyConnection(tab.id);
+                } else {
+                    sendResponse({ connected: false });
                 }
-            });
+            }, targetHash);
         }
-        return true;
+
+        return true; // Keep message channel open for async response
     }
 
     if (request.action === 'OPEN_ZOHO_EDITOR') {

@@ -312,12 +312,20 @@ async function initEditor() {
     }
 }
 
-async function checkConnection() {
+async
+let disconnectCounter = 0;
+function checkConnection() {
     if (typeof chrome !== "undefined" && chrome.runtime) {
         chrome.runtime.sendMessage({ action: "CHECK_CONNECTION", targetContextHash: currentContextHash }, (response) => {
+            if (chrome.runtime.lastError) {
+                // Silently swallow the unhandled runtime error to prevent console spam
+                // console.debug('[ZohoIDE] Connection check dropped a frame:', chrome.runtime.lastError);
+            }
+
             let nextProjectUrl = "global";
 
             if (response && response.connected) {
+                disconnectCounter = 0;
                 isConnected = true;
                 const msg = (response.isStandalone ? "Connected to Target: " : "Connected Local: ") + (response.tabTitle || "Zoho Tab");
                 showStatus(msg, "success");
@@ -331,42 +339,32 @@ async function checkConnection() {
                         if (newHash.includes("LOADING")) {
                             return;
                         }
-                        // We detected a NEW context in the background.
-                        // Do NOT force switch the active IDE editor to this file if the user is busy typing.
-                        // Just silently register the workspace and file so it appears in the Explorer.
                         if (!currentContextHash) {
-                            // Only auto-switch if the IDE is completely empty (initial load)
                             console.log('[ZohoIDE] Initial Context Switched:', newHash);
                             handleContextSwitch(response.context);
                         } else {
-                            // Background discovery is now safe because scrapers cache their window.__zide_unsaved_id
-                            // It will create exactly 1 file per open un-saved tab.
                             silentlyDiscoverContext(response.context);
                         }
                     } else {
-                        // Same hash, just ensure it's visually marked as connected
                         if (explorer) explorer.setConnectedFile(newHash);
                     }
                 }
 
             } else {
-                isConnected = false;
-                showStatus("Disconnected from Zoho", "info");
-                nextProjectUrl = "global";
-                currentContext = null;
-                // currentContextHash = null; // Do NOT clear hash on disconnect, allow offline editing of last file
+                disconnectCounter++;
+                if (disconnectCounter >= 2) { // Require 2 consecutive failures to mark as disconnected visually
+                    isConnected = false;
+                    showStatus("Disconnected from Zoho", "info");
+                    nextProjectUrl = "global";
+                    currentContext = null;
+                }
             }
 
             if (nextProjectUrl !== zideProjectUrl) {
-                // Old Context switch detection (URL based fallback)
-                // If we have a hash, we use that instead of this legacy check for saving?
-                // But we still need to loadProjectData for mappings/notes.
-
                 zideProjectUrl = nextProjectUrl;
                 window.zideProjectUrl = zideProjectUrl;
                 loadProjectData();
 
-                // Cloud Auto-Detection
                 if (typeof CloudUI !== 'undefined' && CloudUI.activeOrgId && zideProjectUrl !== 'global') {
                     CloudUI.checkForCloudFiles(zideProjectUrl);
                 }
