@@ -14,10 +14,7 @@ window.MonacoEnvironment = {
         return new Worker(url);
     }
 };
-        `], { type: 'application/javascript' });
-        return new Worker(URL.createObjectURL(blob));
-    }
-};
+
 
 require.config({
     // Adjusted for app/index.html location (one level deep)
