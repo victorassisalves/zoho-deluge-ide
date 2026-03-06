@@ -7,5 +7,7 @@ export const MSG = {
     CODE_SAVE: 'editor:save',
     CODE_PULL: 'editor:pull',
     SNIPPET_INSERT: 'snippet:insert',
-    CRM_FIELD_FETCH: 'crm:get_fields'
+    CRM_FIELD_FETCH: 'crm:get_fields',
+    METADATA_INTERCEPTED: 'METADATA_INTERCEPTED',
+    SCHEMA_CAPTURED: 'SCHEMA_CAPTURED'
 };

@@ -1,67 +1,11 @@
-import { getZohoProduct, getContext } from './detectors.js';
-import { getEditorCode } from './scrapers.js';
-import { setEditorCode, clickByText, clickBySelectors } from './actions/base-actions.js';
+import re
 
-console.log('[ZohoIDE] Modular Bridge Loaded');
+bridge_file = "extension/host/bridge/main.js"
+with open(bridge_file, "r") as f:
+    content = f.read()
 
-const selectors = {
-    save: [
-        'button[id="save_script"]', '#save_script', '#save_btn',
-        '#crmsave', 'lyte-button[data-id="save"]', 'lyte-button[data-id="update"]',
-        'lyte-button[data-zcqa="save"]', 'lyte-button[data-zcqa="update"]',
-        'lyte-button[data-zcqa="functionSavev2"]', '.dxEditorPrimaryBtn',
-        '.crm-save-btn', '.zc-save-btn', '.save-btn', '.zc-update-btn', '.save_btn',
-        'input#saveBtn', 'input[value="Save"]', 'input[value="Update"]'
-    ],
-    execute: [
-        'button[id="execute_script"]', '#execute_script', 'button[id="run_script"]', '#run_script',
-        '#crmexecute', 'span[data-zcqa="delgv2execPlay"]', '.dx_execute_icon',
-        '#runscript', '.zc-execute-btn', '.execute-btn',
-        'lyte-button[data-zcqa="execute"]', 'lyte-button[data-zcqa="run"]',
-        '.lyte-button[data-id="execute"]', '.lyte-button[data-id="run"]',
-        '.execute_btn', '#execute_btn', 'input#executeBtn',
-        'input[value="Execute"]', 'input[value="Run"]'
-    ]
-};
-
-// Listen for Custom Events from Content Script (Same context, isolated world bridge)
-window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
-    const data = event.detail;
-    if (!data || !data.action) return;
-
-    // console.log('[Bridge] Received:', data.action, data);
-
-    let response = {};
-    const { action, eventId } = data;
-
-    if (action === 'SET_CONTEXT_HASH') {
-        window.__zide_manual_context_hash = data.contextHash;
-        response = { success: true };
-    } else if (action === 'PING') {
-        const context = getContext();
-        response = { status: 'PONG', product: context.service, context: context };
-    } else if (action === 'GET_ZOHO_CODE') {
-        response = { code: getEditorCode() };
-    } else if (action === 'SET_ZOHO_CODE') {
-        response = { success: setEditorCode(data.code) };
-    } else if (action === 'SAVE_ZOHO_CODE') {
-        response = { success: triggerAction('save') };
-    } else if (action === 'EXECUTE_ZOHO_CODE') {
-        response = { success: triggerAction('execute') };
-    }
-
-    // Respond via Custom Event
-    window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
-        detail: { eventId, action, response }
-    }));
-});
-
-function triggerAction(type) {
-    let success = clickBySelectors(selectors[type]);
-    if (!success) success = clickByText(type);
-    return success;
-}
-
+# Append interceptor logic at the end
+interceptor_code = """
 
 // --- Network Payload Fingerprinting ---
 function inspectPayload(jsonText, url) {
@@ -142,3 +86,11 @@ window.XMLHttpRequest = function() {
 
     return xhr;
 };
+"""
+
+if "inspectPayload" not in content:
+    with open(bridge_file, "a") as f:
+        f.write(interceptor_code)
+    print("Patched main.js with interceptor")
+else:
+    print("Already patched")

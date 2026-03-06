@@ -169,6 +169,24 @@
         }
     });
 
+
+    // Listen for Metadata Interception
+    window.addEventListener('ZOHO_IDE_FROM_PAGE', (event) => {
+        const data = event.detail;
+        if (data && data.action === 'METADATA_INTERCEPTED') {
+            console.log('[ZohoIDE] Relay METADATA_INTERCEPTED to background');
+            chrome.runtime.sendMessage({
+                action: 'METADATA_INTERCEPTED',
+                payload: data.response
+            });
+            // Also dispatch it to any listening IDE instances in standalone mode
+            window.postMessage({
+                type: 'METADATA_INTERCEPTED',
+                payload: data.response
+            }, '*');
+        }
+    });
+
     function injectSidePanel() {
         if (document.getElementById('zoho-ide-panel-container')) {
             document.getElementById('zoho-ide-panel-container').style.display = 'flex';

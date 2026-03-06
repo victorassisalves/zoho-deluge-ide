@@ -1,3 +1,4 @@
+import { mountCreatorSandbox } from '../modules/products/creator/registry.js';
 
 import { Bus } from './bus.js';
 import { ZohoRunner } from '../services/zoho-runner.js';
@@ -387,6 +388,27 @@ async function handleContextSwitch(context) {
             if (editor) editor.setValue(file.code);
             showStatus('Loaded local draft', 'success');
             if (explorer) explorer.setActiveFile(currentContextHash);
+
+            // --- Phase 7: Mount Creator Sandbox ---
+            if (file.metadata && file.metadata.product === 'creator') {
+                mountCreatorSandbox(file);
+
+                // Attempt to load schema from settings
+                let appKey = file.metadata.appKey || (file.metadata.workspaceId && file.metadata.workspaceId.replace('app_', ''));
+                if (appKey) {
+                    try {
+                        const schemaRecord = await db.settings.get(`schema_creator_${appKey}`);
+                        if (schemaRecord && schemaRecord.value) {
+                            Bus.send('SCHEMA_CAPTURED', { schema: schemaRecord.value, appKey });
+                        }
+                    } catch (e) {
+                        console.error('[EditorController] Failed to load schema from KV:', e);
+                    }
+                }
+            } else {
+                mountCreatorSandbox(null); // Ensure it's unmounted for other products
+            }
+
         } else {
             console.log('[ZohoIDE] No local draft found for:', currentContextHash);
             showStatus('New Context Detected. Pull code or save to create file.', 'info');
@@ -1698,3 +1720,26 @@ async function silentlyDiscoverContext(context) {
         console.error('[ZohoIDE] DB Discovery Error:', e);
     }
 }
+
+
+
+// --- Phase 7: Listen for Metadata Interceptions ---
+Bus.listen('METADATA_INTERCEPTED', async (payload) => {
+    if (!payload || !payload.product) return;
+
+    console.log('[EditorController] Received intercepted metadata for:', payload.product);
+
+    if (payload.product === 'creator' && payload.appKey && payload.schema) {
+        // Save to KV Store (settings table)
+        const schemaKey = `schema_creator_${payload.appKey}`;
+        try {
+            await db.settings.put({ key: schemaKey, value: payload.schema });
+            console.log('[EditorController] Saved Creator schema to KV store:', schemaKey);
+
+            // Broadcast so the active provider can update its internal cache
+            Bus.send('SCHEMA_CAPTURED', { schema: payload.schema, appKey: payload.appKey });
+        } catch (e) {
+            console.error('[EditorController] Failed to save metadata to KV store:', e);
+        }
+    }
+});
