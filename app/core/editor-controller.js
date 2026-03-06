@@ -400,6 +400,30 @@ async function handleContextSwitch(context) {
                         const schemaRecord = await db.settings.get(`schema_creator_${appKey}`);
                         if (schemaRecord && schemaRecord.value) {
                             Bus.send('SCHEMA_CAPTURED', { schema: schemaRecord.value, appKey });
+
+                            // Phase 7: Add to Interface Manager
+                            const schemaObj = {};
+                            if (schemaRecord.value.forms) {
+                                Object.keys(schemaRecord.value.forms).forEach(formKey => {
+                                    const formDef = schemaRecord.value.forms[formKey];
+                                    const fieldsObj = {};
+                                    if (formDef.fields) {
+                                        Object.keys(formDef.fields).forEach(fieldKey => {
+                                            const fieldDef = formDef.fields[fieldKey];
+                                            fieldsObj[fieldDef.linkName || fieldKey] = `[${fieldDef.type}] ${fieldDef.isMandatory ? '(Mandatory)' : ''}`;
+                                        });
+                                    }
+                                    schemaObj[formKey] = fieldsObj;
+                                });
+
+                                if (typeof window !== 'undefined') {
+                                    if (!window.interfaceMappings) window.interfaceMappings = {};
+                                    window.interfaceMappings[`creator_schema_${appKey}`] = schemaObj;
+                                    if (typeof updateInterfaceMappingsList === 'function') {
+                                        updateInterfaceMappingsList();
+                                    }
+                                }
+                            }
                         }
                     } catch (e) {
                         console.error('[EditorController] Failed to load schema from KV:', e);
@@ -1737,7 +1761,34 @@ Bus.listen('METADATA_INTERCEPTED', async (payload) => {
             console.log('[EditorController] Saved Creator schema to KV store:', schemaKey);
 
             // Broadcast so the active provider can update its internal cache
+            // Broadcast so the active provider can update its internal cache
             Bus.send('SCHEMA_CAPTURED', { schema: payload.schema, appKey: payload.appKey });
+
+            // --- Phase 7: Add to Interface Manager ---
+            // Create a fake JSON object to visualize the schema
+            if (payload.schema && payload.schema.forms) {
+                const schemaObj = {};
+                Object.keys(payload.schema.forms).forEach(formKey => {
+                    const formDef = payload.schema.forms[formKey];
+                    const fieldsObj = {};
+                    if (formDef.fields) {
+                        Object.keys(formDef.fields).forEach(fieldKey => {
+                            const fieldDef = formDef.fields[fieldKey];
+                            fieldsObj[fieldDef.linkName || fieldKey] = `[${fieldDef.type}] ${fieldDef.isMandatory ? '(Mandatory)' : ''}`;
+                        });
+                    }
+                    schemaObj[formKey] = fieldsObj;
+                });
+
+                // Add to interfaceMappings
+                if (typeof window !== 'undefined') {
+                    if (!window.interfaceMappings) window.interfaceMappings = {};
+                    window.interfaceMappings[`creator_schema_${payload.appKey}`] = schemaObj;
+                    if (typeof updateInterfaceMappingsList === 'function') {
+                        updateInterfaceMappingsList();
+                    }
+                }
+            }
         } catch (e) {
             console.error('[EditorController] Failed to save metadata to KV store:', e);
         }

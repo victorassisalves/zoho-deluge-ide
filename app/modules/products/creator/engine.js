@@ -9,7 +9,7 @@
 // Example: myRecord = Service_Order[ID == 1];
 // Match group 1: variable name
 // Match group 2: form name
-const assignmentRegex = /([a-zA-Z0-9_]+)\s*=\s*([a-zA-Z0-9_]+)\s*\[.*?\]/g;
+const assignmentRegex = /([a-zA-Z0-9_]+)\s*=\s*([a-zA-Z0-9_]+)\s*\[/g;
 
 /**
  * Scans the provided text and returns a map of variable names to their corresponding form names.

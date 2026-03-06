@@ -39,8 +39,18 @@ export const creatorProvider = {
             const mappings = scanAssignments(fullText);
 
             const formName = mappings[varName];
-            if (formName && currentSchema.forms[formName]) {
-                const formDef = currentSchema.forms[formName];
+            let formDef = null;
+            if (formName) {
+                // Exact match first
+                if (currentSchema.forms[formName]) {
+                    formDef = currentSchema.forms[formName];
+                } else {
+                    // Case-insensitive match
+                    const key = Object.keys(currentSchema.forms).find(k => k.toLowerCase() === formName.toLowerCase());
+                    if (key) formDef = currentSchema.forms[key];
+                }
+            }
+            if (formDef) {
 
                 Object.values(formDef.fields || {}).forEach(field => {
                     let sortPrefix = "1_"; // Default Custom
@@ -66,7 +76,7 @@ export const creatorProvider = {
         // 2. Handle Insert/Delete/Fetch Form Suggestions
         // Examples: "insert into ", "delete from ", "= "
         // Add regex logic
-        if (/(?:insert\s+into|delete\s+from|=)\s+([a-zA-Z0-9_]*)$/i.test(textUntilPosition) || /(?:insert\s+into|delete\s+from|=)\s+$/.test(textUntilPosition)) {
+        if (/(?:insert\s+into|delete\s+from|=)\s+([a-zA-Z0-9_]*)$/i.test(textUntilPosition) || /(?:insert\s+into|delete\s+from|=)\s*$/.test(textUntilPosition)) {
             Object.keys(currentSchema.forms || {}).forEach(formKey => {
                 const formDef = currentSchema.forms[formKey];
                 suggestions.push({

@@ -63,9 +63,11 @@ function triggerAction(type) {
 }
 
 
+
 // --- Network Payload Fingerprinting ---
 function inspectPayload(jsonText, url) {
-    if (!jsonText || jsonText.length < 10) return;
+    if (!jsonText || typeof jsonText !== 'string' || jsonText === '[object Object]') return;
+    if (jsonText.length < 10) return;
     try {
         const json = JSON.parse(jsonText);
 
