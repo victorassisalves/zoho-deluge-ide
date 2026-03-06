@@ -212,6 +212,55 @@
         return false;
     }
 
+    // --- Network Interceptor for Metadata Extraction ---
+    function processNetworkResponse(url, text) {
+        try {
+            if (!text || text.trim() === '') return;
+            const json = JSON.parse(text);
+
+            // Fingerprint 1: Creator Metadata
+            if (json.apps && Object.keys(json.apps).length > 0) {
+                const firstAppKey = Object.keys(json.apps)[0];
+                if (json.apps[firstAppKey].forms) {
+                    log('Captured Creator metadata payload');
+                    window.dispatchEvent(new CustomEvent('SCHEMA_CAPTURED', {
+                        detail: { type: 'creator', payload: json }
+                    }));
+                }
+            }
+
+            // Fingerprint 2: CRM Metadata
+            if (json.functions && Array.isArray(json.functions) && json.functions.length > 0 && json.functions[0].workflow !== undefined) {
+                log('Captured CRM metadata payload');
+                window.dispatchEvent(new CustomEvent('SCHEMA_CAPTURED', {
+                    detail: { type: 'crm', payload: json }
+                }));
+            }
+        } catch(e) {
+            // Not JSON or parsing failed, ignore
+        }
+    }
+
+    // Intercept fetch
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+        const response = await originalFetch.apply(this, args);
+        const clone = response.clone();
+        clone.text().then(text => processNetworkResponse(args[0], text)).catch(e => log('Fetch intercept error:', e));
+        return response;
+    };
+
+    // Intercept XHR
+    const originalXHRSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function(...args) {
+        this.addEventListener('load', function() {
+            if (this.responseType === '' || this.responseType === 'text') {
+                processNetworkResponse(this.responseURL, this.responseText);
+            }
+        });
+        originalXHRSend.apply(this, args);
+    };
+
     log('Bridge initialized in frame:', window.location.href);
 
     window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {

@@ -43,6 +43,32 @@
     }
     window.addEventListener('load', injectBridge);
 
+
+    // Listen for SCHEMA_CAPTURED from bridge
+    window.addEventListener('SCHEMA_CAPTURED', (event) => {
+        console.log('[ZohoIDE] Content Script intercepted SCHEMA_CAPTURED:', event.detail);
+
+        // Broadcast via chrome.runtime so background script or standalone IDE can pick it up
+        try {
+            chrome.runtime.sendMessage({
+                action: 'SCHEMA_CAPTURED',
+                payload: event.detail
+            });
+        } catch(e) {
+            console.warn('[ZohoIDE] Failed to relay SCHEMA_CAPTURED via runtime', e);
+        }
+
+        // Also broadcast to any injected iframe (if in sidepanel mode)
+        const iframe = document.querySelector('#zoho-ide-panel-container iframe');
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({
+                type: 'SCHEMA_CAPTURED',
+                payload: event.detail
+            }, '*');
+        }
+    });
+
+
     // 2. Listen for messages from the Client (Iframe or Extension Background)
 
     // Handler for messages

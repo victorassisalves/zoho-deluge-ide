@@ -8,7 +8,7 @@ import { setupLinter } from "../modules/linter/engine.js";
 import { registerHoverProvider } from "../modules/hover/provider.js";
 import { registerCodeActionProvider } from "../modules/code-actions/provider.js";
 import { Logger } from '../utils/logger.js';
-import { db } from '../services/db.js';
+import { db, setSetting } from '../services/db.js';
 import { Explorer } from '../modules/explorer/explorer.js';
 
 var zideProjectUrl = null;
@@ -33,6 +33,33 @@ var lastActionTime = 0;
 var currentContext = null;
 var currentContextHash = null;
 var autoSaveTimer = null;
+
+
+// --- Metadata Interception (Phase 7) ---
+Bus.listen('SCHEMA_CAPTURED', async (payload) => {
+    try {
+        if (!payload || !payload.type || !payload.payload) return;
+
+        Logger.info('controller', `Received SCHEMA_CAPTURED for ${payload.type}`);
+
+        if (payload.type === 'creator' && currentContext && currentContext.orgId) {
+            const apps = payload.payload.apps;
+            if (apps) {
+                const appKey = Object.keys(apps)[0];
+                if (appKey) {
+                    const settingsKey = `schema_creator_${appKey}`;
+                    await setSetting(settingsKey, apps[appKey]);
+                    Logger.success('controller', `Saved Creator Schema for app: ${appKey}`);
+
+                    // Re-broadcast so CreatorProvider updates immediately
+                    Bus.send('SCHEMA_UPDATED', { type: 'creator', appKey: appKey, schema: apps[appKey] });
+                }
+            }
+        }
+    } catch (e) {
+        Logger.error('controller', 'Failed to save intercepted schema: ' + e.message);
+    }
+});
 
 async function initEditor() {
     if (editor) return;

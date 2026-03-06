@@ -6,6 +6,7 @@ import interfaceProvider from './providers/interface-provider.js';
 import methodProvider from './providers/method-provider.js';
 import zohoProvider from './providers/zoho-provider.js';
 import snippetProvider from './providers/snippet-provider.js';
+import creatorProvider from '../products/creator/provider.js';
 
 export const initAutocomplete = async (monaco) => {
     // Initialize async providers
@@ -33,6 +34,7 @@ export const initAutocomplete = async (monaco) => {
     registry.register(methodProvider);
     registry.register(zohoProvider);
     registry.register(snippetProvider);
+    registry.register(creatorProvider);
 
     setupAutocomplete(monaco);
 };
