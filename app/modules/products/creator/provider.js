@@ -53,32 +53,69 @@ export default {
     init: async () => {},
     provide: async (model, position, context) => {
         // We need to fetch the initial schema on load if it exists
-        // STRICT ISOLATION: Check if we are in a creator context
-        if (typeof window !== 'undefined' && window.currentContext) {
-            if (window.currentContext.service !== 'creator') return [];
 
-            // Try to deduce app name from orgId (e.g., account_appName)
-            if (window.currentContext.orgId) {
-                const parts = window.currentContext.orgId.split('_');
-                if (parts.length > 1) {
-                    const appKey = parts.slice(1).join('_');
-                    if (appKey !== currentAppKey) {
-                        try {
-                            const schema = await getSetting(`schema_creator_${appKey}`);
-                            if (schema) {
-                                currentSchema = schema;
-                                currentAppKey = appKey;
-                                console.log(`[CreatorProvider] Loaded schema from DB for: ${appKey}`);
+        // Check if we are in a creator context OR we have a schema loaded explicitly
+
+        let isCreatorContext = false;
+        if (typeof window !== 'undefined' && window.currentContext) {
+            if (window.currentContext.service === 'creator') {
+                isCreatorContext = true;
+            }
+        }
+
+
+        // Also allow testing if they manually map a creator_schema in Interface Manager
+        if (typeof window !== 'undefined' && window.interfaceMappings) {
+            const schemaKeys = Object.keys(window.interfaceMappings).filter(k => k.startsWith('creator_schema_') || k.startsWith('schema_creator_'));
+            if (schemaKeys.length > 0) {
+                isCreatorContext = true;
+                const schemaKey = schemaKeys[0];
+                if (schemaKey !== currentAppKey || !currentSchema) {
+                    const mappedSchema = window.interfaceMappings[schemaKey];
+                    // Convert the simplified interface map format back to our expected forms structure
+                    // E.g. Service: { Status: "[STRING]", Modified_User: "[STRING]" }
+                    const forms = {};
+                    for (const [formName, fields] of Object.entries(mappedSchema)) {
+                        const formFields = {};
+                        if (typeof fields === 'object' && fields !== null) {
+                            for (const [fieldName, fieldType] of Object.entries(fields)) {
+                                formFields[fieldName] = {
+                                    type: typeof fieldType === 'string' ? fieldType.replace(/[\[\]"]/g, '') : 'STRING',
+                                    isMandatory: false,
+                                    isSystemField: false
+                                };
                             }
-                        } catch (e) {
-                            console.error('[CreatorProvider] Failed to load schema from settings', e);
                         }
+                        forms[formName] = { displayName: formName, fields: formFields };
+                    }
+                    currentSchema = { forms };
+                    currentAppKey = schemaKey;
+                }
+            }
+        }
+if (!isCreatorContext) return [];
+
+        if (typeof window !== 'undefined' && window.currentContext && window.currentContext.orgId && window.currentContext.service === 'creator') {
+            const parts = window.currentContext.orgId.split('_');
+            if (parts.length > 1) {
+                const appKey = parts.slice(1).join('_');
+                if (appKey !== currentAppKey) {
+                    try {
+                        const schema1 = await getSetting(`schema_creator_${appKey}`);
+                        const schema2 = await getSetting(`creator_schema_${appKey}`);
+                        const schema = schema1 || schema2;
+                        if (schema) {
+                            currentSchema = schema;
+                            currentAppKey = appKey;
+                            console.log(`[CreatorProvider] Loaded schema from DB for: ${appKey}`);
+                        }
+                    } catch (e) {
+                        console.error('[CreatorProvider] Failed to load schema from settings', e);
                     }
                 }
             }
         }
-
-        if (!currentSchema || !currentSchema.forms) return [];
+if (!currentSchema || !currentSchema.forms) return [];
 
         const { lineUntilPos } = context;
         let match;
@@ -100,7 +137,7 @@ export default {
         }
 
         // 2. Record Fetch Form Autocomplete: `var = |[`
-        const assignMatch = lineUntilPos.match(/^[ \t]*[a-zA-Z_]\w*\s*=\s*([a-zA-Z0-9_]*)$/);
+        const assignMatch = lineUntilPos.match(/([a-zA-Z_]\w*)\s*=\s*([a-zA-Z0-9_]*)$/);
         if (assignMatch && !lineUntilPos.includes('.')) {
              const suggestions = [];
              for (const [formKey, formData] of Object.entries(currentSchema.forms)) {
