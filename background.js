@@ -74,6 +74,18 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+
+    // Route SCHEMA_CAPTURED to all extension tabs (IDE)
+    if (request.action === 'SCHEMA_CAPTURED') {
+        chrome.tabs.query({ url: chrome.runtime.getURL('*') }, (tabs) => {
+            for (let tab of tabs) {
+                chrome.tabs.sendMessage(tab.id, request);
+            }
+        });
+        // We also allow it to be processed here or just let it fall through
+        return true;
+    }
+
     let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
     let targetTabId = isSidePanel ? sender.tab.id : null;
 
