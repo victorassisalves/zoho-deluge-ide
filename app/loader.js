@@ -8,21 +8,26 @@ console.log('[ZohoIDE] Loader starting...');
 
 
 
-// Freeze MonacoEnvironment so the Vite bundle cannot overwrite it with its Blob/importScripts implementation
+// Use a getter/setter to silently block Monaco's Vite bundle from overwriting the safe environment
+// If we use writable: false, strict mode throws a TypeError. A setter that does nothing prevents the crash.
+let safeMonacoEnv = {
+    getWorker: function (moduleId, label) {
+        // MV3 CSP safe way: return a dummy proxy.
+        return {
+            postMessage: function() {},
+            addEventListener: function() {},
+            removeEventListener: function() {},
+            terminate: function() {}
+        };
+    }
+};
+
 Object.defineProperty(window, 'MonacoEnvironment', {
-    value: {
-        getWorker: function (moduleId, label) {
-            // MV3 CSP safe way: return a dummy proxy.
-            return {
-                postMessage: function() {},
-                addEventListener: function() {},
-                removeEventListener: function() {},
-                terminate: function() {}
-            };
-        }
+    get: function() { return safeMonacoEnv; },
+    set: function(val) {
+        console.warn('[ZohoIDE] Blocked unsafe MonacoEnvironment override');
     },
-    writable: false,
-    configurable: false
+    configurable: true
 });
 
 require.config({
