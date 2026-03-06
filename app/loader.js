@@ -4,31 +4,23 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 
 console.log('[ZohoIDE] Loader starting...');
 
-
-
-
-
-// Use a getter/setter to silently block Monaco's Vite bundle from overwriting the safe environment
-// If we use writable: false, strict mode throws a TypeError. A setter that does nothing prevents the crash.
-let safeMonacoEnv = {
-    getWorker: function (moduleId, label) {
-        // MV3 CSP safe way: return a dummy proxy.
-        return {
-            postMessage: function() {},
-            addEventListener: function() {},
-            removeEventListener: function() {},
-            terminate: function() {}
-        };
+// --- Intercept Web Worker Instantiation ---
+// MV3 CSP strictly blocks 'importScripts' inside Blob-based Workers, throwing an uncatchable browser NetworkError that crashes the app.
+// To prevent Monaco from crashing the extension, we intercept the Worker constructor and throw a standard, catchable JS Error instead.
+// Monaco's internal error boundary catches this gracefully and falls back to main-thread execution.
+const OriginalWorker = window.Worker;
+window.Worker = function(scriptURL, options) {
+    if (typeof scriptURL === 'string' && scriptURL.startsWith('blob:')) {
+        console.warn('[ZohoIDE] Blocked Monaco from instantiating CSP-violating Blob Worker. Forcing safe main-thread fallback.');
+        throw new Error('Blocked Worker Blob by extension CSP policy');
     }
+    return new OriginalWorker(scriptURL, options);
 };
 
-Object.defineProperty(window, 'MonacoEnvironment', {
-    get: function() { return safeMonacoEnv; },
-    set: function(val) {
-        console.warn('[ZohoIDE] Blocked unsafe MonacoEnvironment override');
-    },
-    configurable: true
-});
+
+
+
+
 
 require.config({
     // Adjusted for app/index.html location (one level deep)
