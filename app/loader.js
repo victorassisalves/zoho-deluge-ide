@@ -5,8 +5,12 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 console.log('[ZohoIDE] Loader starting...');
 
 window.MonacoEnvironment = {
-    getWorker: function(workerId, label) {
-        return new Worker(chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js'));
+    getWorker: function (workerId, label) {
+        // Construct the direct local path to the worker file.
+        // Depending on where your loader file is, adjust the relative path ('../assets/...')
+        const workerUrl = new URL('../assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js', import.meta.url).href;
+
+        return new Worker(workerUrl);
     }
 };
 
