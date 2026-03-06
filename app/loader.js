@@ -6,13 +6,15 @@ console.log('[ZohoIDE] Loader starting...');
 
 
 
+
 window.MonacoEnvironment = {
-    getWorkerUrl: function(workerId, label) {
-        // MV3 CSP safe way: return a dummy data blob that does nothing.
-        // Monaco will attempt to load this, fail to find the worker methods,
-        // and safely fallback to the main thread without throwing NetworkError
-        // that crashes the extension.
-        return `data:text/javascript;charset=utf-8,${encodeURIComponent("self.onmessage = function() {};")}`;
+    getWorker: function (workerId, label) {
+        // MV3 CSP safe way: force immediate main-thread fallback.
+        // Returning a dummy blob or local file URL triggers an 'importScripts' NetworkError
+        // inside the worker scope, crashing the extension context.
+        // Throwing an error here causes Monaco's internal wrapper to catch it
+        // and safely fallback to the main thread without browser-level exceptions.
+        throw new Error('Forcing Monaco to run in the main thread due to Extension CSP.');
     }
 };
 
