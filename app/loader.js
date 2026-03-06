@@ -5,13 +5,16 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 console.log('[ZohoIDE] Loader starting...');
 
 
+
 window.MonacoEnvironment = {
-    getWorker: function (moduleId, label) {
-        // Return a new Worker directly pointing to the JS file
-        // This avoids blob: URL creation which triggers MV3 CSP errors
-        return new Worker(chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js'));
+    getWorkerUrl: function (moduleId, label) {
+        // Return a RELATIVE URL.
+        // If we return an absolute chrome-extension:// URL, Monaco thinks it is cross-origin
+        // and tries to wrap it in a blob with importScripts, which violates MV3 CSP.
+        return '../assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
     }
 };
+
 
 
 require.config({
