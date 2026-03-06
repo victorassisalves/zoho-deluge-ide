@@ -1358,6 +1358,50 @@ function renderInterfaceTree(mappingName, obj) {
 }
 
 
+
+// --- METADATA INTERCEPTION HANDLER ---
+// Catches the wiretap payload and flattens it for the Interface Manager
+
+Bus.listen('METADATA_INTERCEPTED', async (data) => {
+    if (data.product === 'creator' && data.payload && data.payload.apps) {
+        console.log("📦 [ZIDE] Processing intercepted Creator Metadata...");
+
+        const apps = data.payload.apps;
+        const appName = Object.keys(apps)[0];
+        const forms = apps[appName].forms;
+
+        const flatSchema = {};
+
+        // 1. Flatten the complex Creator JSON into the InterfaceManager map format
+        for (const formKey in forms) {
+            const fields = forms[formKey].fields;
+            flatSchema[formKey] = {}; // Initialize the form (e.g., 'Service_Order')
+
+            for (const fieldKey in fields) {
+                const fieldData = fields[fieldKey];
+                const isMandatory = fieldData.isMandatory ? " (Mandatory)" : "";
+                // Format: "[STRING] (Mandatory)"
+                flatSchema[formKey][fieldKey] = `[${fieldData.type}]${isMandatory}`;
+            }
+        }
+
+        // 2. Inject directly into the global Interface Mappings
+        window.interfaceMappings = window.interfaceMappings || {};
+        window.interfaceMappings[`creator_schema_${appName}`] = flatSchema;
+        updateInterfaceMappingsList();
+
+        // 3. Link this schema to the currently active file in IndexedDB
+        if (currentContextHash) {
+            await db.files.update(currentContextHash, {
+                'metadata.product': 'creator',
+                'metadata.appName': appName
+            });
+
+            console.log(`✅ [ZIDE] Creator Schema linked to file. Interface updated.`);
+        }
+    }
+});
+
 function showStatus(message, type = 'info') {
     const statusEl = document.getElementById("status-indicator");
     if (statusEl) {

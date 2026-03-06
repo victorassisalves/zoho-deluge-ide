@@ -61,3 +61,62 @@ function triggerAction(type) {
     if (!success) success = clickByText(type);
     return success;
 }
+
+// --- THE ZIDE PASSIVE WIRETAP (PAYLOAD FINGERPRINTING) ---
+// This intercepts network requests passively to extract schemas without triggering security blocks.
+
+(function initializeWiretap() {
+    if (window._zideWiretapInitialized) return;
+    window._zideWiretapInitialized = true;
+
+    const originalFetch = window.fetch;
+
+    window.fetch = async function(...args) {
+        // 1. Let the original request proceed normally
+        const response = await originalFetch.apply(this, args);
+
+        try {
+            // 2. Clone the stream so we don't consume Zoho's data
+            const clone = response.clone();
+
+            clone.json().then(json => {
+                if (!json) return;
+
+                // FINGERPRINT A: CREATOR METADATA
+                if (json.apps && typeof json.apps === 'object') {
+                    const appKeys = Object.keys(json.apps);
+                    if (appKeys.length > 0 && json.apps[appKeys[0]].forms) {
+                        console.log("🟢 [ZIDE] Creator Schema Intercepted via Wiretap!");
+                        // Beam it across the void to the Content Script
+                        window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
+                            detail: {
+                                action: 'METADATA_INTERCEPTED',
+                                product: 'creator',
+                                payload: json
+                            }
+                        }));
+                    }
+                }
+
+                // FINGERPRINT B: CRM METADATA (Future-proofing)
+                if (json.functions && Array.isArray(json.functions) && json.functions[0].workflow) {
+                    console.log("🟢 [ZIDE] CRM Function Intercepted via Wiretap!");
+                    window.dispatchEvent(new CustomEvent('ZOHO_IDE_FROM_PAGE', {
+                        detail: {
+                            action: 'METADATA_INTERCEPTED',
+                            product: 'crm',
+                            payload: json
+                        }
+                    }));
+                }
+            }).catch(e => {
+                // Silently ignore non-JSON responses (HTML/CSS/Images)
+            });
+        } catch (err) {
+            console.error("[ZIDE] Wiretap Error:", err);
+        }
+
+        // 3. Return the untouched original response to Zoho
+        return response;
+    };
+})();
