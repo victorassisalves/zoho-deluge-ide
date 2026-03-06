@@ -272,44 +272,51 @@ async function initEditor() {
         });
 
         // Listen for Explorer file load requests
-        document.addEventListener('explorer:load-file', (e) => {
+
+        document.addEventListener('explorer:load-file', async (e) => {
             const file = e.detail;
-            if (file && file.code) {
-                // If we are connected and this file doesn't match current context, warn user?
-                // For now, Consultant Mode implies viewing/editing offline or just referencing.
-                // If the user wants to push this to a different context, they can, but it might fail or overwrite.
-
-                // We set the value without triggering context switch (or maybe we should simulate one?)
-                // If we simulate context switch, we lose the "current" context if we are connected.
-
-                // Strategy: Load code, but keep current connection context if connected.
-                // If file has a contextHash that matches a known context, maybe we could switch?
-                // But we can't switch the *browser tab* context easily.
-
-                editor.setValue(file.code);
+            if (file) {
+                if (file.code) editor.setValue(file.code);
                 currentContextHash = file.id;
 
-                // Construct pseudo context so push/pull targets the right service
                 const parts = currentContextHash.split('__');
                 if (parts.length >= 3) {
                     currentContext = {
                         service: parts[0],
                         orgId: parts[1],
-                        functionName: parts[2],
-                        contextHash: currentContextHash
-                    };
-                } else {
-                    currentContext = {
-                        service: 'unknown',
-                        orgId: file.workspaceId,
-                        functionName: file.fileName,
-                        contextHash: currentContextHash
+                        functionName: parts[2]
                     };
                 }
 
-                showStatus('Loaded: ' + file.fileName, 'success');
+                // Try to reconnect explicitly to its linked tab
+                try {
+                    const dbTab = await db.workspace_tabs.where('fileId').equals(file.id).first();
+                    if (dbTab && dbTab.chromeTabId) {
+                        chrome.runtime.sendMessage({ action: 'LINK_FILE_TO_TAB', fileId: file.id, tabId: dbTab.chromeTabId }, (response) => {
+                            if (response && response.success) {
+                                isConnected = true;
+                                window.currentTargetTab = { id: dbTab.chromeTabId, tabId: dbTab.chromeTabId, ...response };
+                                const connEl = document.getElementById('status-bar-connection');
+                                if (connEl) connEl.innerHTML = '<span class="status-indicator status-online"></span>Connected Local';
+                            } else {
+                                isConnected = false;
+                                window.currentTargetTab = null;
+                                const connEl = document.getElementById('status-bar-connection');
+                                if (connEl) connEl.innerHTML = '<span class="status-indicator status-offline"></span>Disconnected';
+                            }
+                        });
+                    } else {
+                        isConnected = false;
+                        window.currentTargetTab = null;
+                        const connEl = document.getElementById('status-bar-connection');
+                        if (connEl) connEl.innerHTML = '<span class="status-indicator status-offline"></span>Disconnected';
+                    }
+                } catch(err) {
+                    console.warn(err);
+                }
             }
         });
+
 
         editor.onDidChangeModelContent(() => {
             const code = editor.getValue();

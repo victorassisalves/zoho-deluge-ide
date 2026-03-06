@@ -96,8 +96,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const fileId = request.fileId;
         const requestedTabId = request.tabId; // ID of the specific tab chosen by the user
 
+
         const linkToTab = (targetTabId) => {
+            linkedTabs.set(targetTabId, fileId); // Cache the connection globally
             chrome.tabs.sendMessage(targetTabId, { action: 'SET_CONTEXT_HASH', contextHash: fileId }, (res) => {
+
                 if (chrome.runtime.lastError) {
                     sendResponse({ success: false, error: 'Could not connect to tab. Try refreshing it.' });
                     return;
@@ -186,14 +189,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     }).then(() => {
                         // Retry Ping once
                         setTimeout(() => {
+
                             chrome.tabs.sendMessage(tabId, { action: 'PING' }, (retryRes) => {
                                 if (retryRes && retryRes.status === 'PONG') {
+                                    // RE-ESTABLISH lost context
+                                    if (!retryRes.context || !retryRes.context.contextHash) {
+                                        if (linkedTabs.has(tabId)) {
+                                            chrome.tabs.sendMessage(tabId, { action: 'SET_CONTEXT_HASH', contextHash: linkedTabs.get(tabId) });
+                                        }
+                                    }
                                     chrome.tabs.get(tabId, (tab) => {
                                         sendResponse({
                                             connected: true,
                                             tabTitle: tab.title,
                                             url: tab.url,
                                             context: retryRes.context,
+                                            id: tabId,
                                             isStandalone: !isSidePanel
                                         });
                                     });
@@ -348,8 +359,20 @@ function findZohoTab(callback, targetContextHash = null) {
         if (zohoTabs.length === 0) return callback(null);
 
         // If a specific context is requested, we need to check tabs to find it
+
         if (targetContextHash) {
-            // Ping tabs to find matching context
+            // First check our cache for a direct map
+            for (const [tId, hash] of linkedTabs.entries()) {
+                if (hash === targetContextHash) {
+                    const cachedTab = zohoTabs.find(t => t.id === tId);
+                    if (cachedTab) {
+                        return callback(cachedTab);
+                    }
+                }
+            }
+
+            // Ping tabs to find matching context (fallback)
+
             let pendingChecks = zohoTabs.length;
             let foundTab = null;
 
@@ -386,6 +409,28 @@ function findZohoTab(callback, targetContextHash = null) {
         callback(editorTab || zohoTabs[0]);
     });
 }
+
+
+const linkedTabs = new Map(); // tabId -> contextHash
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && linkedTabs.has(tabId) && isZohoUrl(tab.url)) {
+        // Tab reloaded, re-establish the connection context in the bridge
+        const contextHash = linkedTabs.get(tabId);
+        setTimeout(() => {
+            chrome.tabs.sendMessage(tabId, { action: 'SET_CONTEXT_HASH', contextHash: contextHash });
+        }, 1000); // Wait for bridge injection
+    }
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+    if (linkedTabs.has(tabId)) {
+        const fileId = linkedTabs.get(tabId);
+        linkedTabs.delete(tabId);
+        // Broadcast disconnection
+        chrome.runtime.sendMessage({ action: 'ZOHO_TAB_DISCONNECTED', contextHash: fileId });
+    }
+});
 
 function isZohoUrl(url) {
     if (!url) return false;
