@@ -420,7 +420,7 @@ async function handleContextSwitch(context) {
                                     if (!window.interfaceMappings) window.interfaceMappings = {};
                                     window.interfaceMappings[`creator_schema_${appKey}`] = schemaObj;
                                     if (typeof updateInterfaceMappingsList === 'function') {
-                                        updateInterfaceMappingsList();
+                                        try { updateInterfaceMappingsList(); } catch (e) {}
                                     }
                                 }
                             }

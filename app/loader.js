@@ -4,10 +4,18 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 
 console.log('[ZohoIDE] Loader starting...');
 
+
+
 window.MonacoEnvironment = {
-    getWorkerUrl: function (workerId, label) {
-        // Absolute URL, safe to use from anywhere
-        return chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
+    getWorker: function (workerId, label) {
+        // MV3 CSP safe way: return a direct Worker from the local extension URL.
+        // This avoids the 'blob:' CSP error and the 'importScripts' error.
+        const url = chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
+        return new Worker(url);
+    }
+};
+        `], { type: 'application/javascript' });
+        return new Worker(URL.createObjectURL(blob));
     }
 };
 
