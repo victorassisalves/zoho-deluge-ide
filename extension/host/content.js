@@ -229,10 +229,10 @@
 
 })();
 
-// Listen for messages coming from our MAIN world bridge script
+// Listen for metadata payload events from our MAIN world bridge script
 window.addEventListener('ZOHO_IDE_FROM_PAGE', (event) => {
-    if (event.detail && event.detail.action) {
-        // Relay the payload to the background script / IDE Event Bus
+    if (event.detail && event.detail.action === 'METADATA_INTERCEPTED') {
+        // Relay ONLY the metadata payloads to the background script / IDE Event Bus
         chrome.runtime.sendMessage(event.detail);
     }
 });
