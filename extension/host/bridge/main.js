@@ -29,8 +29,6 @@ window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
     const data = event.detail;
     if (!data || !data.action) return;
 
-    // console.log('[Bridge] Received:', data.action, data);
-
     let response = {};
     const { action, eventId } = data;
 
@@ -61,8 +59,6 @@ function triggerAction(type) {
     if (!success) success = clickByText(type);
     return success;
 }
-
-
 
 // --- Network Payload Fingerprinting ---
 function inspectPayload(jsonText, url) {
