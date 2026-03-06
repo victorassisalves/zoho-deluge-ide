@@ -43,7 +43,8 @@ Bus.listen('SCHEMA_CAPTURED', async (payload) => {
 
         Logger.info('controller', `Received SCHEMA_CAPTURED for ${payload.type}`);
 
-        if (payload.type === 'creator' && currentContext && currentContext.orgId) {
+
+        if (payload.type === 'creator') {
             const apps = payload.payload.apps;
             if (apps) {
                 const appKey = Object.keys(apps)[0];
@@ -53,6 +54,7 @@ Bus.listen('SCHEMA_CAPTURED', async (payload) => {
                     Logger.success('controller', `Saved Creator Schema for app: ${appKey}`);
 
                     // Automatically add to Interface Manager for visibility
+
                     if (window.activeCloudFileId) {
                         const file = await db.files.get(window.activeCloudFileId);
                         if (file) {
