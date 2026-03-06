@@ -86,8 +86,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+
     let isSidePanel = sender.tab && isZohoUrl(sender.tab.url);
-    let targetTabId = isSidePanel ? sender.tab.id : null;
+    // If the IDE explicitly passes targetTabId (from chromeTabId in db), use it!
+    let targetTabId = isSidePanel ? sender.tab.id : (request.targetTabId || (request.payload && request.payload.targetTabId) || null);
+
 
     if (request.action === 'LINK_FILE_TO_TAB') {
         const fileId = request.fileId;

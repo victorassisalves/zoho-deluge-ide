@@ -1460,6 +1460,7 @@ function pullFromZoho() {
     ZohoRunner.pullFromZoho(currentContextHash);
 }
 
+
 function pushToZoho(triggerSave = false, triggerExecute = false) {
     const now = Date.now();
     if (now - lastActionTime < 1000) return;
@@ -1475,9 +1476,10 @@ function pushToZoho(triggerSave = false, triggerExecute = false) {
     }
 
     const code = editor.getValue();
-    log('System', 'Pushing code...');
-    ZohoRunner.pushToZoho(code, triggerSave, triggerExecute, currentContextHash);
+    const tabId = window.currentTargetTab ? window.currentTargetTab.id : null;
+    ZohoRunner.pushToZoho(code, triggerSave, triggerExecute, currentContextHash, tabId);
 }
+
 
 function createSnapshot() {
     // Check for errors

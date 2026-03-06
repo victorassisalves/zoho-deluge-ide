@@ -263,6 +263,9 @@
 
     log('Bridge initialized in frame:', window.location.href);
 
+
+    let currentContext = { contextHash: null };
+
     window.addEventListener('ZOHO_IDE_FROM_EXT', async (event) => {
         const data = event.detail;
         if (!data || !data.action) return;
@@ -272,7 +275,11 @@
         let response = {};
         const { action, eventId } = data;
 
-        if (action === 'GET_ZOHO_CODE') {
+        if (action === 'SET_CONTEXT_HASH') {
+            currentContext.contextHash = data.contextHash;
+            response = { success: true };
+        } else if (action === 'GET_ZOHO_CODE') {
+
             log('GET_ZOHO_CODE requested');
             for (let engineName of Object.keys(Engines)) {
                 const engine = Engines[engineName];
@@ -308,9 +315,11 @@
         } else if (action === 'EXECUTE_ZOHO_CODE') {
             log('EXECUTE_ZOHO_CODE requested');
             response = { success: triggerAction('execute') };
+
         } else if (action === 'PING') {
-            response = { status: 'PONG' };
+            response = { status: 'PONG', context: currentContext };
         }
+
 
         log('[Bridge] Responding:', action, response);
 

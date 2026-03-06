@@ -9,14 +9,17 @@ export const ZohoRunner = {
      * @param {boolean} triggerSave - Whether to trigger the Save button
      * @param {boolean} triggerExecute - Whether to trigger the Execute button
      */
-    pushToZoho(code, triggerSave = false, triggerExecute = false, contextHash = null) {
+
+    pushToZoho(code, triggerSave = false, triggerExecute = false, contextHash = null, targetTabId = null) {
         if (!code) return;
 
         console.log('[ZohoRunner] Syncing with Zoho...', { triggerSave, triggerExecute });
 
         const payload = { code: code };
         if (contextHash) payload.targetContextHash = contextHash;
+        if (targetTabId) payload.targetTabId = targetTabId;
         payload.autoFocus = true; // Auto focus on push/save
+
 
         if (triggerSave) {
             console.debug('[ZohoRunner] Action: SAVE');
@@ -42,12 +45,15 @@ export const ZohoRunner = {
     /**
      * Pull code from the connected Zoho editor
      */
-    pullFromZoho(contextHash = null) {
+
+    pullFromZoho(contextHash = null, targetTabId = null) {
         console.log('[ZohoRunner] Pulling code from Zoho...');
         // We use the standard protocol message
         const payload = {};
         if (contextHash) payload.targetContextHash = contextHash;
+        if (targetTabId) payload.targetTabId = targetTabId;
         payload.autoFocus = true; // Auto focus on pull
+
         Bus.send(MSG.CODE_PULL, payload);
     }
 };
