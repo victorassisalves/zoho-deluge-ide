@@ -35,6 +35,7 @@ var currentContextHash = null;
 var autoSaveTimer = null;
 
 
+
 // --- Metadata Interception (Phase 7) ---
 Bus.listen('SCHEMA_CAPTURED', async (payload) => {
     try {
@@ -50,6 +51,35 @@ Bus.listen('SCHEMA_CAPTURED', async (payload) => {
                     const settingsKey = `schema_creator_${appKey}`;
                     await setSetting(settingsKey, apps[appKey]);
                     Logger.success('controller', `Saved Creator Schema for app: ${appKey}`);
+
+                    // Automatically add to Interface Manager for visibility
+                    if (window.activeCloudFileId) {
+                        const file = await db.files.get(window.activeCloudFileId);
+                        if (file) {
+                            const variables = file.variables || {};
+                            // Format it for Interface Manager (flat Map-style structure)
+                            const interfaceSchema = {};
+                            const rawForms = apps[appKey].forms || {};
+
+                            for (const [formName, formData] of Object.entries(rawForms)) {
+                                const fields = formData.fields || {};
+                                const interfaceFields = {};
+                                for (const [fieldName, fieldData] of Object.entries(fields)) {
+                                    interfaceFields[fieldName] = `[${fieldData.type}]`;
+                                }
+                                interfaceSchema[formName] = interfaceFields;
+                            }
+
+                            const interfaceName = `creator_schema_${appKey}`;
+                            variables[interfaceName] = interfaceSchema;
+
+                            await db.files.update(file.id, { variables, isDirty: 1 });
+                            Logger.info('controller', `Added ${interfaceName} to Interface Manager`);
+
+                            // Emit event to update UI
+                            Bus.send('INTERFACE_VARS_UPDATED', variables);
+                        }
+                    }
 
                     // Re-broadcast so CreatorProvider updates immediately
                     Bus.send('SCHEMA_UPDATED', { type: 'creator', appKey: appKey, schema: apps[appKey] });
