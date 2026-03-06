@@ -70,14 +70,29 @@ Bus.listen('SCHEMA_CAPTURED', async (payload) => {
                                 interfaceSchema[formName] = interfaceFields;
                             }
 
-                            const interfaceName = `creator_schema_${appKey}`;
-                            variables[interfaceName] = interfaceSchema;
 
+                            const interfaceName = `creator_schema_${appKey}`;
+
+                            // 1. Update Dexie files
+                            variables[interfaceName] = interfaceSchema;
                             await db.files.update(file.id, { variables, isDirty: 1 });
+
+                            // 2. Update Interface Manager globals directly
+                            if (typeof interfaceMappings !== 'undefined') {
+                                interfaceMappings[interfaceName] = interfaceSchema;
+                                window.interfaceMappings = interfaceMappings;
+
+                                // Save and render if the UI functions are available
+                                if (typeof saveCurrentMappings === 'function') {
+                                    saveCurrentMappings();
+                                }
+                                if (typeof updateInterfaceMappingsList === 'function') {
+                                    updateInterfaceMappingsList();
+                                }
+                            }
+
                             Logger.info('controller', `Added ${interfaceName} to Interface Manager`);
 
-                            // Emit event to update UI
-                            Bus.send('INTERFACE_VARS_UPDATED', variables);
                         }
                     }
 
