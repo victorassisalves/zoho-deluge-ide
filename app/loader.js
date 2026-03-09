@@ -4,19 +4,14 @@ if (window.location.search.includes("mode=sidepanel") || window.location.hash.in
 
 console.log('[ZohoIDE] Loader starting...');
 
-// --- Intercept Web Worker Instantiation ---
-// MV3 CSP strictly blocks 'importScripts' inside Blob-based Workers, throwing an uncatchable browser NetworkError that crashes the app.
-// To prevent Monaco from crashing the extension, we intercept the Worker constructor and throw a standard, catchable JS Error instead.
-// Monaco's internal error boundary catches this gracefully and falls back to main-thread execution.
-const OriginalWorker = window.Worker;
-window.Worker = function(scriptURL, options) {
-    if (typeof scriptURL === 'string' && scriptURL.startsWith('blob:')) {
-        console.warn('[ZohoIDE] Blocked Monaco from instantiating CSP-violating Blob Worker. Forcing safe main-thread fallback.');
-        throw new Error('Blocked Worker Blob by extension CSP policy');
+window.MonacoEnvironment = {
+    // Use getWorker instead of getWorkerUrl to bypass the Blob creation
+    getWorker: function (moduleId, label) {
+        // Construct the direct local path to the worker file.
+        const workerUrl = chrome.runtime.getURL('assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js');
+        return new Worker(workerUrl);
     }
-    return new OriginalWorker(scriptURL, options);
 };
-
 
 
 

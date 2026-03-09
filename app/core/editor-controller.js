@@ -312,7 +312,7 @@ async function initEditor() {
     }
 }
 
-async
+
 let disconnectCounter = 0;
 function checkConnection() {
     if (typeof chrome !== "undefined" && chrome.runtime) {
