@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "acorn": "^8.16.0",
     "dexie": "^4.3.0",
     "playwright": "^1.58.2"
   },

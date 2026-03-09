@@ -6,14 +6,17 @@ console.log('[ZohoIDE] Loader starting...');
 
 
 
+
 window.MonacoEnvironment = {
-    getWorkerUrl: function (moduleId, label) {
-        // Return a RELATIVE URL.
-        // If we return an absolute chrome-extension:// URL, Monaco thinks it is cross-origin
-        // and tries to wrap it in a blob with importScripts, which violates MV3 CSP.
-        return '../assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js';
+    // Use getWorker instead of getWorkerUrl to bypass the Blob creation
+    getWorker: function (moduleId, label) {
+        // Construct the direct local path to the worker file.
+        // Depending on where your loader file is, adjust the relative path
+        const workerUrl = new URL('../assets/monaco-editor/min/vs/assets/editor.worker-Be8ye1pW.js', import.meta.url).href;
+        return new Worker(workerUrl);
     }
 };
+
 
 
 
