@@ -78,6 +78,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let targetTabId = isSidePanel ? sender.tab.id : null;
 
     if (request.action === 'LINK_FILE_TO_TAB') {
+        // Save to background in-memory state
+        if (request.fileId && request.tabId) {
+            fileToTabMap.set(request.tabId, request.fileId);
+        }
         const fileId = request.fileId;
         const requestedTabId = request.tabId; // ID of the specific tab chosen by the user
 
@@ -171,20 +175,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     }).then(() => {
                         // Retry Ping once
                         setTimeout(() => {
-                            chrome.tabs.sendMessage(tabId, { action: 'PING' }, (retryRes) => {
-                                if (retryRes && retryRes.status === 'PONG') {
-                                    chrome.tabs.get(tabId, (tab) => {
-                                        sendResponse({
-                                            connected: true,
-                                            tabTitle: tab.title,
-                                            url: tab.url,
-                                            context: retryRes.context,
-                                            isStandalone: !isSidePanel
+                            const expectedHash = fileToTabMap.get(tabId) || (request.payload && request.payload.targetContextHash) || request.targetContextHash;
+                            chrome.tabs.sendMessage(tabId, { action: 'SET_CONTEXT_HASH', contextHash: expectedHash }, () => {
+                                chrome.tabs.sendMessage(tabId, { action: 'PING' }, (retryRes) => {
+                                    if (retryRes && retryRes.status === 'PONG') {
+                                        chrome.tabs.get(tabId, (tab) => {
+                                            sendResponse({
+                                                connected: true,
+                                                tabTitle: tab.title,
+                                                url: tab.url,
+                                                context: retryRes.context,
+                                                isStandalone: !isSidePanel
+                                            });
                                         });
-                                    });
-                                } else {
-                                    sendResponse({ connected: false });
-                                }
+                                    } else {
+                                        sendResponse({ connected: false });
+                                    }
+                                });
                             });
                         }, 500); // Increased wait time for injection
                     }).catch(() => sendResponse({ connected: false }));
@@ -377,3 +384,51 @@ function isZohoUrl(url) {
     const domains = ["zoho.com", "zoho.eu", "zoho.in", "zoho.com.au", "zoho.jp", "zoho.ca", "zoho.uk", "zoho.com.cn"];
     return domains.some(d => url.includes(d));
 }
+
+// --- CONNECTION PERSISTENCE & AUTO-RECONNECT ---
+// Map to keep track of tabId -> fileId links
+const fileToTabMap = new Map();
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    // If a tab has finished reloading and it was linked to a file
+    if (changeInfo.status === 'complete' && fileToTabMap.has(tabId) && isZohoUrl(tab.url)) {
+        const fileId = fileToTabMap.get(tabId);
+        // Wait a brief moment to ensure Zoho's internal JS has started, then attempt reconnect
+        setTimeout(() => {
+            chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                files: ['extension/host/content.js']
+            }).then(() => {
+                // Tell the tab what its context hash is
+                chrome.tabs.sendMessage(tabId, { action: 'SET_CONTEXT_HASH', contextHash: fileId }, () => {
+                    // Try pinging it to verify
+                    chrome.tabs.sendMessage(tabId, { action: 'PING' }, (pingRes) => {
+                        if (pingRes && pingRes.status === 'PONG') {
+                            console.log(`[ZohoIDE] Auto-reconnected tab ${tabId} to file ${fileId}`);
+                            // Tell the IDE frontend that the connection was restored
+                            chrome.runtime.sendMessage({
+                                action: 'TAB_RECONNECTED',
+                                fileId: fileId,
+                                context: pingRes.context
+                            });
+                        }
+                    });
+                });
+            }).catch(e => {
+                console.warn(`[ZohoIDE] Failed to auto-reconnect tab ${tabId}:`, e);
+            });
+        }, 1500); // 1.5s delay to let DOM settle
+    }
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+    if (fileToTabMap.has(tabId)) {
+        const fileId = fileToTabMap.get(tabId);
+        fileToTabMap.delete(tabId);
+        // Notify IDE that the tab was permanently closed
+        chrome.runtime.sendMessage({
+            action: 'TAB_CLOSED',
+            fileId: fileId
+        });
+    }
+});

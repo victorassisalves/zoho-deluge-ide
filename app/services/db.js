@@ -43,4 +43,19 @@ export const setSetting = async (key, value) => {
     return await db.settings.put({ key, value });
 };
 
+// Helpers for Workspace Tabs
+export const getFileTabId = async (fileId) => {
+    const tabRec = await db.workspace_tabs.where('fileId').equals(fileId).first();
+    return tabRec ? tabRec.chromeTabId : null;
+};
+
+export const linkFileToTab = async (fileId, chromeTabId) => {
+    const existing = await db.workspace_tabs.where('fileId').equals(fileId).first();
+    if (existing) {
+        await db.workspace_tabs.update(existing.id, { chromeTabId });
+    } else {
+        await db.workspace_tabs.put({ id: crypto.randomUUID(), fileId, chromeTabId });
+    }
+};
+
 export default db;

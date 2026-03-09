@@ -83,5 +83,26 @@ export function renderModals() {
                 </div>
             </div>
         </div>
+
+        <!-- Tab Selection Modal -->
+        <div id="tab-selection-modal" class="modal-overlay" style="display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+            <div class="modal-content" style="background: var(--md-sys-color-surface); padding: 20px; border-radius: 8px; width: 400px; max-height: 80vh; display: flex; flex-direction: column;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>Select Zoho Tab</h3>
+                    <span id="tab-selection-close" style="cursor:pointer; opacity:0.6; display:flex;">
+                        ${Icons.close}
+                    </span>
+                </div>
+                <div class="modal-body" style="overflow-y: auto; flex-grow: 1;">
+                    <ul id="tab-selection-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+                    </ul>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: flex-end; margin-top: 15px;">
+                    <div class="footer-right">
+                        <button id="tab-selection-cancel" class="text-btn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     `;
 }

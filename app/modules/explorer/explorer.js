@@ -512,38 +512,31 @@ export class Explorer {
                 return;
             }
 
-            let promptText = `Select a Zoho tab to link to "${file.fileName}":\n\n`;
-            response.tabs.forEach((tab, idx) => {
-                promptText += `${idx + 1}. ${tab.title} (...${tab.url.substring(tab.url.length - 30)})\n`;
+            // Open Modal
+            const modal = document.getElementById('tab-selection-modal');
+            const list = document.getElementById('tab-selection-list');
+            if (!modal || !list) return;
+
+            list.innerHTML = '';
+            response.tabs.forEach((tab) => {
+                const li = document.createElement('li');
+                li.style.cssText = 'padding: 10px; border-radius: 6px; background: var(--md-sys-color-surface-container); cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: background 0.2s;';
+                li.innerHTML = `
+                    <span style="font-weight: 500; font-size: 14px; color: var(--md-sys-color-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${tab.title}</span>
+                    <span style="font-size: 12px; color: var(--md-sys-color-on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${tab.url}</span>
+                `;
+                li.onmouseenter = () => li.style.background = 'var(--md-sys-color-surface-variant)';
+                li.onmouseleave = () => li.style.background = 'var(--md-sys-color-surface-container)';
+                li.onclick = () => {
+                    modal.style.display = 'none';
+                    this.handleTabSelection(file.id, tab.id);
+                };
+                list.appendChild(li);
             });
 
-            const selection = prompt(promptText + '\nEnter number:');
-            if (selection === null) return;
-            const idx = parseInt(selection, 10) - 1;
-
-            if (!isNaN(idx) && response.tabs[idx]) {
-                const targetTabId = response.tabs[idx].id;
-
-                const linkingEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Linking...', type: 'info' } });
-                document.dispatchEvent(linkingEvent);
-
-                chrome.runtime.sendMessage({ action: 'LINK_FILE_TO_TAB', fileId: file.id, tabId: targetTabId }, (linkResponse) => {
-                    if (linkResponse && linkResponse.success && linkResponse.context) {
-                        const successEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Tab successfully linked!', type: 'success' } });
-                        document.dispatchEvent(successEvent);
-                        // Trigger context switch to focus
-                        const linkEvent = new CustomEvent('zoho-ide:force-context-switch', { detail: linkResponse.context });
-                        document.dispatchEvent(linkEvent);
-                        this.setConnectedFile(file.id);
-                    } else {
-                        const errEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Failed to link: ' + (linkResponse.error || 'Unknown Error'), type: 'error' } });
-                        document.dispatchEvent(errEvent);
-                    }
-                });
-            } else {
-                const errEvent = new CustomEvent('zoho-ide:status', { detail: { msg: 'Invalid tab selection.', type: 'warning' } });
-                document.dispatchEvent(errEvent);
-            }
+            modal.style.display = 'flex';
+            document.getElementById('tab-selection-close').onclick = () => modal.style.display = 'none';
+            document.getElementById('tab-selection-cancel').onclick = () => modal.style.display = 'none';
         });
     }
 
