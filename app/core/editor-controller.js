@@ -473,6 +473,28 @@ function setupEventHandlers() {
         if (explorer) explorer.createWorkspace();
     });
 
+    // Listen for tab auto-reconnections
+    if (chrome && chrome.runtime && chrome.runtime.onMessage) {
+        chrome.runtime.onMessage.addListener((request) => {
+            if (request.action === 'TAB_RECONNECTED') {
+                if (currentContextHash === request.fileId) {
+                    showStatus('Connection restored after reload', 'success');
+                    handleContextSwitch(request.context);
+                }
+                if (explorer) explorer.setConnectedFile(request.fileId);
+            } else if (request.action === 'TAB_CLOSED') {
+                if (currentContextHash === request.fileId) {
+                    showStatus('Linked tab was closed', 'warning');
+                    isConnected = false;
+                    updateConnectionStatus(false);
+                    if (explorer) explorer.setConnectedFile(null);
+                }
+            }
+            return true;
+        });
+    }
+
+
     bind('link-tab-btn', 'click', () => {
         if (!currentContextHash) {
             showStatus('Open or create a file to link first.', 'error');
@@ -486,32 +508,30 @@ function setupEventHandlers() {
                 return;
             }
 
-            let promptText = 'Select a Zoho tab to link to this file:\n\n';
-            response.tabs.forEach((tab, idx) => {
-                promptText += `${idx + 1}. ${tab.title} (...${tab.url.substring(tab.url.length - 30)})\n`;
+            const modal = document.getElementById('tab-selection-modal');
+            const list = document.getElementById('tab-selection-list');
+            if (!modal || !list) return;
+
+            list.innerHTML = '';
+            response.tabs.forEach((tab) => {
+                const li = document.createElement('li');
+                li.style.cssText = 'padding: 10px; border-radius: 6px; background: var(--md-sys-color-surface-container); cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: background 0.2s;';
+                li.innerHTML = `
+                    <span style="font-weight: 500; font-size: 14px; color: var(--md-sys-color-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${tab.title}</span>
+                    <span style="font-size: 12px; color: var(--md-sys-color-on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${tab.url}</span>
+                `;
+                li.onmouseenter = () => li.style.background = 'var(--md-sys-color-surface-variant)';
+                li.onmouseleave = () => li.style.background = 'var(--md-sys-color-surface-container)';
+                li.onclick = () => {
+                    modal.style.display = 'none';
+                    if (explorer) explorer.handleTabSelection(currentContextHash, tab.id);
+                };
+                list.appendChild(li);
             });
 
-            const selection = prompt(promptText + '\nEnter number:');
-            if (selection === null) return;
-            const idx = parseInt(selection, 10) - 1;
-
-            if (!isNaN(idx) && response.tabs[idx]) {
-                const targetTabId = response.tabs[idx].id;
-                showStatus('Linking...', 'info');
-
-                chrome.runtime.sendMessage({ action: 'LINK_FILE_TO_TAB', fileId: currentContextHash, tabId: targetTabId }, (linkResponse) => {
-                    if (linkResponse && linkResponse.success && linkResponse.context) {
-                        showStatus('Tab successfully linked!', 'success');
-                        console.log('[ZohoIDE] Manual Link:', linkResponse.context);
-                        handleContextSwitch(linkResponse.context);
-                        if (explorer) explorer.setConnectedFile(currentContextHash);
-                    } else {
-                        showStatus('Failed to link: ' + (linkResponse.error || 'Unknown Error'), 'error');
-                    }
-                });
-            } else {
-                showStatus('Invalid tab selection.', 'warning');
-            }
+            modal.style.display = 'flex';
+            document.getElementById('tab-selection-close').onclick = () => modal.style.display = 'none';
+            document.getElementById('tab-selection-cancel').onclick = () => modal.style.display = 'none';
         });
     });
 
